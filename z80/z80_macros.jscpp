@@ -472,10 +472,7 @@ break
   F = sz53p_table[A];\
 }
 
-/* speed tweaks */
-/* #define readbyte readbyte_internal */
-#define readbyte(b) memory[b]
-#define readbyte_internal(b) memory[b]
-#define writebyte writebyte_internal
+#define readbyte_internal readbyte
+#define writebyte_internal writebyte
 
 #endif		/* #ifndef FUSE_Z80_MACROS_H */
