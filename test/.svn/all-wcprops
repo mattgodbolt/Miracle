@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 35
+/svn/!svn/ver/676/jsspec/trunk/test
+END
+test.html
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/!svn/ver/676/jsspec/trunk/test/test.html
+END
+tests.expected
+K 25
+svn:wc:ra_dav:version-url
+V 50
+/svn/!svn/ver/494/jsspec/trunk/test/tests.expected
+END
+tests.in
+K 25
+svn:wc:ra_dav:version-url
+V 44
+/svn/!svn/ver/494/jsspec/trunk/test/tests.in
+END
+README
+K 25
+svn:wc:ra_dav:version-url
+V 42
+/svn/!svn/ver/494/jsspec/trunk/test/README
+END
