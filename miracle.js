@@ -48,9 +48,13 @@ function paintScreen() {
 
 function loadRom(rom) {
 	var numRomBanks = rom.length / 0x4000;
+	console.log('Loading rom of ' + numRomBanks + ' banks');
 	romBanks = []
 	for (var i = 0; i < numRomBanks; i++) {
-		romBanks[i] = rom.slice(i * 0x4000, (i + 1) * 0x4000);
+	    romBanks[i] = [];
+	    for (var j = 0; j < 0x4000; j++) {
+		    romBanks[i][j] = rom.charCodeAt(i * 0x4000 + j);
+		}
 	}
 	for (var i = 0; i < 3; i++) {
 		pages[i] = i % numRomBanks;
@@ -58,7 +62,7 @@ function loadRom(rom) {
 }
 
 function readbyte(address) {
-	if (address < 0x0400) { return ram[address]; }
+	if (address < 0x0400) { return romBanks[0][address - 0x0000]; }
 	if (address < 0x4000) { return romBanks[pages[0]][address - 0x0000]; }
 	if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
 	if (address < 0xc000) { return romBanks[pages[2]][address - 0x8000]; }

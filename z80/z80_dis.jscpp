@@ -1,0 +1,45 @@
+function hexword(value) {
+  return ((value >> 12) & 0xf).toString(16) +
+         ((value >> 8) & 0xf).toString(16) + 
+         ((value >> 4) & 0xf).toString(16) +
+         (value & 0xf).toString(16); 
+}
+
+function hexbyte(value) {
+  return ((value >> 4) & 0xf).toString(16) +
+         (value & 0xf).toString(16); 
+}
+
+function disassemble(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "opcodes_base_dis.jscpp"
+  }
+  return [res, address];
+}
+
+function disassemble_CB(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "z80_cb_dis.jscpp"
+  }
+  return [res, address];
+}
+
+function disassemble_ED(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "z80_ed_dis.jscpp"
+  }
+  return [res, address];
+}
+
+
+//#include "z80_ddfd_dis.jscpp"
+//#include "z80_ddfdcb_dis.jscpp"
