@@ -9,6 +9,8 @@ var imageDataData;
 var hasImageData;
 var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') != -1);
 
+var joystick = 0xffff;
+
 function miracle_init() {
 	vdp_init();
 	for (var i = 0x0000; i < 0x2000; i++) {
@@ -30,6 +32,40 @@ function miracle_init() {
 		alert('upgrade your browser, dude');
 		// Unsupported....
 	}
+	document.onkeydown = keyDown;
+	document.onkeyup = keyUp;
+	document.onkeypress = keyPress;
+}
+
+var keys = {
+	87:	1,  // W = JP1 up
+	83:	2,  // S = JP1 down
+	65: 4,  // A = JP1 left
+	68: 8,  // D = JP1 right
+	32: 16, // Space = JP1 fire 1
+	13: 32, // Enter = JP1 fire 2 
+}
+
+function keyDown(evt) {
+	var key = keys[evt.keyCode];
+	if (key) {
+		joystick &= ~key;
+		console.log(hexword(joystick));
+		if (!evt.metaKey) return false;
+	}
+}
+
+function keyUp(evt) {
+	var key = keys[evt.keyCode];
+	if (key) {
+		joystick |= key;
+		console.log(hexword(joystick));
+		if (!evt.metaKey) return false;
+	}
+}
+
+function keyPress(evt) {
+	if (!evt.metaKey) return false;
 }
 
 function paintScreen() {
@@ -75,9 +111,9 @@ function readport(addr) {
 	addr &= 0xff;
     switch (addr) {
     case 0xdc: case 0xc0:
-    	return 0xff;  // TASK: joystick input
+    	return joystick & 0xff;
     case 0xdd: case 0xc1:
-    	return 0xff;  // TASK: joystick input & nationalization
+    	return (joystick >> 8) & 0xff;
     case 0xbe:
     	return vdp_readbyte();
     case 0xbd: case 0xbf:

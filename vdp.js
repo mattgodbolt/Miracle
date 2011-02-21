@@ -97,26 +97,54 @@ function rasterize_line(line) {
 			imageDataData[lineAddr + i + 2] = 0x0;
 		}
 	} else {
-		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (line >> 3) * 64;
-		var yMod = line & 7;
+		var effectiveLine = line + vdp_regs[9];
+		if (effectiveLine >= 224) { effectiveLine -= 224; }
+		var pixelOffset = vdp_regs[8] * 4;
+		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+		var yMod = effectiveLine & 7;
 		for (var i = 0; i < 32; i++) {
 			var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
 			var tileNum = tileData & 511;
-			var tileDef = 32 * tileNum + (4 * yMod);  // TODO: yflip
+			var tileDef = 32 * tileNum;
+			if (tileData & 2048) {
+				 tileDef += 28 - (4 * yMod);
+			} else {
+				 tileDef += (4 * yMod);
+			}
 			var tileVal0 = vram[tileDef];
 			var tileVal1 = vram[tileDef + 1];
 			var tileVal2 = vram[tileDef + 2];
 			var tileVal3 = vram[tileDef + 3];
-			for (var j = 0; j < 8; j++) {
-				var index = ((tileVal0 & 128) >> 7) | ((tileVal1 & 128) >> 6) | ((tileVal2 & 128) >> 5) | ((tileVal3 & 128) >> 4);
-				// TODO: palette choice
-				imageDataData[lineAddr] = paletteR[index]; lineAddr++; 
-				imageDataData[lineAddr] = paletteG[index]; lineAddr++;
-				imageDataData[lineAddr] = paletteB[index]; lineAddr += 2; 
-				tileVal0<<=1;
-				tileVal1<<=1;
-				tileVal2<<=1;
-				tileVal3<<=1;
+			var paletteOffset = 0;
+			if (tileData & 4096) {
+				paletteOffset = 16;
+			}
+			if (tileData & 1024) {
+				for (var j = 0; j < 8; j++) {
+					var index = ((tileVal0 & 1) << 3) | ((tileVal1 & 2) >> 2) | ((tileVal2 & 4) >> 1) | ((tileVal3 & 8));
+					index += paletteOffset;
+					imageDataData[lineAddr + pixelOffset] = paletteR[index]; pixelOffset++; 
+					imageDataData[lineAddr + pixelOffset] = paletteG[index]; pixelOffset++;
+					imageDataData[lineAddr + pixelOffset] = paletteB[index]; pixelOffset += 2;
+					pixelOffset &= 1023; 
+					tileVal0>>=1;
+					tileVal1>>=1;
+					tileVal2>>=1;
+					tileVal3>>=1;
+				}
+			} else {
+				for (var j = 0; j < 8; j++) {
+					var index = ((tileVal0 & 128) >> 7) | ((tileVal1 & 128) >> 6) | ((tileVal2 & 128) >> 5) | ((tileVal3 & 128) >> 4);
+					index += paletteOffset;
+					imageDataData[lineAddr + pixelOffset] = paletteR[index]; pixelOffset++; 
+					imageDataData[lineAddr + pixelOffset] = paletteG[index]; pixelOffset++;
+					imageDataData[lineAddr + pixelOffset] = paletteB[index]; pixelOffset += 2;
+					pixelOffset &= 1023; 
+					tileVal0<<=1;
+					tileVal1<<=1;
+					tileVal2<<=1;
+					tileVal3<<=1;
+				}
 			}
 		}
 	}
