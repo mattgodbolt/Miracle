@@ -27,11 +27,8 @@ function miracle_init() {
 		imageData = ctx.getImageData(0,0,256,192);
 		imageDataData = imageData.data;
 	} else {
-		/* this browser does not support getImageData / putImageData;
-			use horribly slow fillRect method to plot pixels instead */
-		hasImageData = false;
-		drawScreenByte = drawScreenByteWithoutImageData;
-		drawAttrByte = drawAttrByteWithoutImageData;
+		alert('upgrade your browser, dude');
+		// Unsupported....
 	}
 }
 
@@ -58,12 +55,13 @@ function loadRom(rom) {
 }
 
 function readbyte(address) {
-	if (address < 0x0400) { return romBanks[0][address - 0x0000]; }
-	if (address < 0x4000) { return romBanks[pages[0]][address - 0x0000]; }
+	if (address < 0x0400) { return romBanks[0][address]; }
+	if (address < 0x4000) { return romBanks[pages[0]][address]; }
 	if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
 	if (address < 0xc000) { return romBanks[pages[2]][address - 0x8000]; }
 	if (address < 0xe000) { return ram[address - 0xc000]; }
 	if (address < 0xfffc) { return ram[address - 0xe000]; }
+	zoiks();
 	return 0;  // TODO: paging registers
 }
 
@@ -74,7 +72,7 @@ function writebyte(address, value) {
 }
 
 function readport(addr) {
-	addr &= 0xff; // TODO, work out this?
+	addr &= 0xff;
     switch (addr) {
     case 0xbe:
     	return vdp_readbyte();
@@ -89,7 +87,7 @@ function readport(addr) {
 }
 
 function writeport(addr, val) {
-	addr &= 0xff; // TODO, work out this?
+	addr &= 0xff;
     switch (addr) {
     case 0x7f:
     	// TODO: sound...

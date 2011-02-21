@@ -60,15 +60,18 @@
 				start();
 			}
 			function frame() {
-				event_next_event = 220; // TASK: not 220?
-				tstates -= 220;
-				z80_do_opcodes();
-				/* dumpScreen(); */
-				if (vdp_hblank()) {
-					z80_interrupt();
+				var vdp_status = 0;
+				while ((vdp_status & 2) == 0) {
+					event_next_event = 220; // TASK: not 220?
+					tstates -= 220;
+					z80_do_opcodes();
+					/* dumpScreen(); */
+					vdp_status = vdp_hblank();
+					if (vdp_status) {
+						z80_interrupt();
+					}
 				}
-				// TASK: not evey hline...
-				//paintScreen();
+				paintScreen();
 			}
 			function updateDebug() {
 				var disass = document.getElementById('disassembly');
@@ -100,7 +103,6 @@
 					if (z80.pc != curpc) break;
 				}
 				updateDebug();
-				console.log(hexword(z80.pc) + ' ' + disassemble(z80.pc)[0]);
 			}
 			function dumpScreen() {
 				var out = '';

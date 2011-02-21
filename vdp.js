@@ -85,22 +85,35 @@ function vdp_readstatus() {
 	// TODO: sprite collision
 	res = vdp_status;
 	vdp_status &= 0x3f;
-	bobble();
 	return res;
 }
 
-function vdp_hblank() {
-	vdp_current_line++;
-	var needIrq = 0;
-	if (--vdp_hblank_counter < 0) {
-		vdp_hblank_counter = vdp_regs[10];
-		vdp_status |= 64;
-		needIrq = 1;
+function rasterize_line(line) {
+	var lineAddr = line * 256 * 4;
+	for (var i = 0; i < 256 * 4; i += 4) {
+		imageDataData[lineAddr + i] = 0xff; 
+		imageDataData[lineAddr + i + 1] = 0x80; 
+		imageDataData[lineAddr + i + 2] = 0x80;
 	}
+}
+
+function vdp_hblank() {
+	var needIrq = 0;
+	if (vdp_current_line >= 64 && vdp_current_line < (64+192)) {
+		rasterize_line(vdp_current_line - 64);
+		if (--vdp_hblank_counter < 0) {
+			vdp_hblank_counter = vdp_regs[10];
+			vdp_status |= 64;
+			if (vdp_regs[0] & 16) {
+				needIrq |= 1;
+			}
+		}
+	}
+	vdp_current_line++;
 	if (vdp_current_line == 312) { // TASK: 312?
 		vdp_current_line = 0;
 		vdp_status |= 128;
-		needIrq = 1;
+		needIrq |= 2;
 	}
 	return needIrq;
 }
