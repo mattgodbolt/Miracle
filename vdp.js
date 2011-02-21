@@ -88,6 +88,32 @@ function vdp_readstatus() {
 	return res;
 }
 
+function findSprites(line) {
+	var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
+	var active = [];
+	if (vdp_regs[6] & 4) {
+		spriteInfo += 0x2000;
+	}
+	var spriteHeight = 8;
+	if (vdp_regs[1] & 2) {
+		spriteHeight = 16;
+	}
+	for (var i = 0; i < 64; i++) {
+		var y = vram[spriteInfo + i];
+		if (y === 208) {
+			break;
+		}
+		if (line >= y && line < (y + spriteHeight)) {
+			active.push([vram[spriteInfo + 128 + i * 2], vram[spriteInfo + 128 + i * 2 + 1]]);
+			if (active.length === 8) {
+				break;
+			}
+		}
+	}
+	
+	return active;
+}
+
 function rasterize_line(line) {
 	var lineAddr = line * 256 * 4;
 	if ((vdp_regs[1] & 64) == 0) {
@@ -99,6 +125,7 @@ function rasterize_line(line) {
 	} else {
 		var effectiveLine = line + vdp_regs[9];
 		if (effectiveLine >= 224) { effectiveLine -= 224; }
+		var sprites = findSprites(line); 
 		var pixelOffset = vdp_regs[8] * 4;
 		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
 		var yMod = effectiveLine & 7;
@@ -106,7 +133,7 @@ function rasterize_line(line) {
 			var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
 			var tileNum = tileData & 511;
 			var tileDef = 32 * tileNum;
-			if (tileData & 2048) {
+			if (tileData & (1<<10)) {
 				 tileDef += 28 - (4 * yMod);
 			} else {
 				 tileDef += (4 * yMod);
@@ -116,10 +143,10 @@ function rasterize_line(line) {
 			var tileVal2 = vram[tileDef + 2];
 			var tileVal3 = vram[tileDef + 3];
 			var paletteOffset = 0;
-			if (tileData & 4096) {
+			if (tileData & (1<<11)) {
 				paletteOffset = 16;
 			}
-			if (tileData & 1024) {
+			if (tileData & (1<<9)) {
 				for (var j = 0; j < 8; j++) {
 					var index = ((tileVal0 & 1) << 3) | ((tileVal1 & 2) >> 2) | ((tileVal2 & 4) >> 1) | ((tileVal3 & 8));
 					index += paletteOffset;
@@ -145,6 +172,23 @@ function rasterize_line(line) {
 					tileVal2<<=1;
 					tileVal3<<=1;
 				}
+			}
+			// TODO: sprite precedence, X offset, all sortsa
+			pixelOffset -= 4 * 8;
+			var xPos = (i * 8 + vdp_regs[8]) & 0xff;
+			for (var j = 0; j < 8; ++j) {
+				for (var k = 0; k < sprites.length; k++) {
+					var sprite = sprites[k];
+					var offset = xPos - sprite[0];
+					if (offset < 0 || offset >= 8) continue;
+					imageDataData[lineAddr + pixelOffset] = 0;
+					imageDataData[lineAddr + pixelOffset + 1] = 0;
+					imageDataData[lineAddr + pixelOffset + 2] = 0;
+					// TODO: collision
+					break;
+				}
+				xPos++;
+				pixelOffset += 4;
 			}
 		}
 	}
@@ -183,6 +227,6 @@ function vdp_init() {
 	for (var i = 0; i < 16; i++) {
 		vdp_regs[i] = 0;
 	}
-	vdp_regs[2] = 0xff;
+	vdp_regs[2] = vdp_regs[5] = 0xff;
 	vdp_current_line = vdp_status = vdp_hblank_counter = 0;
 }
