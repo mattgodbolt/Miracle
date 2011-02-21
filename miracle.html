@@ -13,6 +13,8 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+	By Matt Godbolt: <matt@godbolt.org>
+
     Based in part on JSSpeccy:	
 	Contact details: <matthew@west.co.tt>
 	Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
@@ -65,7 +67,6 @@
 					event_next_event = 220; // TASK: not 220?
 					tstates -= 220;
 					z80_do_opcodes();
-					/* dumpScreen(); */
 					vdp_status = vdp_hblank();
 					if (vdp_status) {
 						z80_interrupt();
@@ -103,13 +104,6 @@
 					if (z80.pc != curpc) break;
 				}
 				updateDebug();
-			}
-			function dumpScreen() {
-				var out = '';
-				for (var i = 0x0000; i < 0x4000; i++) {
-					out += Number(vram[i]).toString(16) + ' ';
-				}
-				document.getElementById('screendump').value = out;
 			}
 			function start() {
 				updateDebug();
@@ -170,8 +164,6 @@
 			<li id="menu_open"><a href="javascript:void(0)" onclick="showRomChooser()" title="Open ROM">Open ROM</a></li>
 			<li id="menu_about"><a href="javascript:void(0)" onclick="showAbout()" title="About JSSpeccy">About JSSpeccy</a></li>
 		</ul>
-		<!-- <textarea rows="24" cols="96" id="screendump"></textarea> -->
-		<!-- <textarea id="keydump"></textarea> -->
 		<br />
 		<div id="rom_chooser">
 			<div>Open ROM file: <input type="file" id="file_upload" /></div>
@@ -180,11 +172,11 @@
 			<a href="javascript:void(0)" class="close_button" onclick="hideRomChooser()">Close</a>
 		</div>
 		<div id="about">
-			<h1>JSSpeccy</h1>
-			<h2>a ZX Spectrum emulator in Javascript</h2>
-			<p>By <a href="http://matt.west.co.tt/">Matt Westcott</a></p>
-			<p><a href="http://matt.west.co.tt/category/javascript/jsspeccy/">JSSpeccy homepage</a> (including downloads and source code)</p>
-			<p>Based on <a href="http://fuse-emulator.sourceforge.net/">Fuse</a> by Philip Kendall et al. Icons from <a href="http://www.icon-king.com/projects/nuvola/">Nuvola</a> by David Vignoni.</p>
+			<h1>Miracle</h1>
+			<h2>a Sega Master System emulator in Javascript</h2>
+			<p>By <a href="http://xania.org/">Matt Godbolt</a></p>
+			<p>Based on <a href="http://matt.west.co.tt/category/javascript/jsspeccy/">JSSpeccy</a> by <a href="http://matt.west.co.tt/">Matt Westcott</a></p>
+			<p>..which in turn is based on <a href="http://fuse-emulator.sourceforge.net/">Fuse</a> by Philip Kendall et al. Icons from <a href="http://www.icon-king.com/projects/nuvola/">Nuvola</a> by David Vignoni.</p>
 			<div id="licence">
 				<p>This program is free software: you can redistribute it and/or modify
 				it under the terms of the GNU General Public License as published by
