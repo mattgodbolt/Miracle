@@ -50,7 +50,6 @@ function keyDown(evt) {
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick &= ~key;
-		console.log(hexword(joystick));
 		if (!evt.metaKey) return false;
 	}
 }
@@ -59,7 +58,6 @@ function keyUp(evt) {
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick |= key;
-		console.log(hexword(joystick));
 		if (!evt.metaKey) return false;
 	}
 }
