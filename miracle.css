@@ -114,9 +114,14 @@ a.close_button {
 #about #licence {
 	font-size: 9pt;
 }
-#registers {
-	float: right;
+#debug {
 	font-size: 9pt;
 	font-family: monospace;
+}
+#registers {
+	float: right;
+}
+#disassembly {
+	float: left;
 }
 

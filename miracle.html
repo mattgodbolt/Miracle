@@ -50,7 +50,10 @@
 				for (rom in roms) {
 					addRomToList(rom);
 				}
-				
+				var disass = document.getElementById('disassembly');
+				for (var i = 1; i < 16; i++) {
+					disass.appendChild(disass.children[0].cloneNode(true));
+				}
 				z80_init();
 				miracle_init();
 				loadRom(roms['TeddyBoy.sms']);
@@ -67,7 +70,16 @@
 				// TASK: not evey hline...
 				//paintScreen();
 			}
-			function updateRegs() {
+			function updateDebug() {
+				var disass = document.getElementById('disassembly');
+				var pc = z80.pc;
+				for (var i = 0; i < disass.childElementCount; ++i) {
+					var result = disassemble(pc);
+					var child = disass.children[i];
+					child.getElementsByClassName('addr')[0].textContent = '0x' + hexword(pc);
+					child.getElementsByClassName('disassembly')[0].textContent = result[0];
+					pc = result[1];
+				}
 				for (var reg in z80) {
 					var elem = document.getElementById('z80_' + reg);
 					if (elem) {
@@ -87,7 +99,7 @@
 					z80_do_opcodes();
 					if (z80.pc != curpc) break;
 				}
-				updateRegs();
+				updateDebug();
 				console.log(hexword(z80.pc) + ' ' + disassemble(z80.pc)[0]);
 			}
 			function dumpScreen() {
@@ -98,6 +110,7 @@
 				document.getElementById('screendump').value = out;
 			}
 			function start() {
+				updateDebug();
 				if (running) return;
 				running = true;
 				document.getElementById('menu').className = 'running';
@@ -105,7 +118,7 @@
 			}
 			function run() {
 				if (!running) {
-					updateRegs();
+					updateDebug();
 					return;
 				}
 				frame();
@@ -134,9 +147,23 @@
 	</head>
 	<body onload="go()">
 		<canvas id="screen" width="256" height="192"></canvas>
+		<div id="debug">
+			<div id="disassembly">
+				<div><span class="addr">0x0000</span> - <span class="disassembly">LD A,(HL)</span></div>
+			</div>
+			<div id="registers">
+				<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
+				<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
+				<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
+				<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
+				<div>SP: <span id="z80_sp">0x0000</span></div>
+				<div>PC: <span id="z80_pc">0x0000</span></div>
+			</div>
+		</div>
 		<ul id="menu" class="stopped">
 			<li id="menu_run"><a href="javascript:void(0)" onclick="start()" title="Play">Play</a></li>
 			<li id="menu_stop"><a href="javascript:void(0)" onclick="stop()" title="Pause">Pause</a></li>
+			<li id="menu_step"><a href="javascript:void(0)" onclick="step()" title="Step">Step</a></li>
 			<li id="menu_reset"><a href="javascript:void(0)" onclick="reset()" title="Reset">Reset</a></li>
 			<li id="menu_open"><a href="javascript:void(0)" onclick="showRomChooser()" title="Open ROM">Open ROM</a></li>
 			<li id="menu_about"><a href="javascript:void(0)" onclick="showAbout()" title="About JSSpeccy">About JSSpeccy</a></li>
@@ -149,14 +176,6 @@
 			<p>Or select a game:</p>
 			<ul id="rom_list"></ul>
 			<a href="javascript:void(0)" class="close_button" onclick="hideRomChooser()">Close</a>
-		</div>
-		<div id="registers">
-			<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
-			<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
-			<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
-			<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
-			<div>SP: <span id="z80_sp">0x0000</span></div>
-			<div>PC: <span id="z80_pc">0x0000</span></div>
 		</div>
 		<div id="about">
 			<h1>JSSpeccy</h1>

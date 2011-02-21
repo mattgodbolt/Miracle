@@ -28,7 +28,7 @@ def main(file):
     elif 'offset' in args:
       pre = args[0:args.find('offset')]
       post = args[args.find('offset') + 6:]
-      print 'var reladdr = address + readbyte(address);' # signed
+      print 'var reladdr = address + 1 + sign_extend(readbyte(address));'
       print 'res += " %s0x" + hexword(reladdr) + "%s"; address += 2;' % (pre, post)
     elif args:
       print 'res += " %s";' % args
