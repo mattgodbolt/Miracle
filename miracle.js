@@ -1,5 +1,4 @@
 ram = []
-vram = []
 romBanks = []
 pages = []
 
@@ -11,9 +10,7 @@ var hasImageData;
 var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') != -1);
 
 function miracle_init() {
-	for (var i = 0x0000; i < 0x4000; i++) {
-		vram[i] = 0;
-	}
+	vdp_init();
 	for (var i = 0x0000; i < 0x2000; i++) {
 		ram[i] = 0;
 	}
@@ -39,7 +36,6 @@ function miracle_init() {
 }
 
 function paintScreen() {
-	console.log(z80.pc);
 	if (hasImageData) {
 		ctx.putImageData(imageData, 0, 0);
 		if (needDrawImage) ctx.drawImage(canvas, 0, 0); /* FF2 appears to need this */
@@ -78,10 +74,37 @@ function writebyte(address, value) {
 }
 
 function readport(addr) {
-	console.log('IO port ' + addr + '?');
-	return 0;
+	addr &= 0xff; // TODO, work out this?
+    switch (addr) {
+    case 0xbe:
+    	return vdp_readbyte();
+    case 0xbd: case 0xbf:
+    	return vdp_readstatus();
+    case 0xde: case 0xdf:
+    	return 0; // Unknown use
+    default:
+		console.log('IO port ' + hexbyte(addr) + '?');
+		return 0;
+    }
 }
 
 function writeport(addr, val) {
-	console.log('IO port ' + addr + ' = ' + val);
+	addr &= 0xff; // TODO, work out this?
+    switch (addr) {
+    case 0x7f:
+    	// TODO: sound...
+    	break;
+    case 0xbd:
+    case 0xbf:
+    	vdp_writeaddr(val);
+    	break;
+    case 0xbe:
+    	vdp_writebyte(val);
+    	break;
+    case 0xde: case 0xdf:
+    	break; // Unknown use
+    default:
+		console.log('IO port ' + hexbyte(addr) + ' = ' + val);
+		break;
+    }
 }

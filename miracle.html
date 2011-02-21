@@ -24,6 +24,7 @@
 		<script type="text/javascript" src="z80/z80_full.js"></script>
 		<script type="text/javascript" src="z80/z80_ops_full.js"></script>
 		<script type="text/javascript" src="z80/z80_dis.js"></script>
+		<script type="text/javascript" src="vdp.js"></script>
 		<script type="text/javascript" src="miracle.js"></script>
 		<script type="text/javascript" src="roms.js"></script>
 		<script type="text/javascript">/* <![CDATA[ */
@@ -56,12 +57,38 @@
 				start();
 			}
 			function frame() {
-				event_next_event = 69888;
-				tstates = 0;
+				event_next_event = 220; // TASK: not 220?
+				tstates -= 220;
 				z80_do_opcodes();
 				/* dumpScreen(); */
-				paintScreen();
-				z80_interrupt();
+				if (vdp_hblank()) {
+					z80_interrupt();
+				}
+				// TASK: not evey hline...
+				//paintScreen();
+			}
+			function updateRegs() {
+				for (var reg in z80) {
+					var elem = document.getElementById('z80_' + reg);
+					if (elem) {
+						if (reg.length > 1) {
+							elem.textContent = '0x' + hexword(z80[reg]);
+						} else {
+							elem.textContent = '0x' + hexbyte(z80[reg]);
+						}
+					}
+				}
+			}
+			function step() {
+				var curpc = z80.pc;
+				for (var i = 0; i < 65536; i++) {
+					tstates = 0;
+					event_next_event = 1;
+					z80_do_opcodes();
+					if (z80.pc != curpc) break;
+				}
+				updateRegs();
+				console.log(hexword(z80.pc) + ' ' + disassemble(z80.pc)[0]);
 			}
 			function dumpScreen() {
 				var out = '';
@@ -77,7 +104,10 @@
 				run();
 			}
 			function run() {
-				if (!running) return;
+				if (!running) {
+					updateRegs();
+					return;
+				}
 				frame();
 				setTimeout(run, 20);
 			}
@@ -119,6 +149,14 @@
 			<p>Or select a game:</p>
 			<ul id="rom_list"></ul>
 			<a href="javascript:void(0)" class="close_button" onclick="hideRomChooser()">Close</a>
+		</div>
+		<div id="registers">
+			<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
+			<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
+			<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
+			<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
+			<div>SP: <span id="z80_sp">0x0000</span></div>
+			<div>PC: <span id="z80_pc">0x0000</span></div>
 		</div>
 		<div id="about">
 			<h1>JSSpeccy</h1>
