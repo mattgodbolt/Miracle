@@ -50,8 +50,8 @@ function vdp_writeram(val) {
 
 function vdp_writepalette(val) {
 	r = val & 3; r |= r << 2; r |= r << 4;
-	g = val & 3; g |= g << 2; g |= g << 4;
-	b = val & 3; b |= b << 2; b |= b << 4;
+	g = (val>>2) & 3; g |= g << 2; g |= g << 4;
+	b = (val>>4) & 3; b |= b << 2; b |= b << 4;
 	paletteR[vdp_addr] = r;
 	paletteG[vdp_addr] = g;
 	paletteB[vdp_addr] = b;
@@ -90,10 +90,35 @@ function vdp_readstatus() {
 
 function rasterize_line(line) {
 	var lineAddr = line * 256 * 4;
-	for (var i = 0; i < 256 * 4; i += 4) {
-		imageDataData[lineAddr + i] = 0xff; 
-		imageDataData[lineAddr + i + 1] = 0x80; 
-		imageDataData[lineAddr + i + 2] = 0x80;
+	if ((vdp_regs[1] & 64) == 0) {
+		for (var i = 0; i < 256 * 4; i += 4) {
+			imageDataData[lineAddr + i] = 0x0; 
+			imageDataData[lineAddr + i + 1] = 0x0; 
+			imageDataData[lineAddr + i + 2] = 0x0;
+		}
+	} else {
+		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (line >> 3) * 64;
+		var yMod = line & 7;
+		for (var i = 0; i < 32; i++) {
+			var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
+			var tileNum = tileData & 511;
+			var tileDef = 32 * tileNum + (4 * yMod);  // TODO: yflip
+			var tileVal0 = vram[tileDef];
+			var tileVal1 = vram[tileDef + 1];
+			var tileVal2 = vram[tileDef + 2];
+			var tileVal3 = vram[tileDef + 3];
+			for (var j = 0; j < 8; j++) {
+				var index = ((tileVal0 & 128) >> 7) | ((tileVal1 & 128) >> 6) | ((tileVal2 & 128) >> 5) | ((tileVal3 & 128) >> 4);
+				// TODO: palette choice
+				imageDataData[lineAddr] = paletteR[index]; lineAddr++; 
+				imageDataData[lineAddr] = paletteG[index]; lineAddr++;
+				imageDataData[lineAddr] = paletteB[index]; lineAddr += 2; 
+				tileVal0<<=1;
+				tileVal1<<=1;
+				tileVal2<<=1;
+				tileVal3<<=1;
+			}
+		}
 	}
 }
 
@@ -113,7 +138,9 @@ function vdp_hblank() {
 	if (vdp_current_line == 312) { // TASK: 312?
 		vdp_current_line = 0;
 		vdp_status |= 128;
-		needIrq |= 2;
+		if (vdp_regs[1] & 32) {
+			needIrq |= 2;
+		}
 	}
 	return needIrq;
 }
@@ -128,5 +155,6 @@ function vdp_init() {
 	for (var i = 0; i < 16; i++) {
 		vdp_regs[i] = 0;
 	}
+	vdp_regs[2] = 0xff;
 	vdp_current_line = vdp_status = vdp_hblank_counter = 0;
 }

@@ -74,6 +74,10 @@ function writebyte(address, value) {
 function readport(addr) {
 	addr &= 0xff;
     switch (addr) {
+    case 0xdc: case 0xc0:
+    	return 0xff;  // TASK: joystick input
+    case 0xdd: case 0xc1:
+    	return 0xff;  // TASK: joystick input & nationalization
     case 0xbe:
     	return vdp_readbyte();
     case 0xbd: case 0xbf:
