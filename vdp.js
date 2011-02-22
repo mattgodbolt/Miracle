@@ -91,9 +91,6 @@ function vdp_readstatus() {
 function findSprites(line) {
 	var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
 	var active = [];
-	if (vdp_regs[6] & 4) {
-		spriteInfo += 0x2000;
-	}
 	var spriteHeight = 8;
 	if (vdp_regs[1] & 2) {
 		spriteHeight = 16;
@@ -104,7 +101,7 @@ function findSprites(line) {
 			break;
 		}
 		if (line >= y && line < (y + spriteHeight)) {
-			active.push([vram[spriteInfo + 128 + i * 2], vram[spriteInfo + 128 + i * 2 + 1]]);
+			active.push([vram[spriteInfo + 128 + i * 2], vram[spriteInfo + 128 + i * 2 + 1], y]);
 			if (active.length === 8) {
 				break;
 			}
@@ -125,7 +122,11 @@ function rasterize_line(line) {
 	} else {
 		var effectiveLine = line + vdp_regs[9];
 		if (effectiveLine >= 224) { effectiveLine -= 224; }
-		var sprites = findSprites(line); 
+		var sprites = findSprites(line);
+		var spriteBase = 0;
+		if (vdp_regs[6] & 4) {
+			spriteBase = 0x2000;
+		} 
 		var pixelOffset = vdp_regs[8] * 4;
 		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
 		var yMod = effectiveLine & 7;
@@ -148,6 +149,7 @@ function rasterize_line(line) {
 			}
 			if (tileData & (1<<9)) {
 				for (var j = 0; j < 8; j++) {
+				// TODO: supect code here: 
 					var index = ((tileVal0 & 1) << 3) | ((tileVal1 & 2) >> 2) | ((tileVal2 & 4) >> 1) | ((tileVal3 & 8));
 					index += paletteOffset;
 					imageDataData[lineAddr + pixelOffset] = paletteR[index]; pixelOffset++; 
@@ -181,9 +183,23 @@ function rasterize_line(line) {
 					var sprite = sprites[k];
 					var offset = xPos - sprite[0];
 					if (offset < 0 || offset >= 8) continue;
-					imageDataData[lineAddr + pixelOffset] = 0;
-					imageDataData[lineAddr + pixelOffset + 1] = 0;
-					imageDataData[lineAddr + pixelOffset + 2] = 0;
+					var spriteLine = line - sprite[2];
+					var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
+					var effectiveBit = 7 - offset;
+					var sprVal0 = vram[spriteAddr];
+					var sprVal1 = vram[spriteAddr + 1];
+					var sprVal2 = vram[spriteAddr + 2];
+					var sprVal3 = vram[spriteAddr + 3];
+					var index = (((sprVal0 >> effectiveBit) & 1)) |
+								(((sprVal1 >> effectiveBit) & 1) << 1) |
+								(((sprVal2 >> effectiveBit) & 1) << 2) |
+								(((sprVal3 >> effectiveBit) & 1) << 3);
+					if (index === 0) {
+						continue;
+					}
+					imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
+					imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
+					imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
 					// TODO: collision
 					break;
 				}
