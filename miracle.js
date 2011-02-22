@@ -74,13 +74,12 @@ function paintScreen() {
 }
 
 function loadRom(rom) {
-	var numRomBanks = rom.length / 0x4000;
+	var numRomBanks = rom.length;
 	console.log('Loading rom of ' + numRomBanks + ' banks');
-	romBanks = []
 	for (var i = 0; i < numRomBanks; i++) {
-	    romBanks[i] = [];
+		romBanks[i] = [];
 	    for (var j = 0; j < 0x4000; j++) {
-		    romBanks[i][j] = rom.charCodeAt(i * 0x4000 + j);
+		    romBanks[i][j] = rom[i].charCodeAt(j);
 		}
 	}
 	for (var i = 0; i < 3; i++) {
@@ -100,6 +99,15 @@ function readbyte(address) {
 }
 
 function writebyte(address, value) {
+	if (address >= 0xfffc) {
+		// TODO: cartridge RAM
+		switch (address) {
+		case 0xfffd: pages[0] = value; break;
+		case 0xfffe: pages[1] = value; break;
+		case 0xffff: pages[2] = value; break;
+		}
+		return;
+	}
     address -= 0xc000;
     if (address < 0) return; // Ignore ROM writes
 	ram[address & 0x1fff] = value; // TODO: paging registers
@@ -108,6 +116,8 @@ function writebyte(address, value) {
 function readport(addr) {
 	addr &= 0xff;
     switch (addr) {
+    case 0x7e: case 0x7f:
+    	return vdp_get_line();
     case 0xdc: case 0xc0:
     	return joystick & 0xff;
     case 0xdd: case 0xc1:
@@ -127,7 +137,7 @@ function readport(addr) {
 function writeport(addr, val) {
 	addr &= 0xff;
     switch (addr) {
-    case 0x7f:
+    case 0x7e: case 0x7f:
     	// TODO: sound...
     	break;
     case 0xbd:

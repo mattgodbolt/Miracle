@@ -40,6 +40,32 @@ function disassemble_ED(address) {
   return [res, address];
 }
 
+function disassemble_DD(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "z80_ddfd_dis.jscpp"
+  }
+  return [res, address];
+}
 
-//#include "z80_ddfd_dis.jscpp"
-//#include "z80_ddfdcb_dis.jscpp"
+function disassemble_FD(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "z80_ddfd_dis.jscpp"
+  }
+  return [res, address];
+}
+
+function disassemble_DDFDCB(address) {
+  opcode = readbyte(address);
+  address++;
+  var res = "??";
+  switch (opcode) {
+#include "z80_ddfdcb_dis.jscpp"
+  }
+  return [res, address];
+}

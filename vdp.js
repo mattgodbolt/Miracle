@@ -246,3 +246,7 @@ function vdp_init() {
 	vdp_regs[2] = vdp_regs[5] = 0xff;
 	vdp_current_line = vdp_status = vdp_hblank_counter = 0;
 }
+
+function vdp_get_line() {
+	return (vdp_current_line - 64) & 0xff;
+}
