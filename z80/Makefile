@@ -1,5 +1,6 @@
-# JSSpeccy: A ZX Spectrum emulator in Javascript
-# Copyright (C) 2008 Matthew Westcott
+# Miracle: a JavaScript Sega Master System emulator.
+# By Matt Godbolt <matt@godbolt.org>
+# Based heavily on JSSpeccy which is Copyright (C) 2008 Matthew Westcott
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +15,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Contact details: <matthew@west.co.tt>
-# Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
+# Contact details: Matt Godbolt <matt@godbolt.org>
+# JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt>
 
 .PHONY: all
 all: z80_ops_full.js z80_full.js z80_dis.js
