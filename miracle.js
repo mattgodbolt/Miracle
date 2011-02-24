@@ -1,6 +1,8 @@
 ram = []
+cartridgeRam = []
 romBanks = []
 pages = []
+ramSelectRegister = 0;
 
 var canvas;
 var ctx;
@@ -16,9 +18,13 @@ function miracle_init() {
 	for (var i = 0x0000; i < 0x2000; i++) {
 		ram[i] = 0;
 	}
+	for (var i = 0x0000; i < 0x8000; i++) {
+		cartridgeRam[i] = 0;
+	}
 	for (var i = 0; i < 3; i++) {
 		pages[i] = i;
 	}
+	ramSelectRegister = 0;
 
 	canvas = document.getElementById('screen');
 	ctx = canvas.getContext('2d');
@@ -91,17 +97,29 @@ function readbyte(address) {
 	if (address < 0x0400) { return romBanks[0][address]; }
 	if (address < 0x4000) { return romBanks[pages[0]][address]; }
 	if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
-	if (address < 0xc000) { return romBanks[pages[2]][address - 0x8000]; }
+	if (address < 0xc000) {
+		if ((ramSelectRegister & 12) == 8) {
+			return cartridgeRam[address - 0xc000];
+		} else if ((ramSelectRegister & 12) == 12) {
+			return cartridgeRam[address - 0x8000];
+		} else {
+			return romBanks[pages[2]][address - 0x8000];
+		}
+	}
 	if (address < 0xe000) { return ram[address - 0xc000]; }
 	if (address < 0xfffc) { return ram[address - 0xe000]; }
-	zoiks();
-	return 0;  // TODO: paging registers
+	switch (address) {
+		case 0xfffc: return ramSelectRegister;
+		case 0xfffd: return pages[0];
+		case 0xfffe: return pages[1];
+		case 0xffff: return pages[2];
+	}
 }
 
 function writebyte(address, value) {
 	if (address >= 0xfffc) {
-		// TODO: cartridge RAM
 		switch (address) {
+		case 0xfffc: ramSelectRegister = 0; break;
 		case 0xfffd: pages[0] = value; break;
 		case 0xfffe: pages[1] = value; break;
 		case 0xffff: pages[2] = value; break;
