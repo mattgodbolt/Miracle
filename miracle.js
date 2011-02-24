@@ -3,6 +3,7 @@ cartridgeRam = []
 romBanks = []
 pages = []
 ramSelectRegister = 0;
+romPageMask = 0;
 
 var canvas;
 var ctx;
@@ -91,19 +92,20 @@ function loadRom(rom) {
 	for (var i = 0; i < 3; i++) {
 		pages[i] = i % numRomBanks;
 	}
+	romPageMask = numRomBanks - 1;
 }
 
 function readbyte(address) {
 	if (address < 0x0400) { return romBanks[0][address]; }
-	if (address < 0x4000) { return romBanks[pages[0]][address]; }
-	if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
+	if (address < 0x4000) { return romBanks[pages[0] & romPageMask][address]; }
+	if (address < 0x8000) { return romBanks[pages[1] & romPageMask][address - 0x4000]; }
 	if (address < 0xc000) {
 		if ((ramSelectRegister & 12) == 8) {
-			return cartridgeRam[address - 0xc000];
-		} else if ((ramSelectRegister & 12) == 12) {
 			return cartridgeRam[address - 0x8000];
+		} else if ((ramSelectRegister & 12) == 12) {
+			return cartridgeRam[address - 0x4000];
 		} else {
-			return romBanks[pages[2]][address - 0x8000];
+			return romBanks[pages[2] & romPageMask][address - 0x8000];
 		}
 	}
 	if (address < 0xe000) { return ram[address - 0xc000]; }

@@ -120,7 +120,12 @@
 					return;
 				}
 				setTimeout(run, 20);
-				frame();
+				try {
+					frame();
+				} catch (e) {
+					running = false;
+					throw e;
+				}
 			}
 			function stop() {
 				document.getElementById('menu').className = 'stopped';
