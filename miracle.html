@@ -119,8 +119,8 @@
 					updateDebug();
 					return;
 				}
+				setTimeout(run, 20);
 				frame();
-				setTimeout(run, 1);
 			}
 			function stop() {
 				document.getElementById('menu').className = 'stopped';
