@@ -1,9 +1,14 @@
-ram = []
-cartridgeRam = []
-romBanks = []
-pages = []
-ramSelectRegister = 0;
-romPageMask = 0;
+// Work-around for people without Chrome/Firebug.
+if (typeof(console) == 'undefined') {
+	console = {log: function(msg) {}}
+}
+
+var ram = []
+var cartridgeRam = []
+var romBanks = []
+var pages = []
+var ramSelectRegister = 0;
+var romPageMask = 0;
 
 var canvas;
 var ctx;
