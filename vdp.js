@@ -108,7 +108,6 @@ function vdp_readbyte() {
 }
 
 function vdp_readstatus() {
-	// TODO: sprite collision
 	res = vdp_status;
 	vdp_status &= 0x3f;
 	return res;
@@ -123,20 +122,80 @@ function findSprites(line) {
 		spriteHeight = 16;
 	}
 	for (i = 0; i < 64; i++) {
-		var y = vram[spriteInfo + i];
+		var y = vram[spriteInfo + i] + 1;
 		if (y === 208) {
 			break;
 		}
 		if (line >= y && line < (y + spriteHeight)) {
-			active.push([vram[spriteInfo + 128 + i * 2],
-					vram[spriteInfo + 128 + i * 2 + 1], y ]);
 			if (active.length === 8) {
+				vdp_status |= 64;  // TASK: and also on opaque overlap?
 				break;
 			}
+			active.push([vram[spriteInfo + 128 + i * 2],
+					vram[spriteInfo + 128 + i * 2 + 1], y]);
 		}
 	}
 
 	return active;
+}
+
+function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
+	var i;
+	var tileVal0 = vram[tileDef];
+	var tileVal1 = vram[tileDef + 1];
+	var tileVal2 = vram[tileDef + 2];
+	var tileVal3 = vram[tileDef + 3];
+	var paletteOffset = 0;
+	if (tileData & (1 << 11)) {
+		paletteOffset = 16;
+	}
+	if ((tileData & (1 << 9))) {
+		for (i = 0; i < 8; i++) {
+			var index = ((tileVal0 & 1))
+					  | ((tileVal1 & 1) << 1)
+					  | ((tileVal2 & 1) << 2)
+					  | ((tileVal3 & 1) << 3);
+			/* TODO: Work out why this isn't needed:
+			if (index === 0 && (tileData & (1<<12))) {
+				continue;
+			}*/
+			index += paletteOffset;
+			imageDataData[lineAddr + pixelOffset] = paletteR[index];
+			pixelOffset++;
+			imageDataData[lineAddr + pixelOffset] = paletteG[index];
+			pixelOffset++;
+			imageDataData[lineAddr + pixelOffset] = paletteB[index];
+			pixelOffset += 2;
+			pixelOffset &= 1023;
+			tileVal0 >>= 1;
+			tileVal1 >>= 1;
+			tileVal2 >>= 1;
+			tileVal3 >>= 1;
+		}
+	} else {
+		for (i = 0; i < 8; i++) {
+			var index = ((tileVal0 & 128) >> 7)
+					  | ((tileVal1 & 128) >> 6)
+					  | ((tileVal2 & 128) >> 5)
+					  | ((tileVal3 & 128) >> 4);
+			/* TODO: Work out why this isn't needed:
+			if (index === 0 && (tileData & (1<<12))) {
+				continue;
+			}*/
+			index += paletteOffset;
+			imageDataData[lineAddr + pixelOffset] = paletteR[index];
+			pixelOffset++;
+			imageDataData[lineAddr + pixelOffset] = paletteG[index];
+			pixelOffset++;
+			imageDataData[lineAddr + pixelOffset] = paletteB[index];
+			pixelOffset += 2;
+			pixelOffset &= 1023;
+			tileVal0 <<= 1;
+			tileVal1 <<= 1;
+			tileVal2 <<= 1;
+			tileVal3 <<= 1;
+		}
+	}
 }
 
 function rasterize_line(line) {
@@ -159,8 +218,7 @@ function rasterize_line(line) {
 			spriteBase = 0x2000;
 		}
 		var pixelOffset = vdp_regs[8] * 4;
-		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3)
-				* 64;
+		var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
 		var yMod = effectiveLine & 7;
 		var borderIndex = 16 + (vdp_regs[7] & 0xf);
 		var i;
@@ -175,56 +233,12 @@ function rasterize_line(line) {
 			} else {
 				tileDef += (4 * yMod);
 			}
-			var tileVal0 = vram[tileDef];
-			var tileVal1 = vram[tileDef + 1];
-			var tileVal2 = vram[tileDef + 2];
-			var tileVal3 = vram[tileDef + 3];
-			var paletteOffset = 0;
-			if (tileData & (1 << 11)) {
-				paletteOffset = 16;
+			// TODO: static top two rows, and static left-hand rows.
+			if ((tileData & (1<<12)) === 0) {
+				rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
 			}
-			if ((tileData & (1 << 9))) {
-				for (var j = 0; j < 8; j++) {
-					var index = ((tileVal0 & 1))
-							  | ((tileVal1 & 1) << 1)
-							  | ((tileVal2 & 1) << 2)
-							  | ((tileVal3 & 1) << 3);
-					index += paletteOffset;
-					imageDataData[lineAddr + pixelOffset] = paletteR[index];
-					pixelOffset++;
-					imageDataData[lineAddr + pixelOffset] = paletteG[index];
-					pixelOffset++;
-					imageDataData[lineAddr + pixelOffset] = paletteB[index];
-					pixelOffset += 2;
-					pixelOffset &= 1023;
-					tileVal0 >>= 1;
-					tileVal1 >>= 1;
-					tileVal2 >>= 1;
-					tileVal3 >>= 1;
-				}
-			} else {
-				for (j = 0; j < 8; j++) {
-					var index = ((tileVal0 & 128) >> 7)
-							  | ((tileVal1 & 128) >> 6)
-							  | ((tileVal2 & 128) >> 5)
-							  | ((tileVal3 & 128) >> 4);
-					index += paletteOffset;
-					imageDataData[lineAddr + pixelOffset] = paletteR[index];
-					pixelOffset++;
-					imageDataData[lineAddr + pixelOffset] = paletteG[index];
-					pixelOffset++;
-					imageDataData[lineAddr + pixelOffset] = paletteB[index];
-					pixelOffset += 2;
-					pixelOffset &= 1023;
-					tileVal0 <<= 1;
-					tileVal1 <<= 1;
-					tileVal2 <<= 1;
-					tileVal3 <<= 1;
-				}
-			}
-			// TODO: sprite precedence, X offset, all sortsa
-			pixelOffset -= 4 * 8;
 			var xPos = (i * 8 + vdp_regs[8]) & 0xff;
+			// TODO: sprite X-8 shift
 			for (j = 0; j < 8; ++j) {
 				var k;
 				for (k = 0; k < sprites.length; k++) {
@@ -233,8 +247,7 @@ function rasterize_line(line) {
 					if (offset < 0 || offset >= 8)
 						continue;
 					var spriteLine = line - sprite[2];
-					var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine
-							* 4;
+					var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
 					var effectiveBit = 7 - offset;
 					var sprVal0 = vram[spriteAddr];
 					var sprVal1 = vram[spriteAddr + 1];
@@ -250,11 +263,15 @@ function rasterize_line(line) {
 					imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
 					imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
 					imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
-					// TODO: collision
+					// TODO: collision?
 					break;
 				}
 				xPos++;
 				pixelOffset += 4;
+				pixelOffset &= 1023;
+			}
+			if ((tileData & (1<<12)) !== 0) {
+				rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
 			}
 		}
 		if (vdp_regs[0] & (1 << 5)) {
@@ -269,8 +286,11 @@ function rasterize_line(line) {
 
 function vdp_hblank() {
 	var needIrq = 0;
-	if (vdp_current_line >= 64 && vdp_current_line < (64 + 192)) {
-		rasterize_line(vdp_current_line - 64);
+	var firstDisplayLine = 3 + 13 + 54;
+	var pastEndDisplayLine = firstDisplayLine + 192;
+	var endOfFrame = pastEndDisplayLine + 48 + 3;
+	if (vdp_current_line >= firstDisplayLine && vdp_current_line < pastEndDisplayLine) {
+		rasterize_line(vdp_current_line - firstDisplayLine);
 		if (--vdp_hblank_counter < 0) {
 			vdp_hblank_counter = vdp_regs[10];
 			vdp_status |= 64;
@@ -280,7 +300,7 @@ function vdp_hblank() {
 		}
 	}
 	vdp_current_line++;
-	if (vdp_current_line == 312) { // TASK: 312?
+	if (vdp_current_line === endOfFrame) {
 		vdp_current_line = 0;
 		vdp_status |= 128;
 		if (vdp_regs[1] & 32) {
