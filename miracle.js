@@ -1,12 +1,12 @@
 // Work-around for people without Chrome/Firebug.
-if (typeof(console) == 'undefined') {
-	console = {log: function(msg) {}}
+if (typeof(console) === 'undefined') {
+	console = {log: function(msg) {} };
 }
 
-var ram = []
-var cartridgeRam = []
-var romBanks = []
-var pages = []
+var ram = [];
+var cartridgeRam = [];
+var romBanks = [];
+var pages = [];
 var ramSelectRegister = 0;
 var romPageMask = 0;
 
@@ -15,19 +15,20 @@ var ctx;
 var imageData;
 var imageDataData;
 var hasImageData;
-var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') != -1);
+var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 
 var joystick = 0xffff;
 
 function miracle_init() {
+	var i;
 	vdp_init();
-	for (var i = 0x0000; i < 0x2000; i++) {
+	for (i = 0x0000; i < 0x2000; i++) {
 		ram[i] = 0;
 	}
-	for (var i = 0x0000; i < 0x8000; i++) {
+	for (i = 0x0000; i < 0x8000; i++) {
 		cartridgeRam[i] = 0;
 	}
-	for (var i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++) {
 		pages[i] = i;
 	}
 	ramSelectRegister = 0;
@@ -55,14 +56,16 @@ var keys = {
 	65: 4,  // A = JP1 left
 	68: 8,  // D = JP1 right
 	32: 16, // Space = JP1 fire 1
-	13: 32, // Enter = JP1 fire 2 
-}
+	13: 32 // Enter = JP1 fire 2
+};
 
 function keyDown(evt) {
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick &= ~key;
-		if (!evt.metaKey) return false;
+		if (!evt.metaKey) {
+			return false;
+		}
 	}
 }
 
@@ -70,31 +73,37 @@ function keyUp(evt) {
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick |= key;
-		if (!evt.metaKey) return false;
+		if (!evt.metaKey) {
+			return false;
+		}
 	}
 }
 
 function keyPress(evt) {
-	if (!evt.metaKey) return false;
+	if (!evt.metaKey) {
+		return false;
+	}
 }
 
 function paintScreen() {
 	if (hasImageData) {
 		ctx.putImageData(imageData, 0, 0);
-		if (needDrawImage) ctx.drawImage(canvas, 0, 0); /* FF2 appears to need this */
+		// Apparently needed by FireFox 2
+		if (needDrawImage) ctx.drawImage(canvas, 0, 0);
 	}
 }
 
 function loadRom(rom) {
 	var numRomBanks = rom.length;
+	var i;
 	console.log('Loading rom of ' + numRomBanks + ' banks');
-	for (var i = 0; i < numRomBanks; i++) {
+	for (i = 0; i < numRomBanks; i++) {
 		romBanks[i] = [];
 	    for (var j = 0; j < 0x4000; j++) {
 		    romBanks[i][j] = rom[i].charCodeAt(j);
 		}
 	}
-	for (var i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++) {
 		pages[i] = i % numRomBanks;
 	}
 	romPageMask = numRomBanks - 1;
@@ -120,6 +129,7 @@ function readbyte(address) {
 		case 0xfffd: return pages[0];
 		case 0xfffe: return pages[1];
 		case 0xffff: return pages[2];
+		default: throw "zoiks";
 	}
 }
 
@@ -130,11 +140,14 @@ function writebyte(address, value) {
 		case 0xfffd: pages[0] = value; break;
 		case 0xfffe: pages[1] = value; break;
 		case 0xffff: pages[2] = value; break;
+		default: throw "zoiks";
 		}
 		return;
 	}
     address -= 0xc000;
-    if (address < 0) return; // Ignore ROM writes
+    if (address < 0) {
+    	return; // Ignore ROM writes
+    }
 	ram[address & 0x1fff] = value; // TODO: paging registers
 }
 
