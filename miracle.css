@@ -20,11 +20,6 @@ Contact details: Matt Godbolt <matt@godbolt.org>
 JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt
 */
 
-body {
-	width: 640px;
-	margin: auto;
-	position: relative;
-}
 #screen {
 	border: 64px solid black;
 	width: 512px;
@@ -127,3 +122,6 @@ a.close_button {
 	float: left;
 }
 
+.template, .hidden {
+	display: none;
+}

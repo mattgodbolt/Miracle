@@ -23,8 +23,9 @@
 -->
 <html>
 	<head>
-		<title>Miracle</title>
+		<title>Miracle - a JavaScript Sega Master System emulator</title>
 		<link rel="stylesheet" href="miracle.css" type="text/css">
+		<script type="text/javascript" src="jquery-1.5.1.min.js"></script>
 		<script type="text/javascript" src="z80/z80_full.js"></script>
 		<script type="text/javascript" src="z80/z80_ops_full.js"></script>
 		<script type="text/javascript" src="z80/z80_dis.js"></script>
@@ -36,17 +37,16 @@
 			var running;
 			var event_next_event;
 			function addRomToList(rom) {
-				var li = document.createElement('li');
-				var a = document.createElement('a');
-				a.appendChild(document.createTextNode(rom));
-				li.appendChild(a);
-				a.href = 'javascript:void(0)';
-				a.onclick = function() {
-					loadRom(roms[rom]);
-					hideRomChooser();
-					start();
-				}
-				document.getElementById('rom_list').appendChild(li);
+				$('#rom_list .template')
+					.clone()
+					.removeClass('template')
+					.text(rom)
+					.click(function() {
+						loadRom(roms[rom]);
+						hideRomChooser();
+						start();
+					})
+					.appendTo('#rom_list');
 			}
 			function go() {
 				hideRomChooser();
@@ -54,9 +54,9 @@
 				for (rom in roms) {
 					addRomToList(rom);
 				}
-				var disass = document.getElementById('disassembly');
-				for (var i = 1; i < 16; i++) {
-					disass.appendChild(disass.children[0].cloneNode(true));
+				var disass = $('#disassembly');
+				for (var i = 0; i < 20; i++) {
+					disass.find('.template').clone().removeClass('template').appendTo(disass);
 				}
 				z80_init();
 				miracle_init();
@@ -77,22 +77,22 @@
 				paintScreen();
 			}
 			function updateDebug() {
-				var disass = document.getElementById('disassembly');
+				$('#debug').removeClass('hidden');
+				var disass = $('#disassembly');
 				var pc = z80.pc;
-				for (var i = 0; i < disass.childElementCount; ++i) {
+				disass.children().each(function() {
 					var result = disassemble(pc);
-					var child = disass.children[i];
-					child.getElementsByClassName('addr')[0].textContent = '0x' + hexword(pc);
-					child.getElementsByClassName('disassembly')[0].textContent = result[0];
+					$(this).find('.addr').text('0x' + hexword(pc));
+					$(this).find('.disassembly').text(result[0]);
 					pc = result[1];
-				}
+				});
 				for (var reg in z80) {
-					var elem = document.getElementById('z80_' + reg);
+					var elem = $('#z80_' + reg);
 					if (elem) {
 						if (reg.length > 1) {
-							elem.textContent = '0x' + hexword(z80[reg]);
+							elem.text('0x' + hexword(z80[reg]));
 						} else {
-							elem.textContent = '0x' + hexbyte(z80[reg]);
+							elem.text('0x' + hexbyte(z80[reg]));
 						}
 					}
 				}
@@ -119,6 +119,7 @@
 					updateDebug();
 					return;
 				}
+				$('#debug').addClass('hidden');
 				setTimeout(run, 20);
 				try {
 					frame();
@@ -135,17 +136,18 @@
 				z80_reset();
 			}
 			function showRomChooser() {
-				document.getElementById('rom_chooser').style.display = 'block';
+				$('#rom_chooser').removeClass('hidden');
 			}
 			function hideRomChooser() {
-				document.getElementById('rom_chooser').style.display = 'none';
+				$('#rom_chooser').addClass('hidden');
 			}
 			function showAbout() {
-				document.getElementById('about').style.display = 'block';
+				$('#about').removeClass('hidden');
 			}
 			function hideAbout() {
-				document.getElementById('about').style.display = 'none';
+				$('#about').addClass('hidden');
 			}
+			$(function() { go(); });
 		/* ]]> */</script>
 <script type="text/javascript">
 
@@ -161,19 +163,22 @@
 
 </script>
 	</head>
-	<body onload="go()">
-		<canvas id="screen" width="256" height="192"></canvas>
-		<div id="debug">
-			<div id="disassembly">
-				<div><span class="addr">0x0000</span> - <span class="disassembly">LD A,(HL)</span></div>
-			</div>
-			<div id="registers">
-				<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
-				<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
-				<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
-				<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
-				<div>SP: <span id="z80_sp">0x0000</span></div>
-				<div>PC: <span id="z80_pc">0x0000</span></div>
+	<body>
+		<h1>Miracle: Sega Master System emulator</h1>
+		<div id="holder">
+			<canvas id="screen" width="256" height="192"></canvas>
+			<div id="debug">
+				<div id="disassembly">
+					<div class="template"><span class="addr">0x0000</span> - <span class="disassembly">LD A,(HL)</span></div>
+				</div>
+				<div id="registers">
+					<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
+					<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
+					<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
+					<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
+					<div>SP: <span id="z80_sp">0x0000</span></div>
+					<div>PC: <span id="z80_pc">0x0000</span></div>
+				</div>
 			</div>
 		</div>
 		<ul id="menu" class="stopped">
@@ -185,13 +190,15 @@
 			<li id="menu_about"><a href="javascript:void(0)" onclick="showAbout()" title="About Miracle">About Miracle</a></li>
 		</ul>
 		<br />
-		<div id="rom_chooser">
+		<div id="rom_chooser" class="hidden">
 			<div>Open ROM file: <input type="file" id="file_upload" /></div>
 			<p>Or select a game:</p>
-			<ul id="rom_list"></ul>
+			<ul id="rom_list">
+				<li class="template"><a href="javascript:void(0)">A rom</a></li>
+			</ul>
 			<a href="javascript:void(0)" class="close_button" onclick="hideRomChooser()">Close</a>
 		</div>
-		<div id="about">
+		<div id="about" class="hidden">
 			<h1>Miracle</h1>
 			<h2>a Sega Master System emulator in Javascript</h2>
 			<p>By <a href="http://xania.org/">Matt Godbolt</a></p>

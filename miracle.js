@@ -56,10 +56,18 @@ var keys = {
 	65: 4,  // A = JP1 left
 	68: 8,  // D = JP1 right
 	32: 16, // Space = JP1 fire 1
-	13: 32 // Enter = JP1 fire 2
+	13: 32, // Enter = JP1 fire 2
+	
+	38: 1,  // Arrow keys
+	40: 2,
+	37: 4,
+	39: 8,
+	90: 16, // Z and X for fire
+	88: 32,
 };
 
 function keyDown(evt) {
+	console.log(evt);
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick &= ~key;
