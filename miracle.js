@@ -67,7 +67,6 @@ var keys = {
 };
 
 function keyDown(evt) {
-	console.log(evt);
 	var key = keys[evt.keyCode];
 	if (key) {
 		joystick &= ~key;
