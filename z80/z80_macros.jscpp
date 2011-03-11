@@ -106,11 +106,9 @@
 #define FLAG_Z	0x40
 #define FLAG_S	0x80
 
-/* Get the appropriate contended memory delay. Use this macro later
+/* Get the appropriate contended delay. Use this macro later
    to avoid a function call if memory contention is disabled */
-/* #define contend(address,time) tstates += contend_memory( (address) ) + (time); */
 /* #define contend_io(port,time) tstates += contend_port( (port) ) + (time); */
-#define contend(address,time) tstates += (time);
 #define contend_io(port,time) tstates += (time);
 
 /* Some commonly used instructions */
@@ -191,7 +189,7 @@
   var calltempl, calltemph; \
   calltempl=readbyte(PC++);\
   PC &= 0xffff;\
-  contend( PC, 1 );\
+  tstates++;\
   calltemph=readbyte(PC++);\
   PC &= 0xffff;\
   PUSH16W(PC);\
@@ -246,16 +244,13 @@ break
 #define LD16_NNRR(regl,regh)\
 {\
   var ldtemp; \
-  contend( PC, 3 );\
+  tstates+=12;\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
-  contend( PC, 3 );\
   ldtemp|=readbyte(PC++) << 8;\
   PC &= 0xffff;\
-  contend( ldtemp, 3 );\
   writebyte(ldtemp++,(regl));\
   ldtemp &= 0xffff;\
-  contend( ldtemp, 3 );\
   writebyte(ldtemp,(regh));\
   break;\
 }
@@ -263,16 +258,13 @@ break
 #define LD16_RRNN(regl,regh)\
 {\
   var ldtemp; \
-  contend( PC, 3 );\
+  tstates+=12;\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
-  contend( PC, 3 );\
   ldtemp|=readbyte(PC++) << 8;\
   PC &= 0xffff;\
-  contend( ldtemp, 3 );\
   (regl)=readbyte(ldtemp++);\
   ldtemp &= 0xffff;\
-  contend( ldtemp, 3 );\
   (regh)=readbyte(ldtemp);\
   break;\
 }
@@ -280,16 +272,13 @@ break
 #define LD16_RRNNW(reg)\
 {\
   var ldtemp; \
-  contend( PC, 3 );\
+  tstates+=12;\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
-  contend( PC, 3 );\
   ldtemp|=readbyte(PC++) << 8;\
   PC &= 0xffff;\
-  contend( ldtemp, 3 );\
   var regl = readbyte(ldtemp++);\
   ldtemp &= 0xffff;\
-  contend( ldtemp, 3 );\
   var regh =readbyte(ldtemp);\
   reg = regl | (regh << 8);\
   break;\
@@ -306,8 +295,7 @@ break
 
 #define JR()\
 {\
-  contend( PC, 1 ); contend( PC, 1 ); contend( PC, 1 ); contend( PC, 1 );\
-  contend( PC, 1 );\
+  tstates+=5;\
   PC += sign_extend(readbyte( PC )); \
   PC &= 0xffff; \
 }
@@ -326,20 +314,18 @@ break
 
 #define POP16(regl,regh)\
 {\
-  contend( SP, 3 );\
+  tstates+=6;\
   (regl)=readbyte(SP++);\
   SP &= 0xffff;\
-  contend( SP, 3 );\
   (regh)=readbyte(SP++);\
   SP &= 0xffff;\
 }
 
 #define POP16W(reg)\
 {\
-  contend( SP, 3 );\
+  tstates+=6;\
   var lowbyte =readbyte(SP++);\
   SP &= 0xffff;\
-  contend( SP, 3 );\
   var highbyte=readbyte(SP++);\
   SP &= 0xffff;\
   (reg) = lowbyte | (highbyte << 8);\
@@ -347,16 +333,18 @@ break
 
 #define PUSH16(regl,regh)\
 {\
-  SP--; SP &= 0xffff; contend( SP, 3 );\
+  tstates+=6;\
+  SP--; SP &= 0xffff;\
   writebyte(SP,(regh));\
-  SP--; SP &= 0xffff; contend( SP, 3 );\
+  SP--; SP &= 0xffff;\
   writebyte(SP,(regl));\
 }
 #define PUSH16W(reg)\
 {\
-  SP--; SP &= 0xffff; contend( SP, 3 );\
+  tstates+=6;\
+  SP--; SP &= 0xffff;\
   writebyte(SP,(reg) >> 8);\
-  SP--; SP &= 0xffff; contend( SP, 3 );\
+  SP--; SP &= 0xffff;\
   writebyte(SP,(reg) & 0xff);\
 }
 
