@@ -38,7 +38,7 @@ function z80_do_opcodes()
 
     /* Do the instruction fetch; readbyte_internal used here to avoid
        triggering read breakpoints */
-    contend( PC, 4 ); R = (R+1) & 0x7f;
+    tstates+=4; R = (R+1) & 0x7f;
     opcode = readbyte_internal( PC++ ); PC &= 0xffff;
 
     switch(opcode) {
