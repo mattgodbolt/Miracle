@@ -22,12 +22,15 @@ var joystick = 0xffff;
 function miracle_init() {
 	var i;
 	vdp_init();
+	ram = new Uint8Array(0x2000);
 	for (i = 0x0000; i < 0x2000; i++) {
 		ram[i] = 0;
 	}
+	cartridgeRam = new Uint8Array(0x8000);
 	for (i = 0x0000; i < 0x8000; i++) {
 		cartridgeRam[i] = 0;
 	}
+	pages = new Uint8Array(4);
 	for (i = 0; i < 3; i++) {
 		pages[i] = i;
 	}
@@ -105,7 +108,7 @@ function loadRom(rom) {
 	var i;
 	console.log('Loading rom of ' + numRomBanks + ' banks');
 	for (i = 0; i < numRomBanks; i++) {
-		romBanks[i] = [];
+		romBanks[i] = new Uint8Array(0x4000);
 	    for (var j = 0; j < 0x4000; j++) {
 		    romBanks[i][j] = rom[i].charCodeAt(j);
 		}

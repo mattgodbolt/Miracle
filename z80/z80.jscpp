@@ -20,25 +20,33 @@
 
 #include "z80_macros.jscpp"
 
+function byteTable(values) {
+	var result = new Uint8Array(values.length);
+	var i;
+	for (i = 0; i < values.length; ++i) {
+		result[i] = values[i];
+	}
+	return result;
+}
 /* Whether a half carry occured or not can be determined by looking at
    the 3rd bit of the two arguments and the result; these are hashed
    into this table in the form r12, where r is the 3rd bit of the
    result, 1 is the 3rd bit of the 1st argument and 2 is the
    third bit of the 2nd argument; the tables differ for add and subtract
    operations */
-var halfcarry_add_table = [ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ];
-var halfcarry_sub_table = [ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ];
+var halfcarry_add_table = byteTable([ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ]);
+var halfcarry_sub_table = byteTable([ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ]);
 
 /* Similarly, overflow can be determined by looking at the 7th bits; again
    the hash into this table is r12 */
-var overflow_add_table = [ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ];
-var overflow_sub_table = [ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ];
+var overflow_add_table = byteTable([ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ]);
+var overflow_sub_table = byteTable([ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ]);
 
 /* Some more tables; initialised in z80_init_tables() */
 
-var sz53_table = []; /* The S, Z, 5 and 3 bits of the index */
-var parity_table = []; /* The parity of the lookup value */
-var sz53p_table = []; /* OR the above two tables together */
+var sz53_table = new Uint8Array(256); /* The S, Z, 5 and 3 bits of the index */
+var parity_table = new Uint8Array(256); /* The parity of the lookup value */
+var sz53p_table = new Uint8Array(256); /* OR the above two tables together */
 
 /* This is what everything acts on! */
 var z80 = {
