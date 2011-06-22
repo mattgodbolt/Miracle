@@ -72,6 +72,12 @@ function pumpAudio(event) {
 }
 
 function audio_init() {
+	if (typeof(webkitAudioContext) === 'undefined') {
+		// Disable sound without the new APIs. 
+		audioRun = function() {};
+		soundChip = new SoundChip(10000);
+		return;
+	}
 	var context = new webkitAudioContext();
 	var jsAudioNode = context.createJavaScriptNode(2048, 0, 1);
 	jsAudioNode.onaudioprocess = pumpAudio;
