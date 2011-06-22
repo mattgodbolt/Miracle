@@ -31,6 +31,7 @@
 		<script type="text/javascript" src="z80/z80_ops_full.js"></script>
 		<script type="text/javascript" src="z80/z80_dis.js"></script>
 		<script type="text/javascript" src="vdp.js"></script>
+		<script type="text/javascript" src="soundchip.js"></script>
 		<script type="text/javascript" src="miracle.js"></script>
 		<script type="text/javascript" src="roms.js"></script>
 		<script type="text/javascript">/* <![CDATA[ */
@@ -75,6 +76,7 @@
 						z80_interrupt();
 					}
 				}
+				audioRun(1/50.0);
 				paintScreen();
 			}
 			function updateDebug() {

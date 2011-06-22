@@ -19,9 +19,79 @@ var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 
 var joystick = 0xffff;
 
+var soundChip;
+var playbackBuffer = [];
+var playbackIndex = 0;
+var soundBuffer;
+var soundBufferIndex = 0;
+var sampleRate;
+var audioFrameSize;
+
+function nextAudioBuffer() {
+	if (soundBuffer) playbackBuffer.push(soundBuffer);
+	soundBuffer = new Float32Array(audioFrameSize);
+}
+
+function audioRun(timeSinceLast) {
+	var end = soundBufferIndex + timeSinceLast * sampleRate;
+	for (;;) {
+		var start = Math.floor(soundBufferIndex);
+		var actualLength = Math.floor(end - soundBufferIndex);
+		if (start + actualLength > soundBuffer.length) {
+			actualLength = soundBuffer.length - start;
+		}
+		if (actualLength < 1.0) return;
+		soundChip.render(soundBuffer, start, actualLength);
+		soundBufferIndex += actualLength;
+		if (soundBufferIndex >= soundBuffer.length) {
+			soundBufferIndex -= soundBuffer.length;
+			end -= soundBuffer.length;
+			nextAudioBuffer();
+		}
+	}
+}
+
+function popNextSample() {
+	if (!playbackBuffer.length) return 0;
+	var buffer = playbackBuffer[0];
+	if (playbackIndex >= buffer.length) {
+		playbackBuffer.shift();
+		playbackIndex = 0;
+		return popNextSample();
+	}
+	return buffer[playbackIndex++];
+}
+
+function pumpAudio(event) {
+	var outBuffer = event.outputBuffer;
+	var left = outBuffer.getChannelData(0);
+	var right = outBuffer.getChannelData(1);
+	for (var j = 0; j < left.length; ++j) {
+		left[j] = right[j] = popNextSample();
+	}
+}
+
+function audio_init() {
+	if (typeof(webkitAudioContext) === 'undefined') {
+		// Disable sound without the new APIs. 
+		audioRun = function() {};
+		soundChip = new SoundChip(10000);
+		return;
+	}
+	var context = new webkitAudioContext();
+	var jsAudioNode = context.createJavaScriptNode(2048, 0, 1);
+	jsAudioNode.onaudioprocess = pumpAudio;
+	jsAudioNode.connect(context.destination, 0, 0);
+	soundChip = new SoundChip(context.sampleRate);
+	sampleRate = context.sampleRate;
+	audioFrameSize = 1 / 50 * context.sampleRate;
+	nextAudioBuffer();
+}
+
 function miracle_init() {
 	var i;
 	vdp_init();
+	audio_init();
 	ram = new Uint8Array(0x2000);
 	for (i = 0x0000; i < 0x2000; i++) {
 		ram[i] = 0;
@@ -186,7 +256,7 @@ function writeport(addr, val) {
 	addr &= 0xff;
     switch (addr) {
     case 0x7e: case 0x7f:
-    	// TODO: sound...
+	soundChip.poke(val);
     	break;
     case 0xbd:
     case 0xbf:
