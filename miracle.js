@@ -295,3 +295,9 @@ function writeport(addr, val) {
         break;
     }
 }
+
+function breakpoint() {
+    event_next_event = 0;
+    breakpointHit = true;
+}
+

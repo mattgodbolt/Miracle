@@ -37,7 +37,8 @@
 		<script type="text/javascript">/* <![CDATA[ */
 			var tstates = 0;
 			var running;
-			var event_next_event;
+            var event_next_event;
+            var breakpointHit = false;
 			function addRomToList(rom) {
 				$('#rom_list .template')
 					.clone()
@@ -59,7 +60,8 @@
 				var disass = $('#disassembly');
 				for (var i = 0; i < 20; i++) {
 					disass.find('.template').clone().removeClass('template').appendTo(disass);
-				}
+                }
+                disass.find('.template').remove();
 				z80_init();
 				miracle_init();
 				miracle_reset();
@@ -75,7 +77,12 @@
 					vdp_status = vdp_hblank();
 					if (vdp_status) {
 						z80_interrupt();
-					}
+                    }
+                    if (breakpointHit) {
+                        running = false;
+                        updateDebug();
+                        return;
+                    }
 				}
 				audioRun(1/50.0);
 				paintScreen();
@@ -86,17 +93,18 @@
 				var pc = z80.pc;
 				disass.children().each(function() {
 					var result = disassemble(pc);
-					$(this).find('.addr').text('0x' + hexword(pc));
+					$(this).find('.addr').text(hexword(pc));
 					$(this).find('.disassembly').text(result[0]);
 					pc = result[1];
 				});
 				for (var reg in z80) {
 					var elem = $('#z80_' + reg);
 					if (elem) {
-						if (reg.length > 1) {
-							elem.text('0x' + hexword(z80[reg]));
+                        if (reg.length > 1 && reg[reg.length-1] != 'h'
+                                && reg[reg.length-1] != 'l') {
+							elem.text(hexword(z80[reg]));
 						} else {
-							elem.text('0x' + hexbyte(z80[reg]));
+							elem.text(hexbyte(z80[reg]));
 						}
 					}
 				}
@@ -112,6 +120,7 @@
 				updateDebug();
 			}
 			function start() {
+                breakpointHit = false;
 				updateDebug();
 				if (running) return;
 				running = true;
@@ -173,15 +182,17 @@
 			<canvas id="screen" width="256" height="192"></canvas>
 			<div id="debug">
 				<div id="disassembly">
-					<div class="template"><span class="addr">0x0000</span> - <span class="disassembly">LD A,(HL)</span></div>
+					<div class="template"><span class="addr">0000</span> - <span class="disassembly">LD A,(HL)</span></div>
 				</div>
 				<div id="registers">
-					<div>AF: <span id="z80_a">0x00</span>:<span id="z80_f">0x00</span></div>
-					<div>BC: <span id="z80_b">0x00</span>:<span id="z80_c">0x00</span></div>
-					<div>DE: <span id="z80_d">0x00</span>:<span id="z80_e">0x00</span></div>
-					<div>HL: <span id="z80_h">0x00</span>:<span id="z80_l">0x00</span></div>
-					<div>SP: <span id="z80_sp">0x0000</span></div>
-					<div>PC: <span id="z80_pc">0x0000</span></div>
+					<div>AF: <span class="h" id="z80_a">00</span><span class="l" id="z80_f">00</span></div>
+					<div>BC: <span class="h" id="z80_b">00</span><span class="l" id="z80_c">00</span></div>
+                    <div>DE: <span class="h" id="z80_d">00</span><span class="l" id="z80_e">00</span></div>
+					<div>HL: <span class="h" id="z80_h">00</span><span class="l" id="z80_l">00</span></div>
+					<div>SP: <span id="z80_sp">0000</span></div>
+					<div>PC: <span id="z80_pc">0000</span></div>
+					<div>IX: <span class="h" id="z80_ixh">00</span><span class="l" id="z80_ixl">00</span></div>
+					<div>IY: <span class="h" id="z80_iyh">00</span><span class="l" id="z80_iyl">00</span></div>
 				</div>
 			</div>
 		</div>
