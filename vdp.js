@@ -37,9 +37,6 @@ function vdp_writeaddr(val) {
             case 7:
                 update_border();
                 break;
-            case 10:
-                vdp_hblank_counter = vdp_addr_latch; // TASK: right?
-                break;
             }
             break;
         case 3:
@@ -241,6 +238,7 @@ function rasterize_line(line) {
             // TODO: sprite X-8 shift
             for (j = 0; j < 8; ++j) {
                 var k;
+                var writtenTo = false;
                 for (k = 0; k < sprites.length; k++) {
                     var sprite = sprites[k];
                     var offset = xPos - sprite[0];
@@ -260,11 +258,15 @@ function rasterize_line(line) {
                     if (index === 0) {
                         continue;
                     }
+                    if (writtenTo) {
+                        // We have a collision!.
+                        vdp_status |= 0x20;
+                        break;
+                    }
                     imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
                     imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
                     imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
-                    // TODO: collision?
-                    break;
+                    writtenTo = true;
                 }
                 xPos++;
                 pixelOffset += 4;
