@@ -277,6 +277,8 @@ function writeport(addr, val) {
     	break;
     case 0xde: case 0xdf:
     	break; // Unknown use
+    case 0xf0: case 0xf1: case 0xf2:
+	break; // YM2413 sound support: TODO
     default:
 		console.log('IO port ' + hexbyte(addr) + ' = ' + val);
 		break;
