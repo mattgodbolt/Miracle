@@ -6,7 +6,7 @@ def main(file):
   for line in open(file):
     line = re.sub('#.*', '', line.strip())
     if not line: continue
-    parsed = line.split()
+    parsed = line.split(' ', 2)
     if not ' ' in line:
       print 'case %s:' % line
       continue
@@ -17,6 +17,7 @@ def main(file):
       print 'case %s: return disassemble_%s(address);' % (number, args)
       continue
     print 'case %s: res="%s";' % (number, opcode)
+    args = re.sub(r'(REGISTER[HL]?)', r'" + \1 + "', args);
     if 'nnnn' in args:
       pre = args[0:args.find('nnnn')]
       post = args[args.find('nnnn') + 4:]
@@ -29,7 +30,13 @@ def main(file):
       pre = args[0:args.find('offset')]
       post = args[args.find('offset') + 6:]
       print 'var reladdr = address + 1 + sign_extend(readbyte(address));'
-      print 'res += " %s0x" + hexword(reladdr) + "%s"; address += 2;' % (pre, post)
+      print 'res += " %s0x" + hexword(reladdr) + "%s"; address += 1;' % (pre, post)
+    elif 'dd' in args:
+      pre = args[0:args.find('+dd')]
+      post = args[args.find('+dd') + 3:]
+      print 'var offset = sign_extend(readbyte(address));'
+      print 'var sign = offset > 0 ? "+" : "-";'
+      print 'res += " %s" + sign + "0x" + hexbyte(offset) + "%s"; address += 1;' % (pre, post)
     elif args:
       print 'res += " %s";' % args
     print "break;"
