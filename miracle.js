@@ -226,7 +226,7 @@ function readbyte(address) {
 function writebyte(address, value) {
     if (address >= 0xfffc) {
         switch (address) {
-        case 0xfffc: ramSelectRegister = 0; break;
+        case 0xfffc: ramSelectRegister = value; break;
         case 0xfffd: pages[0] = value; break;
         case 0xfffe: pages[1] = value; break;
         case 0xffff: pages[2] = value; break;
@@ -238,7 +238,7 @@ function writebyte(address, value) {
     if (address < 0) {
         return; // Ignore ROM writes
     }
-    ram[address & 0x1fff] = value; // TODO: paging registers
+    ram[address & 0x1fff] = value;
 }
 
 function readport(addr) {
@@ -256,6 +256,8 @@ function readport(addr) {
         return vdp_readstatus();
     case 0xde: case 0xdf:
         return 0; // Unknown use
+    case 0xf2:
+        return 0; // YM2413
     default:
         console.log('IO port ' + hexbyte(addr) + '?');
         return 0;
@@ -265,8 +267,17 @@ function readport(addr) {
 function writeport(addr, val) {
     addr &= 0xff;
     switch (addr) {
+    case 0x3f:
+        // Nationalisation, pretend we're British.
+        var natbit = ((val >> 5) & 1);
+        if ((val & 1) == 0) natbit = 1;
+        joystick = (joystick & ~(1<<6)) | (natbit<<6);
+        natbit = ((val >> 7) & 1);
+        if ((val & 4) == 0) natbit = 1;
+        joystick = (joystick & ~(1<<7)) | (natbit<<7);
+        break;
     case 0x7e: case 0x7f:
-    soundChip.poke(val);
+        soundChip.poke(val);
         break;
     case 0xbd:
     case 0xbf:
