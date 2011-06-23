@@ -62,6 +62,7 @@
 				}
 				z80_init();
 				miracle_init();
+				miracle_reset();
 				loadRom(roms['SonicTheHedgehog.sms']);
 				start();
 			}
@@ -136,7 +137,7 @@
 				running = false;
 			}
 			function reset() {
-				z80_reset();
+				miracle_reset()();
 			}
 			function showRomChooser() {
 				$('#rom_chooser').removeClass('hidden');

@@ -87,7 +87,7 @@ function SoundChip(sampleRate) {
 		for (i = 0; i < length; ++i) {
 			out[i + offset] *= 1.0/4.0;
 		}
-	}
+}
 
 
 	var latchedChannel = 0;
@@ -115,5 +115,11 @@ function SoundChip(sampleRate) {
 
 	this.render = render;
 	this.poke = poke;
+	this.reset = function() {
+		for (var i = 0; i < 3; ++i) {
+			volume[i] = register[i] = 0;
+		}
+		noisePoked();
+	}
 }
 

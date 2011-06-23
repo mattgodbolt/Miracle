@@ -88,6 +88,10 @@ function audio_init() {
 	nextAudioBuffer();
 }
 
+function audio_reset() {
+	soundChip.reset();
+}
+
 function miracle_init() {
 	var i;
 	vdp_init();
@@ -121,6 +125,12 @@ function miracle_init() {
 	document.onkeydown = keyDown;
 	document.onkeyup = keyUp;
 	document.onkeypress = keyPress;
+}
+
+function miracle_reset() {
+	z80_reset();
+	vdp_init();
+	audio_reset();
 }
 
 var keys = {
