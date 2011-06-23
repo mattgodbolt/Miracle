@@ -1,32 +1,32 @@
 /* z80.jscpp: z80 supplementary functions
    Copyright (c) 1999-2008 Philip Kendall, Matthew Westcott
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
-	
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-	
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
-	
-	Contact details: <matthew@west.co.tt>
-	Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+    Contact details: <matthew@west.co.tt>
+    Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 */
 
 #include "z80_macros.jscpp"
 
 function byteTable(values) {
-	var result = new Uint8Array(values.length);
-	var i;
-	for (i = 0; i < values.length; ++i) {
-		result[i] = values[i];
-	}
-	return result;
+    var result = new Uint8Array(values.length);
+    var i;
+    for (i = 0; i < values.length; ++i) {
+        result[i] = values[i];
+    }
+    return result;
 }
 /* Whether a half carry occured or not can be determined by looking at
    the 3rd bit of the two arguments and the result; these are hashed
@@ -50,15 +50,15 @@ var sz53p_table = new Uint8Array(256); /* OR the above two tables together */
 
 /* This is what everything acts on! */
 var z80 = {
-	a:0, f:0, b:0, c:0, d:0, e:0, h:0, l:0,
-	a_:0, f_:0, b_:0, c_:0, d_:0, e_:0, h_:0, l_:0,
-	ixh:0, ixl:0, iyh:0, iyl:0,
-	i:0,
-	r:0, /* The low seven bits of the R register. 16 bits long
-			   so it can also act as an RZX instruction counter */
-	r7:0, /* The high bit of the R register */
-	sp:0, pc:0,
-	iff1:0, iff2:0, im:0, halted:false
+    a:0, f:0, b:0, c:0, d:0, e:0, h:0, l:0,
+    a_:0, f_:0, b_:0, c_:0, d_:0, e_:0, h_:0, l_:0,
+    ixh:0, ixl:0, iyh:0, iyl:0,
+    i:0,
+    r:0, /* The low seven bits of the R register. 16 bits long
+               so it can also act as an RZX instruction counter */
+    r7:0, /* The high bit of the R register */
+    sp:0, pc:0,
+    iff1:0, iff2:0, im:0, halted:false
 };
 
 /* Set up the z80 emulation */
@@ -115,16 +115,16 @@ function z80_interrupt() {
       case 0: PC = 0x0038; tstates+=12; break;
       case 1: PC = 0x0038; tstates+=13; break;
       case 2: 
-	{
-	  var inttemp=(0x100*I)+0xff;
-	  var pcl = readbyte(inttemp++); inttemp &= 0xfff; var pch = readbyte(inttemp);
-	  PC = pcl | (pch << 8);
-	  tstates+=19;
-	  break;
-	}
+    {
+      var inttemp=(0x100*I)+0xff;
+      var pcl = readbyte(inttemp++); inttemp &= 0xfff; var pch = readbyte(inttemp);
+      PC = pcl | (pch << 8);
+      tstates+=19;
+      break;
+    }
       default:
-	ui_error( UI_ERROR_ERROR, "Unknown interrupt mode %d", IM );
-	fuse_abort();
+    ui_error( UI_ERROR_ERROR, "Unknown interrupt mode %d", IM );
+    fuse_abort();
     }
   }
 }
