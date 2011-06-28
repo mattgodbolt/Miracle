@@ -152,17 +152,13 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                       | ((tileVal1 & 1) << 1)
                       | ((tileVal2 & 1) << 2)
                       | ((tileVal3 & 1) << 3);
-            /* TODO: Work out why this isn't needed:
-            if (index === 0 && (tileData & (1<<12))) {
-                continue;
-            }*/
             index += paletteOffset;
-            imageDataData[lineAddr + pixelOffset] = paletteR[index];
-            pixelOffset++;
-            imageDataData[lineAddr + pixelOffset] = paletteG[index];
-            pixelOffset++;
-            imageDataData[lineAddr + pixelOffset] = paletteB[index];
-            pixelOffset += 2;
+            if (index !== 0) {
+                imageDataData[lineAddr + pixelOffset] = paletteR[index];
+                imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
+                imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
+            }
+            pixelOffset += 4;
             pixelOffset &= 1023;
             tileVal0 >>= 1;
             tileVal1 >>= 1;
@@ -175,23 +171,30 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                       | ((tileVal1 & 128) >> 6)
                       | ((tileVal2 & 128) >> 5)
                       | ((tileVal3 & 128) >> 4);
-            /* TODO: Work out why this isn't needed:
-            if (index === 0 && (tileData & (1<<12))) {
-                continue;
-            }*/
             index += paletteOffset;
-            imageDataData[lineAddr + pixelOffset] = paletteR[index];
-            pixelOffset++;
-            imageDataData[lineAddr + pixelOffset] = paletteG[index];
-            pixelOffset++;
-            imageDataData[lineAddr + pixelOffset] = paletteB[index];
-            pixelOffset += 2;
+            if (index !== 0) {
+                imageDataData[lineAddr + pixelOffset] = paletteR[index];
+                imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
+                imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
+            }
+            pixelOffset += 4;
             pixelOffset &= 1023;
             tileVal0 <<= 1;
             tileVal1 <<= 1;
             tileVal2 <<= 1;
             tileVal3 <<= 1;
         }
+    }
+}
+
+function clear_background(lineAddr, pixelOffset) {
+    var i;
+    for (k = 0; k < 8; ++k) {
+        imageDataData[lineAddr + pixelOffset] = paletteR[0];
+        imageDataData[lineAddr + pixelOffset + 1] = paletteG[0];
+        imageDataData[lineAddr + pixelOffset + 2] = paletteB[0];
+        pixelOffset += 4;
+        pixelOffset &= 1023;
     }
 }
 
@@ -230,10 +233,12 @@ function rasterize_line(line) {
             } else {
                 tileDef += (4 * yMod);
             }
+            clear_background(lineAddr, pixelOffset);
             // TODO: static top two rows, and static left-hand rows.
             if ((tileData & (1<<12)) === 0) {
                 rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
             }
+            var savedOffset = pixelOffset;
             var xPos = (i * 8 + vdp_regs[8]) & 0xff;
             // TODO: sprite X-8 shift
             for (j = 0; j < 8; ++j) {
@@ -273,7 +278,7 @@ function rasterize_line(line) {
                 pixelOffset &= 1023;
             }
             if ((tileData & (1<<12)) !== 0) {
-                rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
+                rasterize_background(lineAddr, savedOffset, tileData, tileDef);
             }
         }
         if (vdp_regs[0] & (1 << 5)) {
