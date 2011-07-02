@@ -147,6 +147,8 @@ var keys = {
     39: 8,
     90: 16, // Z and X for fire
     88: 32,
+
+    82: 1<<12,  // R for reset button
 };
 
 function keyDown(evt) {
@@ -157,6 +159,9 @@ function keyDown(evt) {
             return false;
         }
     }
+    if (evt.keyCode == 80) { // P for pause
+       z80_nmi();
+    } 
 }
 
 function keyUp(evt) {
