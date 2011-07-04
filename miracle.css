@@ -20,13 +20,20 @@ Contact details: Matt Godbolt <matt@godbolt.org>
 JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt
 */
 
+body {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: arial, tahoma;
+    font-size: 11px;
+}
+
 #screen {
 	border: 64px solid black;
 	width: 512px;
 	height: 384px;
-	float: left;
-	clear: both;
-	margin-right: 32px;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
 }
 
 #menu {
@@ -47,7 +54,7 @@ JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt
 	height: 48px;
 	outline: none;
 }
-#menu li#menu_about {
+#menu li #menu_about {
 	float: right;
 }
 #rom_chooser {
@@ -104,6 +111,7 @@ a.close_button {
 #about h1 {
 	font-size: 18pt;
 	margin-bottom: 0;
+    text-align: center;
 }
 #about h2 {
 	font-size: 12pt;
@@ -112,22 +120,40 @@ a.close_button {
 	font-size: 9pt;
 }
 #debug {
-	font-size: 9pt;
+    background-color: #333333;
+    border: 1px solid #555555;
+    position: fixed;
+    bottom: 0px;
+    right: 0px;
+	font-size: 8pt;
 	font-family: monospace;
 }
+
 #registers {
 	float: right;
+    text-align: right;
+    width: 90px;
 }
+
 #disassembly {
+    width: 300px; 
 	float: left;
 }
 
 .h {
-    background-color: #ffffff;
+    background-color: #111111;
 }
 
 .l {
-    background-color: #e0e0e0;
+    background-color: #112211;
+}
+
+.current {
+    background-color: #227777;
+}
+
+.changed {
+    background-color: #772222;
 }
 
 .template, .hidden {

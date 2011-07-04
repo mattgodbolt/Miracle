@@ -93,19 +93,22 @@
 				var pc = z80.pc;
 				disass.children().each(function() {
 					var result = disassemble(pc);
-					$(this).find('.addr').text(hexword(pc));
+                    $(this).find('.addr').text(hexword(pc));
+                    $(this).toggleClass('current', pc == z80.pc);
 					$(this).find('.disassembly').text(result[0]);
 					pc = result[1];
 				});
 				for (var reg in z80) {
 					var elem = $('#z80_' + reg);
-					if (elem) {
+                    if (elem) {
+                        var newVal = '';
                         if (reg.length > 1 && reg[reg.length-1] != 'h'
                                 && reg[reg.length-1] != 'l') {
-							elem.text(hexword(z80[reg]));
-						} else {
-							elem.text(hexbyte(z80[reg]));
-						}
+                            newVal = hexword(z80[reg]);
+                        } else {
+                            newVal = hexbyte(z80[reg]);
+                        }
+                        elem.toggleClass('changed', newVal != elem.text()).text(newVal);
 					}
 				}
 			}
@@ -179,7 +182,7 @@
 	<body>
 		<h1>Miracle: Sega Master System emulator</h1>
 		<div id="holder">
-			<canvas id="screen" width="256" height="192"></canvas>
+            <canvas id="screen" width="256" height="192"></canvas>
 			<div id="debug">
 				<div id="disassembly">
 					<div class="template"><span class="addr">0000</span> - <span class="disassembly">LD A,(HL)</span></div>
