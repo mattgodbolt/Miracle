@@ -152,6 +152,7 @@ var keys = {
 };
 
 function keyDown(evt) {
+    if (!running) return;
     var key = keys[evt.keyCode];
     if (key) {
         joystick &= ~key;
@@ -159,12 +160,18 @@ function keyDown(evt) {
             return false;
         }
     }
-    if (evt.keyCode == 80) { // P for pause
+    switch (evt.keyCode) {
+    case 80:  // 'P' for pause
        z80_nmi();
+       break;
+    case 8:  // 'Backspace' is debug
+       breakpoint();
+       break;
     } 
 }
 
 function keyUp(evt) {
+    if (!running) return;
     var key = keys[evt.keyCode];
     if (key) {
         joystick |= key;
@@ -175,6 +182,10 @@ function keyUp(evt) {
 }
 
 function keyPress(evt) {
+    if (!running) {
+        debugKeyPress(evt.keyCode);
+        return;
+    }
     if (!evt.metaKey) {
         return false;
     }
