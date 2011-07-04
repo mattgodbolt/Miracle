@@ -33,6 +33,7 @@
 		<script type="text/javascript" src="vdp.js"></script>
 		<script type="text/javascript" src="soundchip.js"></script>
 		<script type="text/javascript" src="miracle.js"></script>
+		<script type="text/javascript" src="debug.js"></script>
 		<script type="text/javascript" src="roms.js"></script>
 		<script type="text/javascript">/* <![CDATA[ */
 			var tstates = 0;
@@ -86,41 +87,6 @@
 				}
 				audioRun(1/50.0);
 				paintScreen();
-			}
-			function updateDebug() {
-				$('#debug').removeClass('hidden');
-				var disass = $('#disassembly');
-				var pc = z80.pc;
-				disass.children().each(function() {
-					var result = disassemble(pc);
-                    $(this).find('.addr').text(hexword(pc));
-                    $(this).toggleClass('current', pc == z80.pc);
-					$(this).find('.disassembly').text(result[0]);
-					pc = result[1];
-				});
-				for (var reg in z80) {
-					var elem = $('#z80_' + reg);
-                    if (elem) {
-                        var newVal = '';
-                        if (reg.length > 1 && reg[reg.length-1] != 'h'
-                                && reg[reg.length-1] != 'l') {
-                            newVal = hexword(z80[reg]);
-                        } else {
-                            newVal = hexbyte(z80[reg]);
-                        }
-                        elem.toggleClass('changed', newVal != elem.text()).text(newVal);
-					}
-				}
-			}
-			function step() {
-				var curpc = z80.pc;
-				for (var i = 0; i < 65536; i++) {
-					tstates = 0;
-					event_next_event = 1;
-					z80_do_opcodes();
-					if (z80.pc != curpc) break;
-				}
-				updateDebug();
 			}
 			function start() {
                 breakpointHit = false;
