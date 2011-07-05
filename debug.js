@@ -81,10 +81,24 @@ function stepOver() {
     stepUntil(function () { return z80.pc == nextPc || z80.sp == sp; });
 }
 
+function isReturn(addr) {
+    var result = disassemble(addr);
+    if (result[0].match(/^RET/)) {
+        return true;
+    }
+    return false;
+}
+
 function stepOut() {
     var sp = z80.sp;
-    // TODO: this isn't very good really...it catches POP etc.
-    stepUntil(function () { return z80.sp > sp; });
+    stepUntil(function () {
+        if (z80.sp >= sp && isReturn(z80.pc)) {
+            var nextInstr = nextInstruction(z80.pc);
+            step();
+            return z80.pc != nextInstr;
+        }
+        return false;
+    });
 }
 
 function currentDis() {
