@@ -84,7 +84,7 @@ function step() {
 
 function isUnconditionalJump(addr) {
     var result = disassemble(addr);
-    if (result[0].match(/^JMP|RET/)) {
+    if (result[0].match(/^(JR 0x|JP|RET)/)) {
         return true;
     }
     return false;
