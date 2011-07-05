@@ -27,6 +27,25 @@ function nextInstruction(address) {
     return disassemble(address)[1] & 0xffff;
 }
 
+function updateElement(elem, newVal) {
+    elem.toggleClass('changed', newVal != elem.text()).text(newVal);
+}
+
+function updateFlags(f) {
+    var string = 'cnp_h_zs';
+    for (var i = 0; i < 8; ++i) {
+        var r = string[i];
+        var elem = $('#z80_flag_' + r);
+        if (f & 1) {
+            r = r.toUpperCase();
+        }
+        if (elem) {
+            updateElement(elem, r);
+        }
+        f >>= 1;
+    }
+}
+
 function updateDebug() {
     $('#debug').removeClass('hidden');
     var disassPc = z80.pc;
@@ -37,16 +56,15 @@ function updateDebug() {
     for (var reg in z80) {
         var elem = $('#z80_' + reg);
         if (elem) {
-            var newVal = '';
             if (reg.length > 1 && reg[reg.length-1] != 'h'
                     && reg[reg.length-1] != 'l') {
-                newVal = hexword(z80[reg]);
+                updateElement(elem, hexword(z80[reg]));
             } else {
-                newVal = hexbyte(z80[reg]);
+                updateElement(elem, hexbyte(z80[reg]));
             }
-            elem.toggleClass('changed', newVal != elem.text()).text(newVal);
         }
     }
+    updateFlags(z80.f);
 }
 
 function stepUntil(f) {
@@ -76,9 +94,8 @@ function stepOver() {
     if (isUnconditionalJump(z80.pc)) {
         return step();
     }
-    var sp = z80.sp;
     var nextPc = nextInstruction(z80.pc);
-    stepUntil(function () { return z80.pc == nextPc || z80.sp == sp; });
+    stepUntil(function () { return z80.pc == nextPc; });
 }
 
 function isReturn(addr) {
