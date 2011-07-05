@@ -15,7 +15,6 @@ function SoundChip(sampleRate) {
         f *= Math.pow(10, -0.1);
     }
     volumeTable[15] = 0;
-    console.log(volumeTable);
 
     function toneChannel(channel, out, offset, length) {
         if (register[channel] <= 1) {
