@@ -59,10 +59,18 @@
 					addRomToList(rom);
 				}
 				var disass = $('#disassembly');
-				for (var i = 0; i < 20; i++) {
+				for (var i = 0; i < 32; i++) {
 					disass.find('.template').clone().removeClass('template').appendTo(disass);
                 }
+                var vdp = $('#vdp_registers');
+				for (var i = 0; i < 11; i++) {
+					vdp.find('.template').clone().removeClass('template').appendTo(vdp).find('.name').text('v' + i);
+                }
                 disass.find('.template').remove();
+                $('#menu button').each(function() {
+                        var f = window[$(this).attr('class').match(/menu_(.*)/)[1]];
+                        $(this).click(f);
+                });
 				z80_init();
 				miracle_init();
 				miracle_reset();
@@ -101,7 +109,7 @@
 					updateDebug();
 					return;
 				}
-				$('#debug').addClass('hidden');
+				$('#debug').hide();
 				setTimeout(run, 20);
 				try {
 					frame();
@@ -111,23 +119,22 @@
 				}
 			}
 			function stop() {
-				document.getElementById('menu').className = 'stopped';
 				running = false;
 			}
 			function reset() {
 				miracle_reset();
 			}
 			function showRomChooser() {
-				$('#rom_chooser').removeClass('hidden');
+				$('#rom_chooser').show();
 			}
 			function hideRomChooser() {
-				$('#rom_chooser').addClass('hidden');
+				$('#rom_chooser').hide();
 			}
 			function showAbout() {
-				$('#about').removeClass('hidden');
+				$('#about').show();
 			}
 			function hideAbout() {
-				$('#about').addClass('hidden');
+				$('#about').hide();
 			}
 			$(function() { go(); });
 		/* ]]> */</script>
@@ -147,6 +154,16 @@
 	</head>
 	<body>
 		<h1>Miracle: Sega Master System emulator</h1>
+        <div id="menu">
+            <button class="menu_start">Play</button>
+            <button class="menu_stop">Pause</button>
+            <button class="menu_step">Step</button>
+            <button class="menu_stepOver">Step Over</button>
+            <button class="menu_stepOut">Step Out</button>
+            <button class="menu_reset" style="margin-left: 50px">Reset</button>
+            <button class="menu_showRomChooser">Open ROM</button>
+            <button class="menu_showAbout">About Miracle</button>
+        </div>
 		<div id="holder">
             <canvas id="screen" width="256" height="192"></canvas>
 			<div id="debug">
@@ -164,20 +181,15 @@
 					<div>SP: <span id="z80_sp">0000</span></div>
 					<div>PC: <span id="z80_pc">0000</span></div>
 					<div>IX: <span class="h" id="z80_ixh">00</span><span class="l" id="z80_ixl">00</span></div>
-					<div>IY: <span class="h" id="z80_iyh">00</span><span class="l" id="z80_iyl">00</span></div>
+                    <div>IY: <span class="h" id="z80_iyh">00</span><span class="l" id="z80_iyl">00</span></div>
+                    <div id="vdp_registers">
+                        <div class="register template"><span class="name">00</span>:<span class="value">00</span></div>
+                    </div>
 				</div>
 			</div>
 		</div>
-		<ul id="menu" class="stopped">
-			<li id="menu_run"><a href="javascript:void(0)" onclick="start()" title="Play">Play</a></li>
-			<li id="menu_stop"><a href="javascript:void(0)" onclick="stop()" title="Pause">Pause</a></li>
-			<li id="menu_step"><a href="javascript:void(0)" onclick="step()" title="Step">Step</a></li>
-			<li id="menu_reset"><a href="javascript:void(0)" onclick="reset()" title="Reset">Reset</a></li>
-			<li id="menu_open"><a href="javascript:void(0)" onclick="showRomChooser()" title="Open ROM">Open ROM</a></li>
-			<li id="menu_about"><a href="javascript:void(0)" onclick="showAbout()" title="About Miracle">About Miracle</a></li>
-		</ul>
 		<br />
-		<div id="rom_chooser" class="hidden">
+		<div id="rom_chooser">
 			<div>Open ROM file: <input type="file" id="file_upload" /></div>
 			<p>Or select a game:</p>
 			<ul id="rom_list">
@@ -185,7 +197,7 @@
 			</ul>
 			<a href="javascript:void(0)" class="close_button" onclick="hideRomChooser()">Close</a>
 		</div>
-		<div id="about" class="hidden">
+		<div id="about">
 			<h1>Miracle</h1>
 			<h2>a Sega Master System emulator in Javascript</h2>
 			<p>By <a href="http://xania.org/">Matt Godbolt</a></p>

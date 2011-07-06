@@ -140,6 +140,10 @@ a.close_button {
 	float: left;
 }
 
+#vdp_registers {
+    margin-top: 10px;
+}
+
 .h {
     background-color: #111111;
 }
@@ -156,6 +160,6 @@ a.close_button {
     background-color: #772222;
 }
 
-.template, .hidden {
+.template {
 	display: none;
 }

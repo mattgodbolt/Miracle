@@ -47,7 +47,7 @@ function updateFlags(f) {
 }
 
 function updateDebug() {
-    $('#debug').removeClass('hidden');
+    $('#debug').show(200);
     var disassPc = z80.pc;
     for (var i = 0; i < $('#disassembly').children().length / 2; i++) {
         disassPc = prevInstruction(disassPc);
@@ -64,6 +64,10 @@ function updateDebug() {
             }
         }
     }
+    var i = 0;
+    $('#vdp_registers .register:visible .value').each(function() {
+        updateElement($(this), hexbyte(vdp_regs[i++]));
+    });
     updateFlags(z80.f);
 }
 
