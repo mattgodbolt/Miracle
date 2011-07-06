@@ -115,12 +115,12 @@
 			function readLine() {
 				return testInputLines[currentLine++];
 			}
-			function readbyte_internal(addr) {
+			function readbyte(addr) {
 				var byte = memory[addr] || 0;
 				dump(('     ' + tstates).substr(-5) + ' MR ' + ('0000' + addr.toString(16)).substr(-4) + ' ' + hexByte(byte));
 				return byte;
 			}
-			function writebyte_internal(addr, byte) {
+			function writebyte(addr, byte) {
 				memory[addr] = byte;
 				dump(('     ' + tstates).substr(-5) + ' MW ' + ('0000' + addr.toString(16)).substr(-4) + ' ' + hexByte(byte));
 			}
