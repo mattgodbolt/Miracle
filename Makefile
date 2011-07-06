@@ -23,7 +23,7 @@ all: z80 roms.js
 z80:
 	$(MAKE) -C z80
 
-roms.js: bin2js.pl roms/*
+roms.js: bin2js.pl $(shell find roms)
 	perl bin2js.pl roms > roms.js
 
 clean:
