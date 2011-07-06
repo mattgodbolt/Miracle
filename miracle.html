@@ -45,7 +45,8 @@
 					.clone()
 					.removeClass('template')
 					.text(rom)
-					.click(function() {
+                    .click(function() {
+                        miracle_reset();
 						loadRom(roms[rom]);
 						hideRomChooser();
 						start();

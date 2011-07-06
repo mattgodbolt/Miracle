@@ -317,23 +317,28 @@ function vdp_hblank() {
 }
 
 function vdp_init() {
-    var i;
     vram = new Uint8Array(0x4000);
-    for (i = 0x0000; i < 0x4000; i++) {
-        vram[i] = 0;
-    }
     palette = new Uint8Array(32);
     paletteR = new Uint8Array(32);
     paletteG = new Uint8Array(32);
     paletteB = new Uint8Array(32);
+    vdp_regs = new Uint8Array(16);
+    vdp_reset();
+}
+
+function vdp_reset() {
+    for (var i = 0x0000; i < 0x4000; i++) {
+        vram[i] = 0;
+    }
     for (i = 0; i < 32; i++) {
         paletteR[i] = paletteG[i] = paletteB[i] = palette[i] = 0;
     }
-    vdp_regs = new Uint8Array(16);
     for (i = 0; i < 16; i++) {
         vdp_regs[i] = 0;
     }
-    vdp_regs[2] = vdp_regs[5] = 0xff;
+    for (i = 2; i <= 5; i++) { vdp_regs[i] = 0xff; }
+    vdp_regs[6] = 0xfb;
+    vdp_regs[10] = 0xff;
     vdp_current_line = vdp_status = vdp_hblank_counter = 0;
 }
 

@@ -93,22 +93,12 @@ function audio_reset() {
 }
 
 function miracle_init() {
-    var i;
     vdp_init();
     audio_init();
     ram = new Uint8Array(0x2000);
-    for (i = 0x0000; i < 0x2000; i++) {
-        ram[i] = 0;
-    }
     cartridgeRam = new Uint8Array(0x8000);
-    for (i = 0x0000; i < 0x8000; i++) {
-        cartridgeRam[i] = 0;
-    }
     pages = new Uint8Array(4);
-    for (i = 0; i < 3; i++) {
-        pages[i] = i;
-    }
-    ramSelectRegister = 0;
+    miracle_reset();
 
     canvas = document.getElementById('screen');
     ctx = canvas.getContext('2d');
@@ -128,8 +118,18 @@ function miracle_init() {
 }
 
 function miracle_reset() {
+    for (var i = 0x0000; i < 0x2000; i++) {
+        ram[i] = 0;
+    }
+    for (i = 0x0000; i < 0x8000; i++) {
+        cartridgeRam[i] = 0;
+    }
+    for (i = 0; i < 3; i++) {
+        pages[i] = i;
+    }
+    ramSelectRegister = 0;
     z80_reset();
-    vdp_init();
+    vdp_reset();
     audio_reset();
 }
 
