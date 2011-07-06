@@ -207,86 +207,89 @@ function rasterize_line(line) {
             imageDataData[lineAddr + i + 1] = 0x0;
             imageDataData[lineAddr + i + 2] = 0x0;
         }
-    } else {
-        var effectiveLine = line + vdp_regs[9];
-        if (effectiveLine >= 224) {
-            effectiveLine -= 224;
+        return;
+    }
+
+    var effectiveLine = line + vdp_regs[9];
+    if (effectiveLine >= 224) {
+        effectiveLine -= 224;
+    }
+    var sprites = findSprites(line);
+    var spriteBase = 0;
+    if (vdp_regs[6] & 4) {
+        spriteBase = 0x2000;
+    }
+    var pixelOffset = vdp_regs[8] * 4;
+    var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+    var yMod = effectiveLine & 7;
+    var borderIndex = 16 + (vdp_regs[7] & 0xf);
+    var i;
+    var j;
+    for (i = 0; i < 32; i++) {
+        var tileData = vram[nameAddr + i * 2]
+                | (vram[nameAddr + i * 2 + 1] << 8);
+        var tileNum = tileData & 511;
+        var tileDef = 32 * tileNum;
+        if (tileData & (1 << 10)) {
+            tileDef += 28 - (4 * yMod);
+        } else {
+            tileDef += (4 * yMod);
         }
-        var sprites = findSprites(line);
-        var spriteBase = 0;
-        if (vdp_regs[6] & 4) {
-            spriteBase = 0x2000;
+        clear_background(lineAddr, pixelOffset);
+        // TODO: static top two rows, and static left-hand rows.
+        if ((tileData & (1<<12)) === 0) {
+            rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
         }
-        var pixelOffset = vdp_regs[8] * 4;
-        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
-        var yMod = effectiveLine & 7;
-        var borderIndex = 16 + (vdp_regs[7] & 0xf);
-        var i;
-        var j;
-        for (i = 0; i < 32; i++) {
-            var tileData = vram[nameAddr + i * 2]
-                    | (vram[nameAddr + i * 2 + 1] << 8);
-            var tileNum = tileData & 511;
-            var tileDef = 32 * tileNum;
-            if (tileData & (1 << 10)) {
-                tileDef += 28 - (4 * yMod);
-            } else {
-                tileDef += (4 * yMod);
-            }
-            clear_background(lineAddr, pixelOffset);
-            // TODO: static top two rows, and static left-hand rows.
-            if ((tileData & (1<<12)) === 0) {
-                rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
-            }
-            var savedOffset = pixelOffset;
-            var xPos = (i * 8 + vdp_regs[8]) & 0xff;
-            // TODO: sprite X-8 shift
-            for (j = 0; j < 8; ++j) {
-                var k;
-                var writtenTo = false;
-                for (k = 0; k < sprites.length; k++) {
-                    var sprite = sprites[k];
-                    var offset = xPos - sprite[0];
-                    if (offset < 0 || offset >= 8)
-                        continue;
-                    var spriteLine = line - sprite[2];
-                    var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
-                    var effectiveBit = 7 - offset;
-                    var sprVal0 = vram[spriteAddr];
-                    var sprVal1 = vram[spriteAddr + 1];
-                    var sprVal2 = vram[spriteAddr + 2];
-                    var sprVal3 = vram[spriteAddr + 3];
-                    var index = (((sprVal0 >> effectiveBit) & 1))
-                            | (((sprVal1 >> effectiveBit) & 1) << 1)
-                            | (((sprVal2 >> effectiveBit) & 1) << 2)
-                            | (((sprVal3 >> effectiveBit) & 1) << 3);
-                    if (index === 0) {
-                        continue;
-                    }
-                    if (writtenTo) {
-                        // We have a collision!.
-                        vdp_status |= 0x20;
-                        break;
-                    }
-                    imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
-                    imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
-                    imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
-                    writtenTo = true;
+        var savedOffset = pixelOffset;
+        var xPos = (i * 8 + vdp_regs[8]) & 0xff;
+        // TODO: sprite X-8 shift
+        for (j = 0; j < 8; ++j) {
+            var k;
+            var writtenTo = false;
+            for (k = 0; k < sprites.length; k++) {
+                var sprite = sprites[k];
+                var offset = xPos - sprite[0];
+                if (offset < 0 || offset >= 8)
+                    continue;
+                var spriteLine = line - sprite[2];
+                var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
+                var effectiveBit = 7 - offset;
+                var sprVal0 = vram[spriteAddr];
+                var sprVal1 = vram[spriteAddr + 1];
+                var sprVal2 = vram[spriteAddr + 2];
+                var sprVal3 = vram[spriteAddr + 3];
+                var index = (((sprVal0 >> effectiveBit) & 1))
+                        | (((sprVal1 >> effectiveBit) & 1) << 1)
+                        | (((sprVal2 >> effectiveBit) & 1) << 2)
+                        | (((sprVal3 >> effectiveBit) & 1) << 3);
+                if (index === 0) {
+                    continue;
                 }
-                xPos++;
-                pixelOffset += 4;
-                pixelOffset &= 1023;
+                if (writtenTo) {
+                    // We have a collision!.
+                    vdp_status |= 0x20;
+                    break;
+                }
+                imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
+                imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
+                imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
+                writtenTo = true;
             }
-            if ((tileData & (1<<12)) !== 0) {
-                rasterize_background(lineAddr, savedOffset, tileData, tileDef);
-            }
+            xPos++;
+            pixelOffset += 4;
+            pixelOffset &= 1023;
         }
-        if (vdp_regs[0] & (1 << 5)) {
-            for (i = 0; i < 8; i++) {
-                imageDataData[lineAddr + i * 4] = paletteR[borderIndex];
-                imageDataData[lineAddr + i * 4 + 1] = paletteG[borderIndex];
-                imageDataData[lineAddr + i * 4 + 2] = paletteB[borderIndex];
-            }
+        if ((tileData & (1<<12)) !== 0) {
+            rasterize_background(lineAddr, savedOffset, tileData, tileDef);
+        }
+    }
+
+    if (vdp_regs[0] & (1 << 5)) {
+        // Blank out left hand column.
+        for (i = 0; i < 8; i++) {
+            imageDataData[lineAddr + i * 4] = paletteR[borderIndex];
+            imageDataData[lineAddr + i * 4 + 1] = paletteG[borderIndex];
+            imageDataData[lineAddr + i * 4 + 2] = paletteB[borderIndex];
         }
     }
 }
@@ -300,6 +303,7 @@ function vdp_hblank() {
         rasterize_line(vdp_current_line - firstDisplayLine);
         if (--vdp_hblank_counter < 0) {
             vdp_hblank_counter = vdp_regs[10];
+            vdp_status &= ~ 128;
             if (vdp_regs[0] & 16) {
                 needIrq |= 1;
             }
