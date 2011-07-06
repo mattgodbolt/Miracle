@@ -72,7 +72,7 @@
 			function frame() {
 				var vdp_status = 0;
 				while ((vdp_status & 2) == 0) {
-					event_next_event = 220; // TASK: not 220?
+					event_next_event = 220; // TODO: not 220?
 					tstates -= 220;
 					z80_do_opcodes();
 					vdp_status = vdp_hblank();

@@ -125,7 +125,7 @@ function findSprites(line) {
         }
         if (line >= y && line < (y + spriteHeight)) {
             if (active.length === 8) {
-                vdp_status |= 64;  // TASK: and also on opaque overlap?
+                vdp_status |= 0x40;  // Sprite overflow
                 break;
             }
             active.push([vram[spriteInfo + 128 + i * 2],
@@ -300,7 +300,6 @@ function vdp_hblank() {
         rasterize_line(vdp_current_line - firstDisplayLine);
         if (--vdp_hblank_counter < 0) {
             vdp_hblank_counter = vdp_regs[10];
-            vdp_status |= 64;
             if (vdp_regs[0] & 16) {
                 needIrq |= 1;
             }
