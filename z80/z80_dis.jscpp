@@ -1,16 +1,4 @@
 #define STRINGIZE(AA) #AA
-function hexword(value) {
-  return ((value >> 12) & 0xf).toString(16) +
-         ((value >> 8) & 0xf).toString(16) + 
-         ((value >> 4) & 0xf).toString(16) +
-         (value & 0xf).toString(16); 
-}
-
-function hexbyte(value) {
-  return ((value >> 4) & 0xf).toString(16) +
-         (value & 0xf).toString(16); 
-}
-
 function disassemble(address) {
   opcode = readbyte(address);
   address++;

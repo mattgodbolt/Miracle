@@ -199,7 +199,7 @@ function paintScreen() {
     }
 }
 
-function loadRom(rom) {
+function loadRom(name, rom) {
     var numRomBanks = rom.length;
     var i;
     console.log('Loading rom of ' + numRomBanks + ' banks');
@@ -213,6 +213,42 @@ function loadRom(rom) {
         pages[i] = i % numRomBanks;
     }
     romPageMask = numRomBanks - 1;
+    debug_init(name);
+}
+
+function hexword(value) {
+  return ((value >> 12) & 0xf).toString(16) +
+         ((value >> 8) & 0xf).toString(16) + 
+         ((value >> 4) & 0xf).toString(16) +
+         (value & 0xf).toString(16); 
+}
+
+
+function virtualAddress(address) {
+    function romAddr(bank, addr) {
+        return 'rom' + (bank & romPageMask).toString(16) + '_' + hexword(addr);
+    }
+    if (address < 0x0400) { return romAddr(0, address); }
+    if (address < 0x4000) { return romAddr(pages[0], address); }
+    if (address < 0x8000) { return romAddr(pages[1], address - 0x4000); }
+    if (address < 0xc000) {
+        if ((ramSelectRegister & 12) == 8) {
+            return 'crm_' + hexword(address - 0x8000);
+        } else if ((ramSelectRegister & 12) == 12) {
+            return 'crm_' + hexword(address - 0x4000);
+        } else {
+            return romAddr(pages[2], address - 0x8000);
+        }
+    }
+    if (address < 0xe000) { return 'ram+' + hexword(address - 0xc000); }
+    if (address < 0xfffc) { return 'ram_' + hexword(address - 0xe000); }
+    switch (address) {
+        case 0xfffc: return 'rsr';
+        case 0xfffd: return 'rpr_0';
+        case 0xfffe: return 'rpr_1';
+        case 0xffff: return 'rpr_2';
+    }
+    return "unk_" + hexword(address);
 }
 
 function readbyte(address) {

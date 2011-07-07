@@ -144,6 +144,15 @@ a.close_button {
     margin-top: 10px;
 }
 
+.dis_addr {
+    display: inline-block;
+    width: 8em;
+}
+
+.addr:hover {
+    background-color: #330000;
+}
+
 .h {
     background-color: #111111;
 }

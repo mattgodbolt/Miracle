@@ -21,7 +21,7 @@ def main(file):
     if 'nnnn' in args:
       pre = args[0:args.find('nnnn')]
       post = args[args.find('nnnn') + 4:]
-      print 'res += " %s0x" + hexword((readbyte(address + 1) << 8) | readbyte(address)) + "%s"; address += 2;' % (pre, post)
+      print 'res += " %s" + addressHtml((readbyte(address + 1) << 8) | readbyte(address)) + "%s"; address += 2;' % (pre, post)
     elif 'nn' in args:
       pre = args[0:args.find('nn')]
       post = args[args.find('nn') + 2:]
@@ -30,7 +30,7 @@ def main(file):
       pre = args[0:args.find('offset')]
       post = args[args.find('offset') + 6:]
       print 'var reladdr = address + 1 + sign_extend(readbyte(address));'
-      print 'res += " %s0x" + hexword(reladdr) + "%s"; address += 1;' % (pre, post)
+      print 'res += " %s" + addressHtml(reladdr) + "%s"; address += 1;' % (pre, post)
     elif 'dd' in args:
       pre = args[0:args.find('+dd')]
       post = args[args.find('+dd') + 3:]

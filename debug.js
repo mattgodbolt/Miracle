@@ -1,10 +1,65 @@
+var debugSerial = 0;
+var annotations = null;
+
+function debug_init(romName) {
+    debugSerial = (romBanks[1][0x3ffc]<<8) | romBanks[1][0x3ffd];
+
+    if (!localStorage[debugSerial]) {
+        annotations = { 'romName': romName, 'labels': {} };
+    } else {
+        annotations = JSON.parse(localStorage[debugSerial]);
+    }
+
+    console.log('Debug initialised for ' + romName  + ' serial 0x' + hexword(debugSerial), annotations);
+}
+
+function persistAnnotations() {
+    localStorage[debugSerial] = JSON.stringify(annotations);
+}
+
+function setLabel(virtual, name) {
+    if (!name) {
+        delete annotations.labels[virtual];
+    } else {
+        annotations.labels[virtual] = name;
+    }
+    persistAnnotations();
+    updateDebug();
+}
+
+function addressHtml(addr) {
+    var virtual = virtualAddress(addr);
+    if (annotations.labels[virtual]) {
+        return '<span class="addr">' + annotations.labels[virtual] + '(0x' + hexword(addr) + ')</span>';
+    } else {
+        return '<span class="addr">0x' + hexword(addr) + '</span>';
+    }
+}
+
+function labelHtml(addr) {
+    var virtual = virtualAddress(addr);
+    if (annotations.labels[virtual]) {
+        return '<span class="addr" title="' + hexword(addr) + '">' + annotations.labels[virtual] + '</span>:';
+    } else {
+        return '<span class="addr">' + hexword(addr) + '</span>';
+    }
+}
+
+
+function hexbyte(value) {
+  return ((value >> 4) & 0xf).toString(16) +
+         (value & 0xf).toString(16); 
+}
+
+var disassPc = 0;
 function updateDisassembly(address) {
     var disass = $('#disassembly');
+    disassPc = address;
     disass.children().each(function() {
         var result = disassemble(address);
-        $(this).find('.addr').text(hexword(address));
+        $(this).find('.dis_addr').html(labelHtml(address));
         $(this).toggleClass('current', address == z80.pc);
-        $(this).find('.disassembly').text(result[0]);
+        $(this).find('.disassembly').html(result[0]);
         address = result[1];
     });
 }
@@ -46,13 +101,16 @@ function updateFlags(f) {
     }
 }
 
-function updateDebug() {
+function showDebug(pc) {
     $('#debug').show(200);
-    var disassPc = z80.pc;
     for (var i = 0; i < $('#disassembly').children().length / 2; i++) {
-        disassPc = prevInstruction(disassPc);
+        pc = prevInstruction(pc);
     }
-    updateDisassembly(disassPc);
+    updateDebug(pc);
+}
+
+function updateDebug(pcOrNone) {
+    updateDisassembly(pcOrNone || disassPc);
     for (var reg in z80) {
         var elem = $('#z80_' + reg);
         if (elem) {
@@ -78,7 +136,7 @@ function stepUntil(f) {
         z80_do_opcodes();
         if (f()) break;
     }
-    updateDebug();
+    showDebug(z80.pc);
 }
 
 function step() {
@@ -122,18 +180,14 @@ function stepOut() {
     });
 }
 
-function currentDis() {
-    return parseInt($('#disassembly .addr').first().text(), 16);
-}
-
 function debugKeyPress(key) {
     var keyStr = String.fromCharCode(key);
     switch (keyStr) {
     case 'k':
-        updateDisassembly(prevInstruction(currentDis()));
+        updateDisassembly(prevInstruction(disassPc));
         break;
     case 'j':
-        updateDisassembly(nextInstruction(currentDis()));
+        updateDisassembly(nextInstruction(disassPc));
         break;
     case 'n':
         step();

@@ -47,7 +47,7 @@
 					.text(rom)
                     .click(function() {
                         miracle_reset();
-						loadRom(roms[rom]);
+						loadRom(rom, roms[rom]);
 						hideRomChooser();
 						start();
 					})
@@ -75,7 +75,7 @@
 				z80_init();
 				miracle_init();
 				miracle_reset();
-				loadRom(roms['SonicTheHedgehog.sms']);
+				loadRom('SonicTheHedgehog.sms', roms['SonicTheHedgehog.sms']);
 				start();
 			}
 			function frame() {
@@ -90,7 +90,7 @@
                     }
                     if (breakpointHit) {
                         running = false;
-                        updateDebug();
+                        showDebug(z80.pc);
                         return;
                     }
 				}
@@ -99,7 +99,7 @@
 			}
 			function start() {
                 breakpointHit = false;
-				updateDebug();
+                showDebug(z80.pc);
 				if (running) return;
 				running = true;
 				document.getElementById('menu').className = 'running';
@@ -107,7 +107,7 @@
 			}
 			function run() {
 				if (!running) {
-					updateDebug();
+				  	showDebug(z80.pc);
 					return;
 				}
 				$('#debug').hide();
@@ -169,7 +169,7 @@
             <canvas id="screen" width="256" height="192"></canvas>
 			<div id="debug">
 				<div id="disassembly">
-					<div class="template"><span class="addr">0000</span> - <span class="disassembly">LD A,(HL)</span></div>
+					<div class="template"><span class="dis_addr">0000</span><span class="disassembly">LD A,(HL)</span></div>
 				</div>
 				<div id="registers">
                     <div>AF: <span class="h" id="z80_a">00</span><span class="l" id="z80_f">00</span></div>
