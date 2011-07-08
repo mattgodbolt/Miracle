@@ -37,6 +37,8 @@ def main(file):
       print 'var offset = sign_extend(readbyte(address));'
       print 'var sign = offset > 0 ? "+" : "-";'
       print 'res += " %s" + sign + "0x" + hexbyte(offset) + "%s"; address += 1;' % (pre, post)
+    elif opcode == 'RST':
+      print 'res += " " + addressHtml(0x' + args + ');'
     elif args:
       print 'res += " %s";' % args
     print "break;"
