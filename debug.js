@@ -18,7 +18,7 @@ function persistAnnotations() {
 }
 
 function setLabel(virtual, name) {
-    if (!name) {
+    if (!name || name.match(/^[0-9]/)) {
         delete annotations.labels[virtual];
     } else {
         annotations.labels[virtual] = name;
@@ -30,7 +30,7 @@ function setLabel(virtual, name) {
 function addressHtml(addr) {
     var virtual = virtualAddress(addr);
     if (annotations.labels[virtual]) {
-        return '<span class="addr">' + annotations.labels[virtual] + '(0x' + hexword(addr) + ')</span>';
+        return '<span class="addr label">' + annotations.labels[virtual] + '</span> (0x' + hexword(addr) + ')';
     } else {
         return '<span class="addr">0x' + hexword(addr) + '</span>';
     }
@@ -39,7 +39,7 @@ function addressHtml(addr) {
 function labelHtml(addr) {
     var virtual = virtualAddress(addr);
     if (annotations.labels[virtual]) {
-        return '<span class="addr" title="' + hexword(addr) + '">' + annotations.labels[virtual] + '</span>:';
+        return '<span class="addr label" title="' + hexword(addr) + '">' + annotations.labels[virtual] + '</span>:';
     } else {
         return '<span class="addr">' + hexword(addr) + '</span>';
     }
@@ -51,6 +51,12 @@ function hexbyte(value) {
          (value & 0xf).toString(16); 
 }
 
+function endLabelEdit(content) {
+    var addr = $(this).attr('title') || content.previous;
+    var virtual = virtualAddress(parseInt(addr, 16));
+    setLabel(virtual, content.current);
+}
+
 var disassPc = 0;
 function updateDisassembly(address) {
     var disass = $('#disassembly');
@@ -60,6 +66,9 @@ function updateDisassembly(address) {
         $(this).find('.dis_addr').html(labelHtml(address));
         $(this).toggleClass('current', address == z80.pc);
         $(this).find('.disassembly').html(result[0]);
+        $(this).find('.addr')
+            .editable({editBy: 'dblclick', editClass: 'editable', onSubmit:endLabelEdit })
+            .keypress(function(e) { if (e.which==13) $(this).blur(); });
         address = result[1];
     });
 }
@@ -181,6 +190,7 @@ function stepOut() {
 }
 
 function debugKeyPress(key) {
+    if ($('input:visible').length) { return true; }
     var keyStr = String.fromCharCode(key);
     switch (keyStr) {
     case 'k':
@@ -202,6 +212,6 @@ function debugKeyPress(key) {
         start();
         break;
     }
-    //console.log(key);
+    return true;
 }
 

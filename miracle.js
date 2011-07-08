@@ -152,7 +152,7 @@ var keys = {
 };
 
 function keyDown(evt) {
-    if (!running) return;
+    if (!running) return true;
     var key = keys[evt.keyCode];
     if (key) {
         joystick &= ~key;
@@ -171,7 +171,7 @@ function keyDown(evt) {
 }
 
 function keyUp(evt) {
-    if (!running) return;
+    if (!running) return true;
     var key = keys[evt.keyCode];
     if (key) {
         joystick |= key;
@@ -183,8 +183,7 @@ function keyUp(evt) {
 
 function keyPress(evt) {
     if (!running) {
-        debugKeyPress(evt.keyCode);
-        return;
+        return debugKeyPress(evt.keyCode);
     }
     if (!evt.metaKey) {
         return false;

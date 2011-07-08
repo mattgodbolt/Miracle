@@ -153,6 +153,20 @@ a.close_button {
     background-color: #330000;
 }
 
+.addr:focus {
+    background-color: #ff0000;
+}
+
+.label {
+    color: white;
+    font-family: arial, tahoma;
+    font-weight: bold;
+}
+
+.addr > .editable {
+    width: 4em;
+}
+
 .h {
     background-color: #111111;
 }
