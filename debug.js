@@ -119,7 +119,10 @@ function showDebug(pc) {
 }
 
 function updateDebug(pcOrNone) {
-    updateDisassembly(pcOrNone || disassPc);
+    if (pcOrNone == null) {
+        pcOrNone = disassPc;
+    }
+    updateDisassembly(pcOrNone);
     for (var reg in z80) {
         var elem = $('#z80_' + reg);
         if (elem) {
@@ -155,7 +158,7 @@ function step() {
 
 function isUnconditionalJump(addr) {
     var result = disassemble(addr);
-    if (result[0].match(/^(JR 0x|JP|RET)/)) {
+    if (result[0].match(/^(JR 0x|JP|RET|RST)/)) {
         return true;
     }
     return false;
