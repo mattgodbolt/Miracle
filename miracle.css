@@ -63,20 +63,25 @@ body {
 	left: 128px;
 	top: 16px;
 	width: 384px;
-	background-color: #334444;
+	background-color: #112222;
 	height: 480px;
 	overflow: auto;
+    border: 1px solid #334444;
+}
+input {
+    color: white;
 }
 #about {
 	position: absolute;
 	left: 64px;
 	top: 32px;
 	width: 512px;
-	background-color: #334444;
+	background-color: #112222;
 	height: 420px;
 	padding: 4px;
 	text-align: center;
 	overflow: auto;
+    border: 1px solid #334444;
 }
 a.close_button {
 	display: block;
@@ -128,7 +133,6 @@ a.close_button {
 	font-size: 8pt;
 	font-family: monospace;
 }
-
 #registers {
 	float: right;
     text-align: right;
@@ -185,4 +189,17 @@ a.close_button {
 
 .template {
 	display: none;
+}
+
+.help {
+    font-size: 12px;
+    margin-bottom: 15px;
+}
+
+.key {
+    font-family: monospace;
+    border: 1px solid white;
+    padding-left: 2px;
+    padding-right: 2px;
+    background-color: #222222;
 }
