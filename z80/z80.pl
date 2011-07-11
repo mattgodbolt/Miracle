@@ -926,16 +926,6 @@ sub opcode_RET (@) {
     print "      RET();\n";
     } else {
     print "      tstates++;\n";
-    
-    if( $condition eq 'NZ' ) {
-        print << "RET";
-      if( PC==0x056c || PC == 0x0112 ) {
-        /* if( tape_load_trap() == 0 ) break; */
-        loadTapeBlock();
-        break;
-      }
-RET
-        }
 
     if( defined $not{$condition} ) {
         print "      if( ! ( F & FLAG_$flag{$condition} ) ) { RET(); }\n";
