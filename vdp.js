@@ -119,10 +119,11 @@ function findSprites(line) {
         spriteHeight = 16;
     }
     for (i = 0; i < 64; i++) {
-        var y = vram[spriteInfo + i] + 1;
+        var y = vram[spriteInfo + i];
         if (y === 208) {
             break;
         }
+        if (y >= 240) y -= 256;
         if (line >= y && line < (y + spriteHeight)) {
             if (active.length === 8) {
                 vdp_status |= 0x40;  // Sprite overflow
@@ -134,6 +135,16 @@ function findSprites(line) {
     }
 
     return active;
+}
+
+function dumpSprites() {
+    var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
+    for (i = 0; i < 64; i++) {
+        var y = vram[spriteInfo + i];
+        var x = vram[spriteInfo + 128 + i * 2];
+        var t = vram[spriteInfo + 128 + i * 2 + 1];
+        console.log(i + ' x: ' + x + ' y: ' + y +  ' t: ' + t);
+    }
 }
 
 function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
