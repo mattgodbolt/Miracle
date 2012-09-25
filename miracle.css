@@ -121,6 +121,9 @@ a.close_button {
 #about h2 {
 	font-size: 12pt;
 }
+#about a, #about a:hover, #about a:focus {
+	color: white;
+}
 #about #licence {
 	font-size: 9pt;
 }
