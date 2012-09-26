@@ -145,7 +145,8 @@ var keys = {
     40: 2,
     37: 4,
     39: 8,
-    90: 16, // Z and X for fire
+    90: 16, // Z/Y and X for fire
+    89: 16,
     88: 32,
 
     82: 1<<12,  // R for reset button
