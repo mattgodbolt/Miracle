@@ -5,8 +5,8 @@ function SoundChip(sampleRate) {
     var volume = [ 0, 0, 0, 0 ];
     var generators = [ null, null, null, null ];
 
-    var soundchipFreq = 3546893.0 / 16.0; // PAL
-    var sampleDecrement = soundchipFreq / sampleRate;
+    const soundchipFreq = 3546893.0 / 16.0; // PAL
+    const sampleDecrement = soundchipFreq / sampleRate;
 
     var volumeTable = [];
     var f = 1.0;
@@ -83,10 +83,11 @@ function SoundChip(sampleRate) {
         for (i = 0; i < 4; ++i) {
             generators[i](i, out, offset, length);
         }
+        const scale = 1.0 / 4.0;
         for (i = 0; i < length; ++i) {
-            out[i + offset] *= 1.0/4.0;
+            out[i + offset] *= scale;
         }
-}
+    }
 
 
     var latchedChannel = 0;

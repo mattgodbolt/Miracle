@@ -64,10 +64,9 @@ function popNextSample() {
 
 function pumpAudio(event) {
     var outBuffer = event.outputBuffer;
-    var left = outBuffer.getChannelData(0);
-    var right = outBuffer.getChannelData(1);
-    for (var j = 0; j < left.length; ++j) {
-        left[j] = right[j] = popNextSample();
+    var chan = outBuffer.getChannelData(0);
+    for (var j = 0; j < chan.length; ++j) {
+        chan[j] = popNextSample();
     }
 }
 
