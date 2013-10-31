@@ -76,6 +76,7 @@ function SoundChip(sampleRate) {
     }
 
     function render(out, offset, length) {
+        offset = +offset; length = +length;
         var i;
         for (i = 0; i < length; ++i) {
             out[i + offset] = 0.0;
@@ -88,7 +89,6 @@ function SoundChip(sampleRate) {
             out[i + offset] *= scale;
         }
     }
-
 
     var latchedChannel = 0;
     function poke(value) {

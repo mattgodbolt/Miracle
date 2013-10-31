@@ -20,54 +20,11 @@ var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 var joystick = 0xffff;
 
 var soundChip;
-var playbackBuffer = [];
-var playbackIndex = 0;
-var soundBuffer;
-var soundBufferIndex = 0;
-var sampleRate;
-var audioFrameSize;
-
-function nextAudioBuffer() {
-    if (soundBuffer) playbackBuffer.push(soundBuffer);
-    soundBuffer = new Float32Array(audioFrameSize);
-}
-
-function audioRun(timeSinceLast) {
-    var end = soundBufferIndex + timeSinceLast * sampleRate;
-    for (;;) {
-        var start = Math.floor(soundBufferIndex);
-        var actualLength = Math.floor(end - soundBufferIndex);
-        if (start + actualLength > soundBuffer.length) {
-            actualLength = soundBuffer.length - start;
-        }
-        if (actualLength < 1.0) return;
-        soundChip.render(soundBuffer, start, actualLength);
-        soundBufferIndex += actualLength;
-        if (soundBufferIndex >= soundBuffer.length) {
-            soundBufferIndex -= soundBuffer.length;
-            end -= soundBuffer.length;
-            nextAudioBuffer();
-        }
-    }
-}
-
-function popNextSample() {
-    if (!playbackBuffer.length) return 0;
-    var buffer = playbackBuffer[0];
-    if (playbackIndex >= buffer.length) {
-        playbackBuffer.shift();
-        playbackIndex = 0;
-        return popNextSample();
-    }
-    return buffer[playbackIndex++];
-}
 
 function pumpAudio(event) {
     var outBuffer = event.outputBuffer;
     var chan = outBuffer.getChannelData(0);
-    for (var j = 0; j < chan.length; ++j) {
-        chan[j] = popNextSample();
-    }
+    soundChip.render(chan, 0, chan.length);
 }
 
 function audio_init() {
@@ -82,9 +39,6 @@ function audio_init() {
     jsAudioNode.onaudioprocess = pumpAudio;
     jsAudioNode.connect(context.destination, 0, 0);
     soundChip = new SoundChip(context.sampleRate);
-    sampleRate = context.sampleRate;
-    audioFrameSize = 1 / 50 * context.sampleRate;
-    nextAudioBuffer();
 }
 
 function audio_reset() {
