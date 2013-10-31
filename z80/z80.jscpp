@@ -34,13 +34,13 @@ function byteTable(values) {
    result, 1 is the 3rd bit of the 1st argument and 2 is the
    third bit of the 2nd argument; the tables differ for add and subtract
    operations */
-var halfcarry_add_table = byteTable([ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ]);
-var halfcarry_sub_table = byteTable([ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ]);
+const halfcarry_add_table = byteTable([ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ]);
+const halfcarry_sub_table = byteTable([ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ]);
 
 /* Similarly, overflow can be determined by looking at the 7th bits; again
    the hash into this table is r12 */
-var overflow_add_table = byteTable([ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ]);
-var overflow_sub_table = byteTable([ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ]);
+const overflow_add_table = byteTable([ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ]);
+const overflow_sub_table = byteTable([ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ]);
 
 /* Some more tables; initialised in z80_init_tables() */
 
