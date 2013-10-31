@@ -165,7 +165,7 @@ function loadRom(name, rom) {
     for (i = 0; i < 3; i++) {
         pages[i] = i % numRomBanks;
     }
-    romPageMask = numRomBanks - 1;
+    romPageMask = (numRomBanks - 1)|0;
     debug_init(name);
 }
 
@@ -175,7 +175,6 @@ function hexword(value) {
          ((value >> 4) & 0xf).toString(16) +
          (value & 0xf).toString(16); 
 }
-
 
 function virtualAddress(address) {
     function romAddr(bank, addr) {
@@ -205,6 +204,7 @@ function virtualAddress(address) {
 }
 
 function readbyte(address) {
+    address = +address;
     if (address < 0x0400) { return romBanks[0][address]; }
     if (address < 0x4000) { return romBanks[pages[0] & romPageMask][address]; }
     if (address < 0x8000) { return romBanks[pages[1] & romPageMask][address - 0x4000]; }
@@ -229,6 +229,7 @@ function readbyte(address) {
 }
 
 function writebyte(address, value) {
+    address = +address; value = +value;
     if (address >= 0xfffc) {
         switch (address) {
         case 0xfffc: ramSelectRegister = value; break;
@@ -270,6 +271,7 @@ function readport(addr) {
 }
 
 function writeport(addr, val) {
+    val = +val;
     addr &= 0xff;
     switch (addr) {
     case 0x3f:

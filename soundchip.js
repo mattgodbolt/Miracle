@@ -17,7 +17,8 @@ function SoundChip(sampleRate) {
     volumeTable[15] = 0;
 
     function toneChannel(channel, out, offset, length) {
-        if (register[channel] <= 1) {
+        const reg = register[channel], vol = volume[channel];;
+        if (reg <= 1) {
             for (var i = 0; i < length; ++i) {
                 out[i + offset] += volume[channel];
             }
@@ -26,10 +27,10 @@ function SoundChip(sampleRate) {
         for (var i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
-                counter[channel] += register[channel];
+                counter[channel] += reg;
                 outputBit[channel] ^= 1;
             }
-            out[i + offset] += outputBit[channel] ? volume[channel] : -volume[channel];
+            out[i + offset] += outputBit[channel] ? vol : -vol;
         }
     }
 
@@ -48,30 +49,26 @@ function SoundChip(sampleRate) {
         lfsr = 1<<15;
     }
 
+    function addFor(channel) {
+        channel = +channel;
+        switch (register[channel] & 3) {
+        case 0: return 0x10;
+        case 1: return 0x20;
+        case 2: return 0x40;
+        case 3: return register[channel - 1];
+        }
+    }
+
     function noiseChannel(channel, out, offset, length) {
+        const add = addFor(channel), vol = volume[channel];;
         for (var i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
-                switch (register[channel] & 3) {
-                case 0:
-                    counter[channel] += 0x10;
-                    break;
-                case 1:
-                    counter[channel] += 0x20;
-                    break;
-                case 2:
-                    counter[channel] += 0x40;
-                    break;
-                case 3:
-                    counter[channel] += register[channel - 1];
-                    break;
-                }
+                counter[channel] += add;
                 outputBit[channel] ^= 1;
-                if (outputBit[channel]) {
-                    shiftLfsr();
-                }
+                if (outputBit[channel]) shiftLfsr();
             }
-            out[i + offset] += (lfsr & 1) ? volume[channel] : -volume[channel];
+            out[i + offset] += (lfsr & 1) ? vol : -vol;
         }
     }
 

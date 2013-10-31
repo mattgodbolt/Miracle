@@ -235,7 +235,7 @@ function rasterize_line(line) {
     if (vdp_regs[6] & 4) {
         spriteBase = 0x2000;
     }
-    var pixelOffset = vdp_regs[8] * 4;
+    var pixelOffset = (vdp_regs[8] * 4)|0;
     var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
     var yMod = effectiveLine & 7;
     var borderIndex = 16 + (vdp_regs[7] & 0xf);
@@ -302,10 +302,11 @@ function rasterize_line(line) {
 
     if (vdp_regs[0] & (1 << 5)) {
         // Blank out left hand column.
+        const r = paletteR[borderIndex], g = paletteG[borderIndex], b = paletteB[borderIndex];
         for (i = 0; i < 8; i++) {
-            imageDataData[lineAddr + i * 4] = paletteR[borderIndex];
-            imageDataData[lineAddr + i * 4 + 1] = paletteG[borderIndex];
-            imageDataData[lineAddr + i * 4 + 2] = paletteB[borderIndex];
+            imageDataData[lineAddr + i * 4] = r;
+            imageDataData[lineAddr + i * 4 + 1] = g;
+            imageDataData[lineAddr + i * 4 + 2] = b;
         }
     }
 }
