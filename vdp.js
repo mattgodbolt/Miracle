@@ -1,20 +1,20 @@
-vram = []
-vdp_regs = []
-palette = []
-paletteR = []
-paletteG = []
-paletteB = []
+var vram = [];
+var vdp_regs = [];
+var palette = [];
+var paletteR = [];
+var paletteG = [];
+var paletteB = [];
 
-vdp_addr_state = 0;
-vdp_addr_latch = 0;
-vdp_addr = 0;
-vdp_write_routine = function(val) {
+var vdp_addr_state = 0;
+var vdp_addr_latch = 0;
+var vdp_addr = 0;
+var vdp_write_routine = function(val) {
 };
-vdp_read_routine = function() {
+var vdp_read_routine = function() {
     return 0;
 };
-vdp_current_line = 0;
-vdp_status = 0;
+var vdp_current_line = 0;
+var vdp_status = 0;
 vdp_hblank_counter = 0;
 
 function vdp_writeaddr(val) {
@@ -148,6 +148,10 @@ function dumpSprites() {
 }
 
 function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
+    lineAddr = +lineAddr;
+    pixelOffset = +pixelOffset;
+    tileData = +tileData;
+    tileDef = +tileDef;
     var i;
     var tileVal0 = vram[tileDef];
     var tileVal1 = vram[tileDef + 1];
@@ -169,8 +173,7 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                 imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
                 imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
             }
-            pixelOffset += 4;
-            pixelOffset &= 1023;
+            pixelOffset = (pixelOffset + 4) & 1023;
             tileVal0 >>= 1;
             tileVal1 >>= 1;
             tileVal2 >>= 1;
@@ -188,8 +191,7 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                 imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
                 imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
             }
-            pixelOffset += 4;
-            pixelOffset &= 1023;
+            pixelOffset = (pixelOffset + 4) & 1023;
             tileVal0 <<= 1;
             tileVal1 <<= 1;
             tileVal2 <<= 1;
@@ -199,18 +201,21 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
 }
 
 function clear_background(lineAddr, pixelOffset) {
+    lineAddr = +lineAddr;
+    pixelOffset = +pixelOffset;
     var i;
-    for (k = 0; k < 8; ++k) {
-        imageDataData[lineAddr + pixelOffset] = paletteR[0];
-        imageDataData[lineAddr + pixelOffset + 1] = paletteG[0];
-        imageDataData[lineAddr + pixelOffset + 2] = paletteB[0];
-        pixelOffset += 4;
-        pixelOffset &= 1023;
+    const r = paletteR[0], g = paletteG[0], b = paletteB[0];
+    for (i = 0; i < 8; ++i) {
+        imageDataData[lineAddr + pixelOffset] = r;
+        imageDataData[lineAddr + pixelOffset + 1] = g;
+        imageDataData[lineAddr + pixelOffset + 2] = b;
+        pixelOffset = (pixelOffset + 4) & 1023;
     }
 }
 
 function rasterize_line(line) {
-    var lineAddr = line * 256 * 4;
+    line = +line;
+    var lineAddr = (line * 256 * 4)|0;
     if ((vdp_regs[1] & 64) == 0) {
         var i;
         for (i = 0; i < 256 * 4; i += 4) {
