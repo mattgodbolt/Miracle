@@ -366,3 +366,7 @@ function vdp_reset() {
 function vdp_get_line() {
     return (vdp_current_line - 64) & 0xff;
 }
+
+function vdp_get_x() {
+    return 0;  // TODO more accurate here
+}

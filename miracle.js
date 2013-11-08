@@ -18,6 +18,7 @@ var hasImageData;
 var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 
 var joystick = 0xffff;
+var inputMode = 0;
 
 var soundChip;
 
@@ -81,6 +82,7 @@ function miracle_reset() {
         pages[i] = i;
     }
     ramSelectRegister = 0;
+    inputMode = 7;
     z80_reset();
     vdp_reset();
     audio_reset();
@@ -250,23 +252,29 @@ function writebyte(address, value) {
 function readport(addr) {
     addr &= 0xff;
     switch (addr) {
-    case 0x7e: case 0x7f:
+    case 0x7e: 
         return vdp_get_line();
+    case 0x7f:
+        return vdp_get_x();
     case 0xdc: case 0xc0:
+        if ((inputMode & 7) != 7) return 0xff; // keyboard
         return joystick & 0xff;
     case 0xdd: case 0xc1:
+        if ((inputMode & 7) != 7) return 0xff; // keyboard
         return (joystick >> 8) & 0xff;
     case 0xbe:
         return vdp_readbyte();
     case 0xbd: case 0xbf:
         return vdp_readstatus();
-    case 0xde: case 0xdf:
-        return 0; // Unknown use
+    case 0xde: 
+        return inputMode; // should really be 0xff but that confuses Teddy Boy it seems
+    case 0xdf:
+        return 0xff; // Unknown use
     case 0xf2:
         return 0; // YM2413
     default:
         console.log('IO port ' + hexbyte(addr) + '?');
-        return 0;
+        return 0xff;
     }
 }
 
@@ -293,7 +301,10 @@ function writeport(addr, val) {
     case 0xbe:
         vdp_writebyte(val);
         break;
-    case 0xde: case 0xdf:
+    case 0xde: 
+        inputMode = val;
+        break; 
+    case 0xdf:
         break; // Unknown use
     case 0xf0: case 0xf1: case 0xf2:
     break; // YM2413 sound support: TODO
