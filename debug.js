@@ -27,19 +27,29 @@ function setLabel(virtual, name) {
     updateDebug();
 }
 
-function addressHtml(addr) {
+function addressName(addr) {
     var virtual = virtualAddress(addr);
     if (annotations.labels[virtual]) {
-        return '<span class="addr label">' + annotations.labels[virtual] + '</span> (0x' + hexword(addr) + ')';
+        return '<span class="addr label" title="' + hexword(addr) + '">' + annotations.labels[virtual] + '</span>';
+    }
+    return null;
+}
+
+
+
+function addressHtml(addr) {
+    var name = addressName(addr);
+    if (name) {
+        return name + ' (0x' + hexword(addr) + ')';
     } else {
         return '<span class="addr">0x' + hexword(addr) + '</span>';
     }
 }
 
 function labelHtml(addr) {
-    var virtual = virtualAddress(addr);
-    if (annotations.labels[virtual]) {
-        return '<span class="addr label" title="' + hexword(addr) + '">' + annotations.labels[virtual] + '</span>:';
+    var name = addressName(addr);
+    if (name) {
+        return name + ':';
     } else {
         return '<span class="addr">' + hexword(addr) + '</span>';
     }
@@ -63,8 +73,14 @@ function updateDisassembly(address) {
     disassPc = address;
     disass.children().each(function() {
         var result = disassemble(address);
+        var hex = "";
+        for (var i = address; i < result[1]; ++i) {
+            if (hex !== "") hex += " ";
+            hex += hexbyte(readbyte(i)); 
+        }
         $(this).find('.dis_addr').html(labelHtml(address));
         $(this).toggleClass('current', address == z80.pc);
+        $(this).find('.instr_bytes').text(hex);
         $(this).find('.disassembly').html(result[0]);
         $(this).find('.addr')
             .editable({editBy: 'dblclick', editClass: 'editable', onSubmit:endLabelEdit })
@@ -142,6 +158,7 @@ function updateDebug(pcOrNone) {
 }
 
 function stepUntil(f) {
+    breakpointHit = false;
     for (var i = 0; i < 65536; i++) {
         tstates = 0;
         event_next_event = 1;

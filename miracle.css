@@ -130,6 +130,8 @@ a.close_button {
 #debug {
     background-color: #333333;
     border: 1px solid #555555;
+    margin: 2px;
+    padding: 2px;
     position: fixed;
     bottom: 0px;
     right: 0px;
@@ -143,7 +145,7 @@ a.close_button {
 }
 
 #disassembly {
-    width: 300px; 
+    width: 400px; 
 	float: left;
 }
 
@@ -154,6 +156,13 @@ a.close_button {
 .dis_addr {
     display: inline-block;
     width: 8em;
+    color: #d0d0d0;
+}
+
+.instr_bytes {
+    display: inline-block;
+    width: 8em;
+    color: #80d0d0;
 }
 
 .addr:hover {
@@ -172,6 +181,8 @@ a.close_button {
 
 .addr > .editable {
     width: 4em;
+    color: black;
+    border: 1px;
 }
 
 .h {
