@@ -76,9 +76,14 @@
 				z80_init();
 				miracle_init();
 				miracle_reset();
-				loadRom('SonicTheHedgehog.sms', roms['SonicTheHedgehog.sms']);
+                const defaultRom = getDefaultRom();
+				loadRom(defaultRom, roms[defaultRom]);
 				start();
 			}
+            function getDefaultRom() { 
+                if (typeof(localStorage) !== "undefined" && localStorage["rom"]) return localStorage["rom"];
+                return 'SonicTheHedgehog.sms'; 
+            }
 			function start() {
                 breakpointHit = false;
                 showDebug(z80.pc);
