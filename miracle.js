@@ -22,6 +22,25 @@ var inputMode = 0;
 
 var soundChip;
 
+function frame() {
+    var vdp_status = 0;
+    while ((vdp_status & 2) == 0) {
+        event_next_event = 220; // TODO: not 220?
+        tstates -= 220;
+        z80_do_opcodes();
+        vdp_status = vdp_hblank();
+        if (vdp_status) {
+            z80_interrupt();
+        }
+        if (breakpointHit) {
+            running = false;
+            showDebug(z80.pc);
+            return;
+        }
+    }
+    paintScreen();
+}
+
 function pumpAudio(event) {
     var outBuffer = event.outputBuffer;
     var chan = outBuffer.getChannelData(0);

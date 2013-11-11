@@ -106,7 +106,10 @@ function vdp_readbyte() {
 
 function vdp_readstatus() {
     res = vdp_status;
-    vdp_status &= 0x3f;
+    // Rich's doc says only top two bits are cleared, but all other docs clear top three.
+    // Clear top three here.
+    vdp_status &= 0x1f;
+    vdp_addr_state = 0;
     return res;
 }
 
@@ -313,14 +316,14 @@ function rasterize_line(line) {
 
 function vdp_hblank() {
     var needIrq = 0;
-    var firstDisplayLine = 3 + 13 + 54;
-    var pastEndDisplayLine = firstDisplayLine + 192;
-    var endOfFrame = pastEndDisplayLine + 48 + 3;
+    const firstDisplayLine = 3 + 13 + 54;
+    const pastEndDisplayLine = firstDisplayLine + 192;
+    const endOfFrame = pastEndDisplayLine + 48 + 3;
     if (vdp_current_line >= firstDisplayLine && vdp_current_line < pastEndDisplayLine) {
         rasterize_line(vdp_current_line - firstDisplayLine);
         if (--vdp_hblank_counter < 0) {
             vdp_hblank_counter = vdp_regs[10];
-            vdp_status &= ~ 128;
+            vdp_status |= 64;
             if (vdp_regs[0] & 16) {
                 needIrq |= 1;
             }
@@ -330,6 +333,7 @@ function vdp_hblank() {
     if (vdp_current_line === endOfFrame) {
         vdp_current_line = 0;
         vdp_status |= 128;
+        vdp_hblank_counter = vdp_regs[10];
         if (vdp_regs[1] & 32) {
             needIrq |= 2;
         }
