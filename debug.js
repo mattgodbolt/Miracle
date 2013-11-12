@@ -154,6 +154,10 @@ function updateDebug(pcOrNone) {
     $('#vdp_registers .register:visible .value').each(function() {
         updateElement($(this), hexbyte(vdp_regs[i++]));
     });
+    i = 0;
+    $('#pages .register:visible .value').each(function() {
+        updateElement($(this), hexbyte(pages[i++]));
+    });
     updateFlags(z80.f);
 }
 

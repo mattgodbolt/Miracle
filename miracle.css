@@ -149,7 +149,7 @@ a.close_button {
 	float: left;
 }
 
-#vdp_registers {
+#vdp_registers, #pages {
     margin-top: 10px;
 }
 

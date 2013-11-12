@@ -247,13 +247,17 @@ function clear_background(lineAddr, pixelOffset) {
 
 function rasterize_line(line) {
     line = +line;
-    var lineAddr = (line * 256 * 4)|0;
+    const lineAddr = (line * 256 * 4)|0;
+    const borderIndex = 16 + (vdp_regs[7] & 0xf);
+    const borderR = paletteR[borderIndex], 
+          borderG = paletteG[borderIndex], 
+          borderB = paletteB[borderIndex];
     if ((vdp_regs[1] & 64) == 0) {
         var i;
         for (i = 0; i < 256 * 4; i += 4) {
-            imageDataData[lineAddr + i] = 0x0;
-            imageDataData[lineAddr + i + 1] = 0x0;
-            imageDataData[lineAddr + i + 2] = 0x0;
+            imageDataData[lineAddr + i] = borderR;
+            imageDataData[lineAddr + i + 1] = borderG;
+            imageDataData[lineAddr + i + 2] = borderB;
         }
         return;
     }
@@ -262,7 +266,7 @@ function rasterize_line(line) {
     if (effectiveLine >= 224) {
         effectiveLine -= 224;
     }
-    var sprites = findSprites(line);
+    const sprites = findSprites(line);
     var spriteBase = 0;
     if (vdp_regs[6] & 4) {
         spriteBase = 0x2000;
@@ -272,9 +276,8 @@ function rasterize_line(line) {
         // Static top two rows.
         pixelOffset = 0;
     }
-    var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+    const nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
     var yMod = effectiveLine & 7;
-    var borderIndex = 16 + (vdp_regs[7] & 0xf);
     var i;
     var j;
     for (i = 0; i < 32; i++) {
@@ -339,11 +342,10 @@ function rasterize_line(line) {
 
     if (vdp_regs[0] & (1 << 5)) {
         // Blank out left hand column.
-        const r = paletteR[borderIndex], g = paletteG[borderIndex], b = paletteB[borderIndex];
         for (i = 0; i < 8; i++) {
-            imageDataData[lineAddr + i * 4] = r;
-            imageDataData[lineAddr + i * 4 + 1] = g;
-            imageDataData[lineAddr + i * 4 + 2] = b;
+            imageDataData[lineAddr + i * 4] = borderR;
+            imageDataData[lineAddr + i * 4 + 1] = borderG;
+            imageDataData[lineAddr + i * 4 + 2] = borderB;
         }
     }
 }
@@ -371,6 +373,7 @@ function vdp_hblank() {
         if (vdp_regs[1] & 32) {
             needIrq |= 2;
         }
+        needIrq |= 4;
     }
     return needIrq;
 }

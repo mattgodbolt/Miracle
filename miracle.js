@@ -24,7 +24,7 @@ var soundChip;
 
 function frame() {
     var vdp_status = 0;
-    while ((vdp_status & 2) == 0) {
+    while ((vdp_status & 4) == 0) {
         event_next_event = 220; // TODO: not 220?
         tstates -= 220;
         z80_do_opcodes();
@@ -199,7 +199,7 @@ function hexword(value) {
 
 function virtualAddress(address) {
     function romAddr(bank, addr) {
-        return 'rom' + (bank & romPageMask).toString(16) + '_' + hexword(addr);
+        return 'rom' + bank.toString(16) + '_' + hexword(addr);
     }
     if (address < 0x0400) { return romAddr(0, address); }
     if (address < 0x4000) { return romAddr(pages[0], address); }
@@ -227,26 +227,19 @@ function virtualAddress(address) {
 function readbyte(address) {
     address = +address;
     if (address < 0x0400) { return romBanks[0][address]; }
-    if (address < 0x4000) { return romBanks[pages[0] & romPageMask][address]; }
-    if (address < 0x8000) { return romBanks[pages[1] & romPageMask][address - 0x4000]; }
+    if (address < 0x4000) { return romBanks[pages[0]][address]; }
+    if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
     if (address < 0xc000) {
         if ((ramSelectRegister & 12) == 8) {
             return cartridgeRam[address - 0x8000];
         } else if ((ramSelectRegister & 12) == 12) {
             return cartridgeRam[address - 0x4000];
         } else {
-            return romBanks[pages[2] & romPageMask][address - 0x8000];
+            return romBanks[pages[2]][address - 0x8000];
         }
     }
     if (address < 0xe000) { return ram[address - 0xc000]; }
-    if (address < 0xfffc) { return ram[address - 0xe000]; }
-    switch (address) {
-        case 0xfffc: return ramSelectRegister;
-        case 0xfffd: return pages[0];
-        case 0xfffe: return pages[1];
-        case 0xffff: return pages[2];
-        default: throw "zoiks";
-    }
+    return ram[address - 0xe000];
 }
 
 function writebyte(address, value) {
@@ -254,12 +247,11 @@ function writebyte(address, value) {
     if (address >= 0xfffc) {
         switch (address) {
         case 0xfffc: ramSelectRegister = value; break;
-        case 0xfffd: pages[0] = value; break;
-        case 0xfffe: pages[1] = value; break;
-        case 0xffff: pages[2] = value; break;
+        case 0xfffd: value &= romPageMask; pages[0] = value; break;
+        case 0xfffe: value &= romPageMask; pages[1] = value; break;
+        case 0xffff: value &= romPageMask; pages[2] = value; break;
         default: throw "zoiks";
         }
-        return;
     }
     address -= 0xc000;
     if (address < 0) {
