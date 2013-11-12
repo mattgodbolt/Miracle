@@ -276,17 +276,18 @@ function readport(addr) {
     case 0x7f:
         return vdp_get_x();
     case 0xdc: case 0xc0:
-        if ((inputMode & 7) != 7) return 0xff; // keyboard
+        // keyboard: if ((inputMode & 7) != 7) return 0xff;
         return joystick & 0xff;
     case 0xdd: case 0xc1:
-        if ((inputMode & 7) != 7) return 0xff; // keyboard
+        // keyboard: if ((inputMode & 7) != 7) return 0xff;
         return (joystick >> 8) & 0xff;
     case 0xbe:
         return vdp_readbyte();
     case 0xbd: case 0xbf:
         return vdp_readstatus();
     case 0xde: 
-        return inputMode; // should really be 0xff but that confuses Teddy Boy it seems
+        // if we ever support keyboard: return inputMode;
+        return 0xff;
     case 0xdf:
         return 0xff; // Unknown use
     case 0xf2:
@@ -326,6 +327,8 @@ function writeport(addr, val) {
         break; // Unknown use
     case 0xf0: case 0xf1: case 0xf2:
     break; // YM2413 sound support: TODO
+    case 0x3e:
+    break; // enable/disable of RAM and stuff, ignore
     default:
         console.log('IO port ' + hexbyte(addr) + ' = ' + val);
         break;
