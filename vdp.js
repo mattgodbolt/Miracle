@@ -239,12 +239,17 @@ function rasterize_line(line) {
         spriteBase = 0x2000;
     }
     var pixelOffset = (vdp_regs[8] * 4)|0;
+    if (vdp_regs[0] & 64 && line < 16) {
+        // Static top two rows.
+        pixelOffset = 0;
+    }
     var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
     var yMod = effectiveLine & 7;
     var borderIndex = 16 + (vdp_regs[7] & 0xf);
     var i;
     var j;
     for (i = 0; i < 32; i++) {
+        // TODO: static left-hand rows.
         var tileData = vram[nameAddr + i * 2]
                 | (vram[nameAddr + i * 2 + 1] << 8);
         var tileNum = tileData & 511;
@@ -255,17 +260,17 @@ function rasterize_line(line) {
             tileDef += (4 * yMod);
         }
         clear_background(lineAddr, pixelOffset);
-        // TODO: static top two rows, and static left-hand rows.
         if ((tileData & (1<<12)) === 0) {
             rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
         }
         var savedOffset = pixelOffset;
         var xPos = (i * 8 + vdp_regs[8]) & 0xff;
         // TODO: sprite X-8 shift
+        // TODO: sprite double size
         for (j = 0; j < 8; ++j) {
             var k;
             var writtenTo = false;
-            for (k = 0; k < sprites.length; k++) {
+            for (k = sprites.length - 1; k >= 0; k--) {
                 var sprite = sprites[k];
                 var offset = xPos - sprite[0];
                 if (offset < 0 || offset >= 8)
