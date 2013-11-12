@@ -299,7 +299,7 @@ function rasterize_line(line) {
         for (j = 0; j < 8; ++j) {
             var k;
             var writtenTo = false;
-            for (k = sprites.length - 1; k >= 0; k--) {
+            for (k = 0; k < sprites.length; k++) {
                 var sprite = sprites[k];
                 var offset = xPos - sprite[0];
                 if (offset < 0 || offset >= 8)
