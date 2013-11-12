@@ -74,11 +74,12 @@ function vdp_writepalette(val) {
     b = (val >> 4) & 3;
     b |= b << 2;
     b |= b << 4;
-    paletteR[vdp_addr] = r;
-    paletteG[vdp_addr] = g;
-    paletteB[vdp_addr] = b;
-    palette[vdp_addr] = val;
-    vdp_addr = (vdp_addr + 1) & 0x1f;
+    var pal_addr = vdp_addr & 0x1f;
+    paletteR[pal_addr] = r;
+    paletteG[pal_addr] = g;
+    paletteB[pal_addr] = b;
+    palette[pal_addr] = val;
+    vdp_addr = (vdp_addr + 1) & 0x3fff;
     update_border();
 }
 
@@ -89,12 +90,12 @@ function vdp_writebyte(val) {
 
 function vdp_readram() {
     res = vram[vdp_addr];
-    vdp_addr = (vdp_addr + 1) & 0x1f;
+    vdp_addr = (vdp_addr + 1) & 0x3fff;
     return res;
 }
 
 function vdp_readpalette() {
-    res = palette[vdp_addr];
+    res = palette[vdp_addr & 0x1f];
     vdp_addr = (vdp_addr + 1) & 0x3fff;
     return res;
 }
@@ -147,6 +148,34 @@ function dumpSprites() {
         var x = vram[spriteInfo + 128 + i * 2];
         var t = vram[spriteInfo + 128 + i * 2 + 1];
         console.log(i + ' x: ' + x + ' y: ' + y +  ' t: ' + t);
+    }
+}
+
+function dumpBackground() {
+    for (var y = 0; y < 224; y += 8) {
+        var effectiveLine = y + vdp_regs[9];
+        if (effectiveLine >= 224) {
+            effectiveLine -= 224;
+        }
+        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+        var dumpage = "";
+        for (var i = 0; i < 32; i++) {
+            var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
+            var tileNum = tileData & 511;
+            dumpage += hexword(tileNum);
+        }
+        console.log(dumpage);
+    }
+}
+
+function dumpTile(tileNum) {
+    var tileDef = tileNum * 32;
+    for (var y = 0; y < 8; ++y) {
+        var dumpage = "";
+        for (var x = 0; x < 4; ++x) {
+            dumpage += hexbyte(vram[tileDef + y * 4 + x]);
+        }
+        console.log(dumpage);
     }
 }
 
