@@ -22,25 +22,76 @@ var inputMode = 0;
 
 var soundChip;
 
-function frame() {
-    var vdp_status = 0;
-    while ((vdp_status & 4) == 0) {
-        event_next_event = 220; // TODO: not 220?
-        tstates -= 220;
-        z80_do_opcodes();
-        vdp_status = vdp_hblank();
-        if (vdp_status) {
-            z80_interrupt();
-        }
-        if (breakpointHit) {
-            running = false;
-            showDebug(z80.pc);
-            return;
-        }
+const framesPerSecond = 50;
+const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
+const scanLinesPerSecond = scanLinesPerFrame * framesPerSecond;
+const cpuHz = 3.3 * 1000 * 1000;
+const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond)|0;
+const secsPerHblank = 1 / scanLinesPerSecond;
+
+function line() {
+    event_next_event = tstatesPerHblank; 
+    tstates -= tstatesPerHblank;
+    z80_do_opcodes();
+    var vdp_status = vdp_hblank();
+    soundChip.advance(secsPerHblank);
+    if (vdp_status & 3) {
+        z80_interrupt();
     }
-    paintScreen();
+    if (breakpointHit) {
+        running = false;
+        showDebug(z80.pc);
+        return true;
+    }
+    if (!!(vdp_status & 4)) {
+        paintScreen();
+        return true;
+    }
+    return false;
 }
 
+function start() {
+    breakpointHit = false;
+    showDebug(z80.pc);
+    if (running) return;
+    running = true;
+    document.getElementById('menu').className = 'running';
+    audio_enable(true);
+    $('#debug').hide();
+    run();
+}
+
+const linesPerYield = 20;
+function run() {
+    if (!running) {
+        showDebug(z80.pc);
+        return;
+    }
+    setTimeout(run, 20);
+
+    var runner = function() {
+        try {
+            for (var i = 0; i < linesPerYield; ++i) {
+                if (line()) return;
+            }
+        } catch (e) {
+            running = false;
+            audio_enable(true);
+            throw e;
+        }
+        if (running) setTimeout(runner, 0);
+    };
+    runner();
+}
+
+function stop() {
+    running = false;
+    audio_enable(false);
+}
+
+function reset() {
+    miracle_reset();
+}
 function pumpAudio(event) {
     var outBuffer = event.outputBuffer;
     var chan = outBuffer.getChannelData(0);
@@ -55,10 +106,14 @@ function audio_init() {
         return;
     }
     var context = new webkitAudioContext();
-    var jsAudioNode = context.createJavaScriptNode(2048, 0, 1);
+    var jsAudioNode = context.createJavaScriptNode(1024, 0, 1);
     jsAudioNode.onaudioprocess = pumpAudio;
     jsAudioNode.connect(context.destination, 0, 0);
     soundChip = new SoundChip(context.sampleRate);
+}
+
+function audio_enable(enable) {
+    soundChip.enable(enable);
 }
 
 function audio_reset() {
@@ -330,5 +385,6 @@ function writeport(addr, val) {
 function breakpoint() {
     event_next_event = 0;
     breakpointHit = true;
+    audio_enable(false);
 }
 

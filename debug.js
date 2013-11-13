@@ -162,6 +162,7 @@ function updateDebug(pcOrNone) {
 }
 
 function stepUntil(f) {
+    audio_enable(true);
     breakpointHit = false;
     for (var i = 0; i < 65536; i++) {
         tstates = 0;
@@ -170,6 +171,7 @@ function stepUntil(f) {
         if (f()) break;
     }
     showDebug(z80.pc);
+    audio_enable(false);
 }
 
 function step() {

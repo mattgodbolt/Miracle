@@ -72,12 +72,14 @@ function SoundChip(sampleRate) {
         }
     }
 
-    function render(out, offset, length) {
+    var enabled = true;
+    function generate(out, offset, length) {
         offset = +offset; length = +length;
         var i;
         for (i = 0; i < length; ++i) {
             out[i + offset] = 0.0;
         }
+        if (!enabled) return;
         for (i = 0; i < 4; ++i) {
             generators[i](i, out, offset, length);
         }
@@ -85,6 +87,38 @@ function SoundChip(sampleRate) {
         for (i = 0; i < length; ++i) {
             out[i + offset] *= scale;
         }
+    }
+
+    var residual = 0;
+    var position = 0;
+    const maxBufferSize = 4096;
+    var buffer = new Uint8Array(maxBufferSize);
+    function render(out, offset, length) {
+        const fromBuffer = position > length ? length : position;
+        for (var i = 0; i < fromBuffer; ++i) {
+            out[offset + i] = buffer[i];
+        }
+        offset += fromBuffer;
+        length -= fromBuffer;
+        for (i = fromBuffer; i < position; ++i) {
+            buffer[i - fromBuffer] = buffer[i];
+        }
+        position -= fromBuffer;
+        if (length !== 0) {
+            generate(out, offset, length);
+        }
+    }
+
+    function advance(time) {
+        const num = time * sampleRate + residual;
+        var rounded = num|0;
+        residual = num - rounded;
+        if (position + rounded >= maxBufferSize) {
+            rounded = maxBufferSize - position;
+            if (rounded === 0) return;
+        }
+        generate(buffer, position, rounded);
+        position += rounded;
     }
 
     var latchedChannel = 0;
@@ -110,8 +144,10 @@ function SoundChip(sampleRate) {
     }
     generators[3] = noiseChannel;
 
+    this.advance = advance;
     this.render = render;
     this.poke = poke;
+    this.enable = function(e) { enabled = e; }
     this.reset = function() {
         for (var i = 0; i < 3; ++i) {
             volume[i] = register[i] = 0;
@@ -119,4 +155,3 @@ function SoundChip(sampleRate) {
         noisePoked();
     }
 }
-

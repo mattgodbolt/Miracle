@@ -84,34 +84,6 @@
                 if (typeof(localStorage) !== "undefined" && localStorage["rom"]) return localStorage["rom"];
                 return 'SonicTheHedgehog.sms'; 
             }
-			function start() {
-                breakpointHit = false;
-                showDebug(z80.pc);
-				if (running) return;
-				running = true;
-				document.getElementById('menu').className = 'running';
-				run();
-			}
-			function run() {
-				if (!running) {
-				  	showDebug(z80.pc);
-					return;
-				}
-				$('#debug').hide();
-				setTimeout(run, 20);
-				try {
-					frame();
-				} catch (e) {
-					running = false;
-					throw e;
-				}
-			}
-			function stop() {
-				running = false;
-			}
-			function reset() {
-				miracle_reset();
-			}
 			function showRomChooser() {
 				$('#rom_chooser').show();
 			}
