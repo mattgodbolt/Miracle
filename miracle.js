@@ -25,7 +25,7 @@ var soundChip;
 const framesPerSecond = 50;
 const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
 const scanLinesPerSecond = scanLinesPerFrame * framesPerSecond;
-const cpuHz = 3.3 * 1000 * 1000;
+const cpuHz = 3.58 * 1000 * 1000; // According to Sega docs.
 const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond)|0;
 const secsPerHblank = 1 / scanLinesPerSecond;
 
