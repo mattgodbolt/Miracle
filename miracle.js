@@ -60,13 +60,25 @@ function start() {
     run();
 }
 
+const targetTimeout = 1000 / framesPerSecond;
+var adjustedTimeout = targetTimeout;
+var lastFrame = null;
 const linesPerYield = 20;
+
 function run() {
     if (!running) {
         showDebug(z80.pc);
         return;
     }
-    setTimeout(run, 20);
+    var now = +new Date();
+    if (lastFrame) {
+        // Try and tweak the timeout to achieve target frame rate.
+        var timeSinceLast = now - lastFrame;
+        var diff = timeSinceLast - targetTimeout;
+        adjustedTimeout -= 0.1 * diff;
+    }
+    lastFrame = now;
+    setTimeout(run, adjustedTimeout);
 
     var runner = function() {
         try {
