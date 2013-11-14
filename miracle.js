@@ -74,8 +74,11 @@ function run() {
     if (lastFrame) {
         // Try and tweak the timeout to achieve target frame rate.
         var timeSinceLast = now - lastFrame;
-        var diff = timeSinceLast - targetTimeout;
-        adjustedTimeout -= 0.1 * diff;
+        if (timeSinceLast < 2 * targetTimeout) {
+            // Ignore huge delays (e.g. trips in and out of the debugger)
+            var diff = timeSinceLast - targetTimeout;
+            adjustedTimeout -= 0.1 * diff;
+        }
     }
     lastFrame = now;
     setTimeout(run, adjustedTimeout);
