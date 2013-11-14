@@ -52,7 +52,6 @@ function line() {
 
 function start() {
     breakpointHit = false;
-    showDebug(z80.pc);
     if (running) return;
     running = true;
     document.getElementById('menu').className = 'running';
