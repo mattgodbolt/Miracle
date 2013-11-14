@@ -66,7 +66,7 @@
                 }
                 var vdp = $('#vdp_registers');
 				for (var i = 0; i < 11; i++) {
-					vdp.find('.template').clone().removeClass('template').appendTo(vdp).find('.name').text('v' + i);
+					vdp.find('.template').clone().removeClass('template').appendTo(vdp).find('.register').text('v' + i);
                 }
                 disass.find('.template').remove();
                 $('#menu button').each(function() {
@@ -136,24 +136,24 @@
                     <div class="template"><span class="dis_addr">0000</span><span class="instr_bytes">11 22 33 44 55</span><span class="disassembly">LD A,(HL)</span></div>
 				</div>
 				<div id="registers">
-                    <div>AF: <span class="h" id="z80_a">00</span><span class="l" id="z80_f">00</span></div>
+                    <div><span class="register">AF</span>: <span class="h" id="z80_a">00</span><span class="l" id="z80_f">00</span></div>
                     <div>
                         <span class="flag" id="z80_flag_c">C</span><span class="flag" id="z80_flag_n">C</span><span class="flag" id="z80_flag_p">C</span><span class="flag" id="z80_flag_3">_</span><span class="flag" id="z80_flag_h">C</span><span class="flag" id="z80_flag_5">_</span><span class="flag" id="z80_flag_z">C</span><span class="flag" id="z80_flag_s">C</span>
                     </div>
-					<div>BC: <span class="h" id="z80_b">00</span><span class="l" id="z80_c">00</span></div>
-                    <div>DE: <span class="h" id="z80_d">00</span><span class="l" id="z80_e">00</span></div>
-					<div>HL: <span class="h" id="z80_h">00</span><span class="l" id="z80_l">00</span></div>
-					<div>SP: <span id="z80_sp">0000</span></div>
-					<div>PC: <span id="z80_pc">0000</span></div>
-					<div>IX: <span class="h" id="z80_ixh">00</span><span class="l" id="z80_ixl">00</span></div>
-                    <div>IY: <span class="h" id="z80_iyh">00</span><span class="l" id="z80_iyl">00</span></div>
+                    <div><span class="register">BC</span>: <span class="h" id="z80_b">00</span><span class="l" id="z80_c">00</span></div>
+                    <div><span class="register">DE</span>: <span class="h" id="z80_d">00</span><span class="l" id="z80_e">00</span></div>
+                    <div><span class="register">HL</span>: <span class="h" id="z80_h">00</span><span class="l" id="z80_l">00</span></div>
+                    <div><span class="register">SP</span>: <span id="z80_sp">0000</span></div>
+                    <div><span class="register">PC</span>: <span id="z80_pc">0000</span></div>
+                    <div><span class="register">IX</span>: <span class="h" id="z80_ixh">00</span><span class="l" id="z80_ixl">00</span></div>
+                    <div><span class="register">IY</span>: <span class="h" id="z80_iyh">00</span><span class="l" id="z80_iyl">00</span></div>
                     <div id="vdp_registers">
-                        <div class="register template"><span class="name">00</span>:<span class="value">00</span></div>
+                        <div class="template"><span class="register">00</span>:<span class="value">00</span></div>
                     </div>
                     <div id="pages">
-                        <div class="register"><span class="name">p0</span>:<span class="value">00</span></div>
-                        <div class="register"><span class="name">p1</span>:<span class="value">00</span></div>
-                        <div class="register"><span class="name">p2</span>:<span class="value">00</span></div>
+                        <div><span class="register">p0</span>:<span class="value">00</span></div>
+                        <div><span class="register">p1</span>:<span class="value">00</span></div>
+                        <div><span class="register">p2</span>:<span class="value">00</span></div>
                     </div>
 				</div>
 			</div>

@@ -16,8 +16,9 @@ def main(file):
     if opcode == 'shift':
       print 'case %s: return disassemble_%s(address);' % (number, args)
       continue
-    print 'case %s: res="%s";' % (number, opcode)
-    args = re.sub(r'(REGISTER[HL]?)', r'" + \1 + "', args);
+    print 'case %s: res="<span class=opcode>%s</span>";' % (number, opcode)
+    args = re.sub(r'(REGISTER[HL]?)', r'<span class=register>" + \1 + "</span>', args);
+    args = re.sub(r'(AF|BC|DE|HL|SP|PC|IX|IY|(\b[AFBCDEHL]\b))', r'<span class=register>\1</span>', args)
     if 'nnnn' in args:
       pre = args[0:args.find('nnnn')]
       post = args[args.find('nnnn') + 4:]

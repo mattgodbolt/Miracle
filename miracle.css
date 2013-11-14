@@ -193,6 +193,14 @@ a.close_button {
     background-color: #112211;
 }
 
+.opcode {
+    font-weight: bold;
+}
+
+.register {
+    color: #88ee88
+}
+
 .current {
     background-color: #227777;
 }
