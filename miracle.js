@@ -13,7 +13,8 @@ var romPageMask = 0;
 var canvas;
 var ctx;
 var imageData;
-var imageDataData;
+var fb8;
+var fb32;
 var hasImageData;
 var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 
@@ -144,12 +145,13 @@ function miracle_init() {
 
     canvas = document.getElementById('screen');
     ctx = canvas.getContext('2d');
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0,0,256,192); /* set alpha to opaque */
+    //ctx.fillStyle = 'black';
+    //ctx.fillRect(0,0,256,192); /* set alpha to opaque */
     if (ctx.getImageData) {
         hasImageData = true;
         imageData = ctx.getImageData(0,0,256,192);
-        imageDataData = imageData.data;
+        fb8 = imageData.data;
+        fb32 = new Uint32Array(fb8.buffer);
     } else {
         alert('upgrade your browser, dude');
         // Unsupported....
@@ -236,6 +238,7 @@ function keyPress(evt) {
 
 function paintScreen() {
     if (hasImageData) {
+        imageData.data.set(fb8);
         ctx.putImageData(imageData, 0, 0);
         // Apparently needed by FireFox 2
         if (needDrawImage) ctx.drawImage(canvas, 0, 0);

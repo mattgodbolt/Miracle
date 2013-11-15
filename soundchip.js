@@ -92,7 +92,7 @@ function SoundChip(sampleRate) {
     var residual = 0;
     var position = 0;
     const maxBufferSize = 4096;
-    var buffer = new Uint8Array(maxBufferSize);
+    var buffer = new Float64Array(maxBufferSize);
     function render(out, offset, length) {
         const fromBuffer = position > length ? length : position;
         for (var i = 0; i < fromBuffer; ++i) {

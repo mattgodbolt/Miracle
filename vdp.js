@@ -4,6 +4,7 @@ var palette = [];
 var paletteR = [];
 var paletteG = [];
 var paletteB = [];
+var paletteRGB = [];
 
 var vdp_addr_state = 0;
 var vdp_addr_latch = 0;
@@ -15,7 +16,7 @@ var vdp_read_routine = function() {
 };
 var vdp_current_line = 0;
 var vdp_status = 0;
-vdp_hblank_counter = 0;
+var vdp_hblank_counter = 0;
 
 function vdp_writeaddr(val) {
     if (vdp_addr_state == 0) {
@@ -78,6 +79,7 @@ function vdp_writepalette(val) {
     paletteR[pal_addr] = r;
     paletteG[pal_addr] = g;
     paletteB[pal_addr] = b;
+    paletteRGB[pal_addr] = 0xff000000 | (b<<16) | (g<<8) | r;
     palette[pal_addr] = val;
     vdp_addr = (vdp_addr + 1) & 0x3fff;
     update_border();
@@ -201,11 +203,9 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                       | ((tileVal3 & 1) << 3);
             index += paletteOffset;
             if (index !== 0) {
-                imageDataData[lineAddr + pixelOffset] = paletteR[index];
-                imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
-                imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
+                fb32[lineAddr + pixelOffset] = paletteRGB[index];
             }
-            pixelOffset = (pixelOffset + 4) & 1023;
+            pixelOffset = (pixelOffset + 1) & 255;
             tileVal0 >>= 1;
             tileVal1 >>= 1;
             tileVal2 >>= 1;
@@ -219,11 +219,9 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
                       | ((tileVal3 & 128) >> 4);
             index += paletteOffset;
             if (index !== 0) {
-                imageDataData[lineAddr + pixelOffset] = paletteR[index];
-                imageDataData[lineAddr + pixelOffset + 1] = paletteG[index];
-                imageDataData[lineAddr + pixelOffset + 2] = paletteB[index];
+                fb32[lineAddr + pixelOffset] = paletteRGB[index];
             }
-            pixelOffset = (pixelOffset + 4) & 1023;
+            pixelOffset = (pixelOffset + 1) & 255;
             tileVal0 <<= 1;
             tileVal1 <<= 1;
             tileVal2 <<= 1;
@@ -236,29 +234,21 @@ function clear_background(lineAddr, pixelOffset) {
     lineAddr = +lineAddr;
     pixelOffset = +pixelOffset;
     var i;
-    const r = paletteR[0], g = paletteG[0], b = paletteB[0];
+    const rgb = paletteRGB[0];
     for (i = 0; i < 8; ++i) {
-        imageDataData[lineAddr + pixelOffset] = r;
-        imageDataData[lineAddr + pixelOffset + 1] = g;
-        imageDataData[lineAddr + pixelOffset + 2] = b;
-        pixelOffset = (pixelOffset + 4) & 1023;
+        fb32[lineAddr + pixelOffset] = rgb;
+        pixelOffset = (pixelOffset + 1) & 255;
     }
 }
 
 function rasterize_line(line) {
     line = +line;
-    const lineAddr = (line * 256 * 4)|0;
+    const lineAddr = (line * 256)|0;
     const borderIndex = 16 + (vdp_regs[7] & 0xf);
-    const borderR = paletteR[borderIndex], 
-          borderG = paletteG[borderIndex], 
-          borderB = paletteB[borderIndex];
+    const borderRGB = paletteRGB[borderIndex]; 
+    var i;
     if ((vdp_regs[1] & 64) == 0) {
-        var i;
-        for (i = 0; i < 256 * 4; i += 4) {
-            imageDataData[lineAddr + i] = borderR;
-            imageDataData[lineAddr + i + 1] = borderG;
-            imageDataData[lineAddr + i + 2] = borderB;
-        }
+        for (i = 0; i < 256; i++) fb32[lineAddr + i] = borderRGB;
         return;
     }
 
@@ -271,14 +261,13 @@ function rasterize_line(line) {
     if (vdp_regs[6] & 4) {
         spriteBase = 0x2000;
     }
-    var pixelOffset = (vdp_regs[8] * 4)|0;
+    var pixelOffset = (vdp_regs[8])|0;
     if (vdp_regs[0] & 64 && line < 16) {
         // Static top two rows.
         pixelOffset = 0;
     }
     const nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
     var yMod = effectiveLine & 7;
-    var i;
     var j;
     for (i = 0; i < 32; i++) {
         // TODO: static left-hand rows.
@@ -326,14 +315,11 @@ function rasterize_line(line) {
                     vdp_status |= 0x20;
                     break;
                 }
-                imageDataData[lineAddr + pixelOffset] = paletteR[16 + index];
-                imageDataData[lineAddr + pixelOffset + 1] = paletteG[16 + index];
-                imageDataData[lineAddr + pixelOffset + 2] = paletteB[16 + index];
+                fb32[lineAddr + pixelOffset] = paletteRGB[16 + index];
                 writtenTo = true;
             }
             xPos++;
-            pixelOffset += 4;
-            pixelOffset &= 1023;
+            pixelOffset = (pixelOffset + 1) & 255;
         }
         if ((tileData & (1<<12)) !== 0) {
             rasterize_background(lineAddr, savedOffset, tileData, tileDef);
@@ -342,11 +328,7 @@ function rasterize_line(line) {
 
     if (vdp_regs[0] & (1 << 5)) {
         // Blank out left hand column.
-        for (i = 0; i < 8; i++) {
-            imageDataData[lineAddr + i * 4] = borderR;
-            imageDataData[lineAddr + i * 4 + 1] = borderG;
-            imageDataData[lineAddr + i * 4 + 2] = borderB;
-        }
+        for (i = 0; i < 8; i++) fb32[lineAddr + i] = borderRGB;
     }
 }
 
@@ -384,6 +366,7 @@ function vdp_init() {
     paletteR = new Uint8Array(32);
     paletteG = new Uint8Array(32);
     paletteB = new Uint8Array(32);
+    paletteRGB = new Uint32Array(32);
     vdp_regs = new Uint8Array(16);
     vdp_reset();
 }
@@ -393,7 +376,7 @@ function vdp_reset() {
         vram[i] = 0;
     }
     for (i = 0; i < 32; i++) {
-        paletteR[i] = paletteG[i] = paletteB[i] = palette[i] = 0;
+        paletteR[i] = paletteG[i] = paletteB[i] = paletteRGB[i] = palette[i] = 0;
     }
     for (i = 0; i < 16; i++) {
         vdp_regs[i] = 0;
