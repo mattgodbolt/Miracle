@@ -114,14 +114,18 @@ function pumpAudio(event) {
 }
 
 function audio_init() {
-    if (typeof(webkitAudioContext) === 'undefined') {
+    var context = null;
+    if (typeof AudioContext !== 'undefined') {
+        context = new AudioContext();
+    } else if (typeof(webkitAudioContext) !== 'undefined') {
+        context = new webkitAudioContext();
+    } else {
         // Disable sound without the new APIs. 
         audioRun = function() {};
         soundChip = new SoundChip(10000);
         return;
     }
-    var context = new webkitAudioContext();
-    var jsAudioNode = context.createJavaScriptNode(1024, 0, 1);
+    var jsAudioNode = context.createScriptProcessor(1024, 0, 1);
     jsAudioNode.onaudioprocess = pumpAudio;
     jsAudioNode.connect(context.destination, 0, 0);
     soundChip = new SoundChip(context.sampleRate);
