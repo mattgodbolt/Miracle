@@ -54,28 +54,28 @@ function vdp_writeram(val) {
     vdp_addr = (vdp_addr + 1) & 0x3fff;
 }
 
-var border_css = null;
+var prev_border = null;
+var borderColourCss = null;
 function update_border() {
     var borderIndex = 16 + (vdp_regs[7] & 0xf);
-    var borderColourCss = 'rgb(' + paletteR[borderIndex] + ','
+    if (paletteRGB[borderIndex] == prev_border) return;
+    prev_border = paletteRGB[borderIndex];
+    // TODO: consider doing away with this code and draw the border manually
+    borderColourCss = 'rgb(' + paletteR[borderIndex] + ','
             + paletteG[borderIndex] + ',' + paletteB[borderIndex] + ')';
-    if (border_css != borderColourCss) {
-        canvas.style.borderColor = borderColourCss;
-        border_css = borderColourCss;
-    }
 }
 
 function vdp_writepalette(val) {
-    r = val & 3;
-    r |= r << 2;
-    r |= r << 4;
-    g = (val >> 2) & 3;
-    g |= g << 2;
-    g |= g << 4;
-    b = (val >> 4) & 3;
-    b |= b << 2;
-    b |= b << 4;
-    var pal_addr = vdp_addr & 0x1f;
+    function expandBits(val) {
+        var v = val & 3;
+        v |= v << 2;
+        v |= v << 4;
+        return v;
+    }
+    const r = expandBits(val);
+    const g = expandBits(val >> 2);
+    const b = expandBits(val >> 4);
+    const pal_addr = vdp_addr & 0x1f;
     paletteR[pal_addr] = r;
     paletteG[pal_addr] = g;
     paletteB[pal_addr] = b;
@@ -356,6 +356,11 @@ function vdp_hblank() {
             needIrq |= 2;
         }
         needIrq |= 4;
+        if (borderColourCss) {
+            // Lazily updated and only on changes.
+            canvas.style.borderColor = borderColourCss;
+            borderColourCss = null;
+        }
     }
     return needIrq;
 }
