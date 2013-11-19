@@ -35,10 +35,9 @@ function line() {
     tstates -= tstatesPerHblank;
     z80_do_opcodes();
     var vdp_status = vdp_hblank();
+    var irq = !!(vdp_status & 3);
+    z80_set_irq(irq);
     soundChip.advance(secsPerHblank);
-    if (vdp_status & 3) {
-        z80_interrupt();
-    }
     if (breakpointHit) {
         running = false;
         showDebug(z80.pc);
@@ -85,6 +84,7 @@ function run() {
     setTimeout(run, adjustedTimeout);
 
     var runner = function() {
+        if (!running) return;
         try {
             for (var i = 0; i < linesPerYield; ++i) {
                 if (line()) return;
@@ -144,7 +144,7 @@ function miracle_init() {
     audio_init();
     ram = new Uint8Array(0x2000);
     cartridgeRam = new Uint8Array(0x8000);
-    pages = new Uint8Array(4);
+    pages = new Uint8Array(3);
     miracle_reset();
 
     canvas = document.getElementById('screen');

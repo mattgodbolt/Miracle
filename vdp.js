@@ -16,6 +16,7 @@ var vdp_read_routine = function() {
 };
 var vdp_current_line = 0;
 var vdp_status = 0;
+var vdp_pending_hblank = false;
 var vdp_hblank_counter = 0;
 
 function vdp_writeaddr(val) {
@@ -112,6 +113,8 @@ function vdp_readstatus() {
     // Rich's doc says only top two bits are cleared, but all other docs clear top three.
     // Clear top three here.
     vdp_status &= 0x1f;
+    vdp_pending_hblank = false;
+    z80_set_irq(false);
     vdp_addr_state = 0;
     return res;
 }
@@ -168,6 +171,29 @@ function dumpBackground() {
         }
         console.log(dumpage);
     }
+}
+
+function showAllTiles() {
+    var tile = 0;
+    for (var y = 0; y < 224; y += 8) {
+        var effectiveLine = y + vdp_regs[9];
+        if (effectiveLine >= 224) {
+            effectiveLine -= 224;
+        }
+        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+        for (var i = 0; i < 32; i++) {
+            vram[nameAddr + i * 2] = tile & 0xff;
+            vram[nameAddr + i * 2 + 1] = (tile>>8) & 1;
+            tile++;
+        }
+    }
+    var temp = findSprites;
+    findSprites = function() { return []; }
+    for (y = 0; y < 192; ++y)
+        rasterize_line(y);
+    paintScreen();
+    findSprites = temp;
+    breakpoint();
 }
 
 function dumpTile(tileNum) {
@@ -333,34 +359,34 @@ function rasterize_line(line) {
 }
 
 function vdp_hblank() {
-    var needIrq = 0;
     const firstDisplayLine = 3 + 13 + 54;
     const pastEndDisplayLine = firstDisplayLine + 192;
     const endOfFrame = pastEndDisplayLine + 48 + 3;
+    if (vdp_current_line == firstDisplayLine) vdp_hblank_counter = vdp_regs[10];
     if (vdp_current_line >= firstDisplayLine && vdp_current_line < pastEndDisplayLine) {
         rasterize_line(vdp_current_line - firstDisplayLine);
         if (--vdp_hblank_counter < 0) {
             vdp_hblank_counter = vdp_regs[10];
-            vdp_status |= 64;
-            if (vdp_regs[0] & 16) {
-                needIrq |= 1;
-            }
+            vdp_pending_hblank = true;
         }
     }
     vdp_current_line++;
+    var needIrq = 0;
     if (vdp_current_line === endOfFrame) {
         vdp_current_line = 0;
         vdp_status |= 128;
-        vdp_hblank_counter = vdp_regs[10];
-        if (vdp_regs[1] & 32) {
-            needIrq |= 2;
-        }
         needIrq |= 4;
         if (borderColourCss) {
             // Lazily updated and only on changes.
             canvas.style.borderColor = borderColourCss;
             borderColourCss = null;
         }
+    }
+    if ((vdp_regs[1] & 32) && (vdp_status & 128)) {
+        needIrq |= 2;
+    }
+    if ((vdp_regs[0] & 16) && vdp_pending_hblank) {
+        needIrq |= 1;
     }
     return needIrq;
 }

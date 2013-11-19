@@ -58,7 +58,7 @@ var z80 = {
                so it can also act as an RZX instruction counter */
     r7:0, /* The high bit of the R register */
     sp:0, pc:0,
-    iff1:0, iff2:0, im:0, halted:false
+    iff1:0, iff2:0, im:0, halted:false, irq_pending:false, irq_suppress:false
 };
 
 /* Set up the z80 emulation */
@@ -81,7 +81,6 @@ function z80_init_tables() {
 
   sz53_table[0]  |= FLAG_Z;
   sz53p_table[0] |= FLAG_Z;
-
 }
 
 /* Reset the z80 */
@@ -93,6 +92,13 @@ function z80_reset() {
   SP=PC=0;
   IFF1=IFF2=IM=0;
   z80.halted=0;
+  z80.irq_pending = false;
+  z80.irq_suppress = true;
+}
+
+function z80_set_irq(asserted) {
+    z80.irq_pending = asserted;
+    if (z80.irq_pending && IFF1) z80_interrupt();
 }
 
 /* Process a z80 maskable interrupt */

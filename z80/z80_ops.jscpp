@@ -29,10 +29,18 @@ function sign_extend(v) {
 }
 
 /* Execute Z80 opcodes until the next event */
-function z80_do_opcodes()
-{
+function z80_do_opcodes() {
 
-  while(tstates < event_next_event ) {
+  while (tstates < event_next_event) {
+    if (z80.irq_pending && IFF1) {
+        if (z80.irq_suppress) {
+            // Prevent triggering of an IRQ on the instruction immediately after an EI
+            z80.irq_suppress = false;
+        } else {
+            z80.irq_suppress = true;
+            z80_interrupt(); 
+        }
+    }
 
     var opcode;
 
@@ -44,7 +52,5 @@ function z80_do_opcodes()
     switch(opcode) {
 #include "opcodes_base.jscpp"
     }
-
   }
-
 }
