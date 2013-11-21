@@ -1,12 +1,14 @@
 function SoundChip(sampleRate) {
+    "use strict";
+    var soundchipFreq = 3546893.0 / 16.0; // PAL
+    var sampleDecrement = soundchipFreq / sampleRate;
+
     var register = [ 0, 0, 0, 0 ];
     var counter = [ 0, 0, 0, 0 ];
     var outputBit = [ 0, 0, 0, 0 ];
     var volume = [ 0, 0, 0, 0 ];
     var generators = [ null, null, null, null ];
 
-    const soundchipFreq = 3546893.0 / 16.0; // PAL
-    const sampleDecrement = soundchipFreq / sampleRate;
 
     var volumeTable = [];
     var f = 1.0;
@@ -17,7 +19,7 @@ function SoundChip(sampleRate) {
     volumeTable[15] = 0;
 
     function toneChannel(channel, out, offset, length) {
-        const reg = register[channel], vol = volume[channel];;
+        var reg = register[channel], vol = volume[channel];;
         if (reg <= 1) {
             for (var i = 0; i < length; ++i) {
                 out[i + offset] += volume[channel];
@@ -60,7 +62,7 @@ function SoundChip(sampleRate) {
     }
 
     function noiseChannel(channel, out, offset, length) {
-        const add = addFor(channel), vol = volume[channel];;
+        var add = addFor(channel), vol = volume[channel];;
         for (var i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
@@ -83,7 +85,7 @@ function SoundChip(sampleRate) {
         for (i = 0; i < 4; ++i) {
             generators[i](i, out, offset, length);
         }
-        const scale = 1.0 / 4.0;
+        var scale = 1.0 / 4.0;
         for (i = 0; i < length; ++i) {
             out[i + offset] *= scale;
         }
@@ -91,10 +93,10 @@ function SoundChip(sampleRate) {
 
     var residual = 0;
     var position = 0;
-    const maxBufferSize = 4096;
+    var maxBufferSize = 4096;
     var buffer = new Float64Array(maxBufferSize);
     function render(out, offset, length) {
-        const fromBuffer = position > length ? length : position;
+        var fromBuffer = position > length ? length : position;
         for (var i = 0; i < fromBuffer; ++i) {
             out[offset + i] = buffer[i];
         }
@@ -110,7 +112,7 @@ function SoundChip(sampleRate) {
     }
 
     function advance(time) {
-        const num = time * sampleRate + residual;
+        var num = time * sampleRate + residual;
         var rounded = num|0;
         residual = num - rounded;
         if (position + rounded >= maxBufferSize) {
