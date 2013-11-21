@@ -207,58 +207,59 @@ function dumpTile(tileNum) {
     }
 }
 
-function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
-    lineAddr = +lineAddr;
-    pixelOffset = +pixelOffset;
-    tileData = +tileData;
-    tileDef = +tileDef;
+const reverse_table = function(){
+    var table = new Uint8Array(256);
+    for (var i = 0; i < 256; ++i) {
+        var j = i;
+        var reversed = 0;
+        for (var k = 0; k < 8; ++k) {
+            reversed <<= 1;
+            if (j & 1) reversed |= 1;
+            j >>= 1;
+        }
+        table[i] = reversed;
+    }
+    return table;
+}();
+
+function rasterize_background(lineAddr, pixelOffset, tileData, tileDef, transparent) {
+    const opaque = !transparent;
+    lineAddr = lineAddr|0;
+    pixelOffset = pixelOffset|0;
+    tileData = tileData|0;
+    tileDef = tileDef|0;
     var i;
     var tileVal0 = vram[tileDef];
     var tileVal1 = vram[tileDef + 1];
     var tileVal2 = vram[tileDef + 2];
     var tileVal3 = vram[tileDef + 3];
+    if ((tileData & (1 << 9))) {
+        tileVal0 = reverse_table[tileVal0];
+        tileVal1 = reverse_table[tileVal1];
+        tileVal2 = reverse_table[tileVal2];
+        tileVal3 = reverse_table[tileVal3];
+    }
     var paletteOffset = 0;
     if (tileData & (1 << 11)) {
         paletteOffset = 16;
     }
-    if ((tileData & (1 << 9))) {
-        for (i = 0; i < 8; i++) {
-            var index = ((tileVal0 & 1))
-                | ((tileVal1 & 1) << 1)
-                | ((tileVal2 & 1) << 2)
-                | ((tileVal3 & 1) << 3);
-            index += paletteOffset;
-            if (index !== 0) {
-                fb32[lineAddr + pixelOffset] = paletteRGB[index];
-            }
-            pixelOffset = (pixelOffset + 1) & 255;
-            tileVal0 >>= 1;
-            tileVal1 >>= 1;
-            tileVal2 >>= 1;
-            tileVal3 >>= 1;
+    for (i = 0; i < 8; i++) {
+        var shift = 7 - i;
+        var index = ((tileVal0 >>> shift) & 1)
+                  | (((tileVal1 >>> shift) & 1) << 1)
+                  | (((tileVal2 >>> shift) & 1) << 2)
+                  | (((tileVal3 >>> shift) & 1) << 3);
+        index += paletteOffset;
+        if (opaque || index !== 0) {
+            fb32[lineAddr + pixelOffset] = paletteRGB[index];
         }
-    } else {
-        for (i = 0; i < 8; i++) {
-            var index = ((tileVal0 & 128) >> 7)
-                | ((tileVal1 & 128) >> 6)
-                | ((tileVal2 & 128) >> 5)
-                | ((tileVal3 & 128) >> 4);
-            index += paletteOffset;
-            if (index !== 0) {
-                fb32[lineAddr + pixelOffset] = paletteRGB[index];
-            }
-            pixelOffset = (pixelOffset + 1) & 255;
-            tileVal0 <<= 1;
-            tileVal1 <<= 1;
-            tileVal2 <<= 1;
-            tileVal3 <<= 1;
-        }
+        pixelOffset = (pixelOffset + 1) & 255;
     }
 }
 
 function clear_background(lineAddr, pixelOffset) {
-    lineAddr = +lineAddr;
-    pixelOffset = +pixelOffset;
+    lineAddr = lineAddr|0;
+    pixelOffset = pixelOffset|0;
     var i;
     const rgb = paletteRGB[0];
     for (i = 0; i < 8; ++i) {
@@ -279,7 +280,7 @@ function benchmark_render() {
 }
 
 function rasterize_line(line) {
-    line = +line;
+    line = line|0;
     const lineAddr = (line * 256)|0;
     const borderIndex = 16 + (vdp_regs[7] & 0xf);
     const borderRGB = paletteRGB[borderIndex]; 
@@ -308,8 +309,7 @@ function rasterize_line(line) {
     var j;
     for (i = 0; i < 32; i++) {
         // TODO: static left-hand rows.
-        var tileData = vram[nameAddr + i * 2]
-                | (vram[nameAddr + i * 2 + 1] << 8);
+        var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
         var tileNum = tileData & 511;
         var tileDef = 32 * tileNum;
         if (tileData & (1 << 10)) {
@@ -317,9 +317,10 @@ function rasterize_line(line) {
         } else {
             tileDef += (4 * yMod);
         }
-        clear_background(lineAddr, pixelOffset);
         if ((tileData & (1<<12)) === 0) {
-            rasterize_background(lineAddr, pixelOffset, tileData, tileDef);
+            rasterize_background(lineAddr, pixelOffset, tileData, tileDef, false);
+        } else {
+            clear_background(lineAddr, pixelOffset);
         }
         var savedOffset = pixelOffset;
         var xPos = (i * 8 + vdp_regs[8]) & 0xff;
@@ -359,7 +360,7 @@ function rasterize_line(line) {
             pixelOffset = (pixelOffset + 1) & 255;
         }
         if ((tileData & (1<<12)) !== 0) {
-            rasterize_background(lineAddr, savedOffset, tileData, tileDef);
+            rasterize_background(lineAddr, savedOffset, tileData, tileDef, true);
         }
     }
 

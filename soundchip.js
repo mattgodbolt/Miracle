@@ -50,7 +50,7 @@ function SoundChip(sampleRate) {
     }
 
     function addFor(channel) {
-        channel = +channel;
+        channel = channel|0;
         switch (register[channel] & 3) {
         case 0: return 0x10;
         case 1: return 0x20;
@@ -74,7 +74,7 @@ function SoundChip(sampleRate) {
 
     var enabled = true;
     function generate(out, offset, length) {
-        offset = +offset; length = +length;
+        offset = offset|0; length = length|0;
         var i;
         for (i = 0; i < length; ++i) {
             out[i + offset] = 0.0;
