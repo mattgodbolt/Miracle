@@ -224,9 +224,9 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
     if ((tileData & (1 << 9))) {
         for (i = 0; i < 8; i++) {
             var index = ((tileVal0 & 1))
-                      | ((tileVal1 & 1) << 1)
-                      | ((tileVal2 & 1) << 2)
-                      | ((tileVal3 & 1) << 3);
+                | ((tileVal1 & 1) << 1)
+                | ((tileVal2 & 1) << 2)
+                | ((tileVal3 & 1) << 3);
             index += paletteOffset;
             if (index !== 0) {
                 fb32[lineAddr + pixelOffset] = paletteRGB[index];
@@ -240,9 +240,9 @@ function rasterize_background(lineAddr, pixelOffset, tileData, tileDef) {
     } else {
         for (i = 0; i < 8; i++) {
             var index = ((tileVal0 & 128) >> 7)
-                      | ((tileVal1 & 128) >> 6)
-                      | ((tileVal2 & 128) >> 5)
-                      | ((tileVal3 & 128) >> 4);
+                | ((tileVal1 & 128) >> 6)
+                | ((tileVal2 & 128) >> 5)
+                | ((tileVal3 & 128) >> 4);
             index += paletteOffset;
             if (index !== 0) {
                 fb32[lineAddr + pixelOffset] = paletteRGB[index];
@@ -265,6 +265,17 @@ function clear_background(lineAddr, pixelOffset) {
         fb32[lineAddr + pixelOffset] = rgb;
         pixelOffset = (pixelOffset + 1) & 255;
     }
+}
+
+function benchmark_render() {
+    const reps = 1000;
+    const start = Date.now();
+    vdp_current_line = 0;
+    for (var i = 0; i < reps; ++i) {
+        while ((vdp_hblank() & 4) == 0);
+    }
+    const end = Date.now();
+    console.log("Takes " + ((end - start)/reps) + "ms/frame");
 }
 
 function rasterize_line(line) {
@@ -358,6 +369,8 @@ function rasterize_line(line) {
     }
 }
 
+var currentFrame = 1;
+var benchmarkFrame = localStorage.benchmarkFrame|0;
 function vdp_hblank() {
     const firstDisplayLine = 3 + 13 + 54;
     const pastEndDisplayLine = firstDisplayLine + 192;
@@ -376,6 +389,12 @@ function vdp_hblank() {
         vdp_current_line = 0;
         vdp_status |= 128;
         needIrq |= 4;
+        currentFrame++;
+        if (currentFrame === benchmarkFrame) {
+            for (var loop = 0; loop < 5; ++loop) {
+                benchmark_render();
+            }
+        }
         if (borderColourCss) {
             // Lazily updated and only on changes.
             canvas.style.borderColor = borderColourCss;
