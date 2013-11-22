@@ -135,6 +135,8 @@ function z80_interrupt() {
   }
 }
 
+function z80_instruction_hook() {}
+
 /* Process a z80 non-maskable interrupt */
 function z80_nmi() {
   /* FIXME: what happens if the z80 is HALTed? */

@@ -47,7 +47,9 @@ function z80_do_opcodes() {
     /* Do the instruction fetch; readbyte_internal used here to avoid
        triggering read breakpoints */
     tstates+=4; R = (R+1) & 0x7f;
-    opcode = readbyte_internal( PC++ ); PC &= 0xffff;
+    opcode = readbyte_internal(PC);
+    z80_instruction_hook(PC, opcode);
+    PC = (PC + 1) & 0xffff;
 
     switch(opcode) {
 #include "opcodes_base.jscpp"

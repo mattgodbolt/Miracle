@@ -268,17 +268,6 @@ function clear_background(lineAddr, pixelOffset) {
     }
 }
 
-function benchmark_render() {
-    const reps = 1000;
-    const start = Date.now();
-    vdp_current_line = 0;
-    for (var i = 0; i < reps; ++i) {
-        while ((vdp_hblank() & 4) == 0);
-    }
-    const end = Date.now();
-    console.log("Takes " + ((end - start)/reps) + "ms/frame");
-}
-
 function rasterize_line(line) {
     line = line|0;
     const lineAddr = (line * 256)|0;
@@ -370,8 +359,9 @@ function rasterize_line(line) {
     }
 }
 
+function vdp_frame_hook() {}
+
 var currentFrame = 1;
-var benchmarkFrame = localStorage.benchmarkFrame|0;
 function vdp_hblank() {
     const firstDisplayLine = 3 + 13 + 54;
     const pastEndDisplayLine = firstDisplayLine + 192;
@@ -391,11 +381,7 @@ function vdp_hblank() {
         vdp_status |= 128;
         needIrq |= 4;
         currentFrame++;
-        if (currentFrame === benchmarkFrame) {
-            for (var loop = 0; loop < 5; ++loop) {
-                benchmark_render();
-            }
-        }
+        vdp_frame_hook(currentFrame);
         if (borderColourCss) {
             // Lazily updated and only on changes.
             canvas.style.borderColor = borderColourCss;
