@@ -26,42 +26,34 @@
 /* Macros used for accessing the registers */
 #define A   z80.a
 #define F   z80.f
-#define AF  !!z80.af.w
 #define AFR    (z80.f | (z80.a << 8))
 
 #define B   z80.b
 #define C   z80.c
-#define BC  !!z80.bc.w
 #define BCR    (z80.c | (z80.b << 8))
 
 #define D   z80.d
 #define E   z80.e
-#define DE  !!z80.de.w
 #define DER    (z80.e | (z80.d << 8))
 
 #define H   z80.h
 #define L   z80.l
-#define HL  !!z80.hl.w
 #define HLR    (z80.l | (z80.h << 8))
 
 #define A_  z80.a_
 #define F_  z80.f_
-#define AF_ !!z80.af_.w
 #define AF_R    (z80.f_ | (z80.a_ << 8))
 
 #define B_  z80.b_
 #define C_  z80.c_
-#define BC_ !!z80.bc_.w
 #define BC_R    (z80.c_ | (z80.b_ << 8))
 
 #define D_  z80.d_
 #define E_  z80.e_
-#define DE_ !!z80.de_.w
 #define DE_R    (z80.e_ | (z80.d_ << 8))
 
 #define H_  z80.h_
 #define L_  z80.l_
-#define HL_ !!z80.hl_.w
 #define HL_R    (z80.l_ | (z80.h_ << 8))
 
 #define IXH z80.ixh
@@ -72,16 +64,12 @@
 #define IYL z80.iyl
 #define IY  (z80.iyl | (z80.iyh << 8))
 
-#define SPH !!z80.sp.b.h
 #define SPHR    (z80.sp >> 8)
-#define SPL !!z80.sp.b.l
 #define SPLR    (z80.sp & 0xff)
 #define SP  z80.sp
 #define SPR  z80.sp
 
-#define PCH !!z80.pc.b.h
 #define PCHR    (z80.pc >> 8)
-#define PCL !!z80.pc.b.l
 #define PCLR    (z80.pc & 0xff)
 #define PC  z80.pc
 #define PCR    z80.pc
