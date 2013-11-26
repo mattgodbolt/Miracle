@@ -201,13 +201,17 @@ var keys = {
     82: 1<<12,  // R for reset button
 };
 
+function keyCode(evt) {
+    return evt.which || evt.charCode || evt.keyCode;
+}
 function keyDown(evt) {
-    if (!running) return true;
-    var key = keys[evt.keyCode];
+    if (!running) return;
+    var key = keys[keyCode(evt)];
     if (key) {
         joystick &= ~key;
         if (!evt.metaKey) {
-            return false;
+            evt.preventDefault();
+            return;
         }
     }
     switch (evt.keyCode) {
@@ -221,22 +225,22 @@ function keyDown(evt) {
 }
 
 function keyUp(evt) {
-    if (!running) return true;
-    var key = keys[evt.keyCode];
+    if (!running) return;
+    var key = keys[keyCode(evt)];
     if (key) {
         joystick |= key;
         if (!evt.metaKey) {
-            return false;
+            evt.preventDefault();
         }
     }
 }
 
 function keyPress(evt) {
     if (!running) {
-        return debugKeyPress(evt.keyCode);
+        return debugKeyPress(keyCode(evt));
     }
     if (!evt.metaKey) {
-        return false;
+        evt.preventDefault();
     }
 }
 
