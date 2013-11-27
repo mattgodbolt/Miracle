@@ -5,6 +5,7 @@ var benchmarkRenderFrame = localStorage.benchmarkRenderFrame|0;
 
 function benchmark_cpu() {
     var temp = rasterize_line;
+    rasterize_line = function() {};
 
     var doCpuHistogram = localStorage.cpuHistogram || false;
     var temp2 = z80_instruction_hook;
