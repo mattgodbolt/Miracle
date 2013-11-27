@@ -7,29 +7,24 @@ var paletteB = [];
 var paletteRGB = [];
 
 var vdp_addr_state = 0;
+var vdp_mode_select = 0;
 var vdp_addr_latch = 0;
 var vdp_addr = 0;
-var vdp_write_routine = function(val) {
-};
-var vdp_read_routine = function() {
-    return 0;
-};
 var vdp_current_line = 0;
 var vdp_status = 0;
 var vdp_pending_hblank = false;
 var vdp_hblank_counter = 0;
 
 function vdp_writeaddr(val) {
-    if (vdp_addr_state == 0) {
+    if (vdp_addr_state === 0) {
         vdp_addr_state = 1;
         vdp_addr_latch = val;
     } else {
         vdp_addr_state = 0;
-        switch (val >> 6) {
+        switch (val >>> 6) {
         case 0:
         case 1:
-            vdp_write_routine = vdp_writeram;
-            vdp_read_routine = vdp_readram;
+            vdp_mode_select = 0;
             vdp_addr = vdp_addr_latch | ((val & 0x3f) << 8);
             break;
         case 2:
@@ -42,28 +37,11 @@ function vdp_writeaddr(val) {
             }
             break;
         case 3:
-            vdp_write_routine = vdp_writepalette;
-            vdp_read_routine = vdp_readpalette;
+            vdp_mode_select = 1;
             vdp_addr = vdp_addr_latch & 0x1f;
             break;
         }
     }
-}
-
-function vdp_writeram(val) {
-    vram[vdp_addr] = val;
-    vdp_addr = (vdp_addr + 1) & 0x3fff;
-}
-
-var prev_border = null;
-var borderColourCss = null;
-function update_border() {
-    var borderIndex = 16 + (vdp_regs[7] & 0xf);
-    if (paletteRGB[borderIndex] == prev_border) return;
-    prev_border = paletteRGB[borderIndex];
-    // TODO: consider doing away with this code and draw the border manually
-    borderColourCss = 'rgb(' + paletteR[borderIndex] + ','
-            + paletteG[borderIndex] + ',' + paletteB[borderIndex] + ')';
 }
 
 function vdp_writepalette(val) {
@@ -74,8 +52,8 @@ function vdp_writepalette(val) {
         return v;
     }
     const r = expandBits(val);
-    const g = expandBits(val >> 2);
-    const b = expandBits(val >> 4);
+    const g = expandBits(val >>> 2);
+    const b = expandBits(val >>> 4);
     const pal_addr = vdp_addr & 0x1f;
     paletteR[pal_addr] = r;
     paletteG[pal_addr] = g;
@@ -88,7 +66,12 @@ function vdp_writepalette(val) {
 
 function vdp_writebyte(val) {
     vdp_addr_state = 0;
-    vdp_write_routine(val);
+    if (vdp_mode_select === 0) {
+        vram[vdp_addr] = val;
+        vdp_addr = (vdp_addr + 1) & 0x3fff;
+    } else {
+        vdp_writepalette(val);
+    }
 }
 
 function vdp_readram() {
@@ -105,7 +88,22 @@ function vdp_readpalette() {
 
 function vdp_readbyte() {
     vdp_addr_state = 0;
-    return vdp_read_routine();
+    if (vdp_mode_select === 0) {
+        return vdp_readram();
+    } else {
+        return vdp_readpalette();
+    }
+}
+
+var prev_border = null;
+var borderColourCss = null;
+function update_border() {
+    var borderIndex = 16 + (vdp_regs[7] & 0xf);
+    if (paletteRGB[borderIndex] == prev_border) return;
+    prev_border = paletteRGB[borderIndex];
+    // TODO: consider doing away with this code and draw the border manually
+    borderColourCss = 'rgb(' + paletteR[borderIndex] + ','
+            + paletteG[borderIndex] + ',' + paletteB[borderIndex] + ')';
 }
 
 function vdp_readstatus() {
@@ -162,7 +160,7 @@ function dumpBackground() {
         if (effectiveLine >= 224) {
             effectiveLine -= 224;
         }
-        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
         var dumpage = "";
         for (var i = 0; i < 32; i++) {
             var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
@@ -180,10 +178,10 @@ function showAllTiles() {
         if (effectiveLine >= 224) {
             effectiveLine -= 224;
         }
-        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+        var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
         for (var i = 0; i < 32; i++) {
             vram[nameAddr + i * 2] = tile & 0xff;
-            vram[nameAddr + i * 2 + 1] = (tile>>8) & 1;
+            vram[nameAddr + i * 2 + 1] = (tile>>>8) & 1;
             tile++;
         }
     }
@@ -215,7 +213,7 @@ const reverse_table = function(){
         for (var k = 0; k < 8; ++k) {
             reversed <<= 1;
             if (j & 1) reversed |= 1;
-            j >>= 1;
+            j >>>= 1;
         }
         table[i] = reversed;
     }
@@ -293,7 +291,7 @@ function rasterize_line(line) {
         // Static top two rows.
         pixelOffset = 0;
     }
-    const nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >> 3) * 64;
+    const nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
     var yMod = effectiveLine & 7;
     var j;
     for (i = 0; i < 32; i++) {
@@ -330,10 +328,10 @@ function rasterize_line(line) {
                 var sprVal1 = vram[spriteAddr + 1];
                 var sprVal2 = vram[spriteAddr + 2];
                 var sprVal3 = vram[spriteAddr + 3];
-                var index = (((sprVal0 >> effectiveBit) & 1))
-                        | (((sprVal1 >> effectiveBit) & 1) << 1)
-                        | (((sprVal2 >> effectiveBit) & 1) << 2)
-                        | (((sprVal3 >> effectiveBit) & 1) << 3);
+                var index = (((sprVal0 >>> effectiveBit) & 1))
+                        | (((sprVal1 >>> effectiveBit) & 1) << 1)
+                        | (((sprVal2 >>> effectiveBit) & 1) << 2)
+                        | (((sprVal3 >>> effectiveBit) & 1) << 3);
                 if (index === 0) {
                     continue;
                 }
@@ -422,6 +420,7 @@ function vdp_reset() {
     vdp_regs[6] = 0xfb;
     vdp_regs[10] = 0xff;
     vdp_current_line = vdp_status = vdp_hblank_counter = 0;
+    vdp_mode_select = 0;
 }
 
 function vdp_get_line() {
