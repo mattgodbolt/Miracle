@@ -70,7 +70,7 @@ function run() {
         showDebug(z80.pc);
         return;
     }
-    var now = +new Date();
+    var now = Date.now();
     if (lastFrame) {
         // Try and tweak the timeout to achieve target frame rate.
         var timeSinceLast = now - lastFrame;
@@ -305,25 +305,31 @@ function virtualAddress(address) {
 }
 
 function readbyte(address) {
-    address = +address;
-    if (address < 0x0400) { return romBanks[0][address]; }
-    if (address < 0x4000) { return romBanks[pages[0]][address]; }
-    if (address < 0x8000) { return romBanks[pages[1]][address - 0x4000]; }
-    if (address < 0xc000) {
-        if ((ramSelectRegister & 12) == 8) {
-            return cartridgeRam[address - 0x8000];
-        } else if ((ramSelectRegister & 12) == 12) {
-            return cartridgeRam[address - 0x4000];
-        } else {
-            return romBanks[pages[2]][address - 0x8000];
+    address = address|0;
+    var page = (address>>>14) & 3;
+    address &= 0x3fff;
+    switch (page) {
+    case 0: 
+        if (address < 0x0400) { return romBanks[0][address]; }
+        return romBanks[pages[0]][address];
+    case 1:
+        return romBanks[pages[1]][address];
+    case 2:
+        switch (ramSelectRegister & 12) {
+        default:
+            return romBanks[pages[2]][address];
+        case 8: 
+            return cartridgeRam[address];
+        case 12:
+            return cartridgeRam[address + 0x4000];
         }
+    case 3:
+        return ram[address & 0x1fff];
     }
-    if (address < 0xe000) { return ram[address - 0xc000]; }
-    return ram[address - 0xe000];
 }
 
 function writebyte(address, value) {
-    address = +address; value = +value;
+    address = address|0; value = value|0;
     if (address >= 0xfffc) {
         switch (address) {
         case 0xfffc: ramSelectRegister = value; break;
@@ -371,7 +377,7 @@ function readport(addr) {
 }
 
 function writeport(addr, val) {
-    val = +val;
+    val = val|0;
     addr &= 0xff;
     switch (addr) {
     case 0x3f:
