@@ -390,14 +390,19 @@ function rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
     }
 }
 
+function border_clear(lineAddr, count) {
+    lineAddr = lineAddr | 0;
+    count = count | 0;
+    const borderIndex = 16 + (vdp_regs[7] & 0xf);
+    const borderRGB = paletteRGB[borderIndex]; 
+    for (var i = 0; i < count; i++) fb32[lineAddr + i] = borderRGB;
+}
+
 function rasterize_line(line) {
     line = line|0;
     const lineAddr = (line * 256)|0;
-    const borderIndex = 16 + (vdp_regs[7] & 0xf);
-    const borderRGB = paletteRGB[borderIndex]; 
-    var i;
     if ((vdp_regs[1] & 64) === 0) {
-        for (i = 0; i < 256; i++) fb32[lineAddr + i] = borderRGB;
+        border_clear(lineAddr, 256);
         return;
     }
 
@@ -409,13 +414,14 @@ function rasterize_line(line) {
     const pixelOffset = ((vdp_regs[0] & 64) && line < 16) ? 0 : vdp_regs[8];
     const nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
     const yMod = effectiveLine & 7;
+
     rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod);
     if (sprites.length) rasterize_sprites(line, lineAddr, pixelOffset, sprites)
     rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod);
 
     if (vdp_regs[0] & (1 << 5)) {
         // Blank out left hand column.
-        for (i = 0; i < 8; i++) fb32[lineAddr + i] = borderRGB;
+        border_clear(lineAddr, 8);
     }
 }
 
