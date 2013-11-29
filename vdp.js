@@ -366,7 +366,7 @@ function rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
     for (var i = 0; i < 256; ++i) {
         var xPos = (i + vdp_regs[8]) & 0xff;
         var writtenTo = false;
-        for (k = 0; k < sprites.length; k++) {
+        for (var k = 0; k < sprites.length; k++) {
             var sprite = sprites[k];
             var offset = xPos - sprite[0];
             if (offset < 0 || offset >= 8)
