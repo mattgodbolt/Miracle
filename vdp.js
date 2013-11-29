@@ -364,13 +364,23 @@ function rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
     // TODO: sprite X-8 shift
     // TODO: sprite double size
     for (var i = 0; i < 256; ++i) {
-        var xPos = (i + vdp_regs[8]) & 0xff;
+        var xPos = i;//(i + vdp_regs[8]) & 0xff;
+        var spriteFoundThisX = false;
         var writtenTo = false;
+        var minDistToNext = 256;
         for (var k = 0; k < sprites.length; k++) {
             var sprite = sprites[k];
             var offset = xPos - sprite[0];
-            if (offset < 0 || offset >= 8)
+            // Sprite to the right of the current X?
+            if (offset < 0) {
+                // Find out how far it would be to skip to this sprite
+                var distToSprite = -offset;
+                // Keep the minimum distance to the next sprite to the right.
+                if (distToSprite < minDistToNext) minDistToNext = distToSprite;
                 continue;
+            }
+            if (offset >= 8) continue;
+            spriteFoundThisX = true;
             var spriteLine = line - sprite[2];
             var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
             var untwiddledAddr = spriteAddr * 2 + offset;
@@ -383,10 +393,14 @@ function rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
                 vdp_status |= 0x20;
                 break;
             }
-            fb32[lineAddr + pixelOffset] = paletteRGB[16 + index];
+            fb32[lineAddr + ((pixelOffset + i- vdp_regs[8]) & 0xff)] = paletteRGB[16 + index];
             writtenTo = true;
         }
-        pixelOffset = (pixelOffset + 1) & 255;
+        if (!spriteFoundThisX && minDistToNext > 1) {
+            // If we didn't find a sprite on this X, then we can skip ahead by the minimum
+            // dist to next (minus one to account for loop add)
+            i += minDistToNext - 1;
+        }
     }
 }
 
