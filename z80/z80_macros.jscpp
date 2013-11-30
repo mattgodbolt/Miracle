@@ -206,7 +206,6 @@ tstates+=(time);\
   instruction( (target) );\
   writebyte( tempaddr, (target) );\
 }\
-break
 
 #define DEC(value)\
 {\
@@ -240,7 +239,6 @@ break
   writebyte(ldtemp++,(regl));\
   ldtemp &= 0xffff;\
   writebyte(ldtemp,(regh));\
-  break;\
 }
 
 #define LD16_RRNN(regl,regh)\
@@ -254,7 +252,6 @@ break
   (regl)=readbyte(ldtemp++);\
   ldtemp &= 0xffff;\
   (regh)=readbyte(ldtemp);\
-  break;\
 }
 
 #define LD16_RRNNW(reg)\
@@ -269,7 +266,6 @@ break
   ldtemp &= 0xffff;\
   var regh =readbyte(ldtemp);\
   reg = regl | (regh << 8);\
-  break;\
 }
 
 #define JP()\

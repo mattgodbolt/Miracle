@@ -20,13 +20,80 @@
     Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 */
 
-#define HAVE_ENOUGH_MEMORY
-
 #include "z80_macros.jscpp"
 
 function sign_extend(v) {
   return v < 128 ? v : v-256;
 }
+
+function z80_defaults(ops) {
+    for (var i = 0; i < 256; ++i) {
+        if (!ops[i]) ops[i] = ops[256];
+    }
+}
+
+var z80_base_ops = function z80_setup_base_ops() {
+    var ops = [];
+#include "opcodes_base.jscpp"
+    z80_defaults(ops);
+    return ops;
+}();
+
+var z80_ed_ops = function z80_setup_ed_ops() {
+    var ops = [];
+#include "z80_ed.jscpp"
+    z80_defaults(ops);
+    return ops;
+}();
+function z80_edxx(opcode) { z80_ed_ops[opcode](); }
+
+var z80_cb_ops = function z80_setup_cb_ops() {
+    var ops = [];
+#include "z80_cb.jscpp"
+    z80_defaults(ops);
+    return ops;
+}();
+function z80_cbxx(opcode) { z80_cb_ops[opcode](); }
+
+var z80_dd_ops = function z80_setup_dd_ops() {
+    var ops = [];
+#define REGISTER IX
+#define REGISTERR IX
+#define REGISTERH IXH
+#define REGISTERL IXL
+#include "z80_ddfd.jscpp"
+#undef REGISTER
+#undef REGISTERR
+#undef REGISTERH
+#undef REGISTERL
+    z80_defaults(ops);
+    return ops;
+}();
+function z80_ddxx(opcode) { z80_dd_ops[opcode](); }
+
+var z80_fd_ops = function z80_setup_fd_ops() {
+    var ops = [];
+#define REGISTER IY
+#define REGISTERR IY
+#define REGISTERH IYH
+#define REGISTERL IYL
+#include "z80_ddfd.jscpp"
+#undef REGISTER
+#undef REGISTERR
+#undef REGISTERH
+#undef REGISTERL
+    z80_defaults(ops);
+    return ops;
+}();
+function z80_fdxx(opcode) { z80_fd_ops[opcode](); }
+
+var z80_ddfdcb_ops = function z80_setup_ddfdcb_ops() {
+    var ops = [];
+#include "z80_ddfdcb.jscpp"
+    z80_defaults(ops);
+    return ops;
+}();
+function z80_ddfdcbxx(opcode,tempaddr) { z80_ddfdcb_ops[opcode](tempaddr); }
 
 /* Execute Z80 opcodes until the next event */
 function z80_do_opcodes() {
@@ -51,8 +118,6 @@ function z80_do_opcodes() {
     z80_instruction_hook(PC, opcode);
     PC = (PC + 1) & 0xffff;
 
-    switch(opcode) {
-#include "opcodes_base.jscpp"
-    }
+    z80_base_ops[opcode]();
   }
 }

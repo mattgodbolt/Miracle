@@ -1070,20 +1070,14 @@ sub opcode_shift (@) {
     print << "shift";
       /* FIXME: contention here is just a guess */
       {
-    var tempaddr; var opcode3;
+    var opcode3;
     tstates+=7;
     tempaddr =
         REGISTER + sign_extend(readbyte_internal( PC++ ));
     PC &= 0xffff;
     opcode3 = readbyte_internal( PC++ );
     PC &= 0xffff;
-#ifdef HAVE_ENOUGH_MEMORY
-    switch(opcode3) {
-#include "z80_ddfdcb.jscpp"
-    }
-#else            /* #ifdef HAVE_ENOUGH_MEMORY */
     z80_ddfdcbxx(opcode3,tempaddr);
-#endif            /* #ifdef HAVE_ENOUGH_MEMORY */
       }
 shift
     } else {
@@ -1094,32 +1088,7 @@ shift
     opcode2 = readbyte_internal( PC++ );
     PC &= 0xffff;
     R = (R+1) & 0x7f;
-#ifdef HAVE_ENOUGH_MEMORY
-    switch(opcode2) {
-shift
-
-    if( $opcode eq 'DD' or $opcode eq 'FD' ) {
-    my $register = ( $opcode eq 'DD' ? 'IX' : 'IY' );
-    print << "shift";
-#define REGISTER  $register
-#define REGISTERR  $register
-#define REGISTERL ${register}L
-#define REGISTERH ${register}H
-#include "z80_ddfd.jscpp"
-#undef REGISTERH
-#undef REGISTERL
-#undef REGISTERR
-#undef REGISTER
-shift
-        } elsif( $opcode eq 'CB' or $opcode eq 'ED' ) {
-        print "#include \"z80_$lc_opcode.jscpp\"\n";
-        }
-
-        print << "shift"
-    }
-#else            /* #ifdef HAVE_ENOUGH_MEMORY */
     z80_${lc_opcode}xx(opcode2);
-#endif            /* #ifdef HAVE_ENOUGH_MEMORY */
       }
 shift
     }
@@ -1163,14 +1132,14 @@ while(<>) {
     my( $number, $opcode, $arguments, $extra ) = split;
 
     if( not defined $opcode ) {
-    print "    case $number:\n";
+    print "    ops[$number] = \n";
     next;
     }
 
     $arguments = '' if not defined $arguments;
     my @arguments = split ',', $arguments;
 
-    print "    case $number:\t\t/* $opcode";
+    print "    ops[$number] = function op_$number(tempaddr) {\t\t/* $opcode";
 
     print ' ', join ',', @arguments if @arguments;
     print " $extra" if defined $extra;
@@ -1195,7 +1164,7 @@ while(<>) {
       tstates += 8;
       $register=readbyte(tempaddr) $operator $hexmask;
       writebyte(tempaddr, $register);
-      break;
+      };
 CODE
     } else {
 
@@ -1204,38 +1173,36 @@ CODE
       $register=readbyte(tempaddr);
       $opcode($register);
       writebyte(tempaddr, $register);
-      break;
+      };
 CODE
     }
     next;
     }
 
     {
-    no strict qw( refs );
+        no strict qw( refs );
 
-    if( exists &{ "opcode_$opcode" } ) {
-        "opcode_$opcode"->( @arguments );
+        if( exists &{ "opcode_$opcode" } ) {
+            "opcode_$opcode"->( @arguments );
+        }
     }
-    }
-
-    print "      break;\n";
+    print "    };\n";
 }
 
 if( $data_file eq 'opcodes_ddfd.dat' ) {
 
     print << "CODE";
-    default:        /* Instruction did not involve H or L, so backtrack
+    ops[256] = function z80_ddfd_default() {        /* Instruction did not involve H or L, so backtrack
                one instruction and parse again */
       PC--;        /* FIXME: will be contended again */
       PC &= 0xffff;
       R--;        /* Decrement the R register as well */
       R &= 0x7f;
-      break;
+    }
 CODE
 
-} elsif( $data_file eq 'opcodes_ed.dat' ) {
+} else {
     print << "NOPD";
-    default:        /* All other opcodes are NOPD */
-      break;
+    ops[256] = function() {};        /* All other opcodes are NOPD */
 NOPD
 }
