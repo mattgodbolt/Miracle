@@ -15,8 +15,6 @@ var ctx;
 var imageData;
 var fb8;
 var fb32;
-var hasImageData;
-var needDrawImage = (navigator.userAgent.indexOf('Firefox/2') !== -1);
 
 var joystick = 0xffff;
 var inputMode = 0;
@@ -149,10 +147,7 @@ function miracle_init() {
 
     canvas = document.getElementById('screen');
     ctx = canvas.getContext('2d');
-    //ctx.fillStyle = 'black';
-    //ctx.fillRect(0,0,256,192); /* set alpha to opaque */
     if (ctx.getImageData) {
-        hasImageData = true;
         imageData = ctx.getImageData(0,0,256,192);
         fb8 = imageData.data;
         fb32 = new Uint32Array(fb8.buffer);
@@ -245,12 +240,7 @@ function keyPress(evt) {
 }
 
 function paintScreen() {
-    if (hasImageData) {
-        imageData.data.set(fb8);
-        ctx.putImageData(imageData, 0, 0);
-        // Apparently needed by FireFox 2
-        if (needDrawImage) ctx.drawImage(canvas, 0, 0);
-    }
+    ctx.putImageData(imageData, 0, 0);
 }
 
 function loadRom(name, rom) {
