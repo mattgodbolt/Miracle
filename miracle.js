@@ -244,13 +244,13 @@ function paintScreen() {
 }
 
 function loadRom(name, rom) {
-    var numRomBanks = rom.length;
+    var numRomBanks = rom.length / 0x4000;
     var i;
     console.log('Loading rom of ' + numRomBanks + ' banks');
     for (i = 0; i < numRomBanks; i++) {
         romBanks[i] = new Uint8Array(0x4000);
         for (var j = 0; j < 0x4000; j++) {
-            romBanks[i][j] = rom[i].charCodeAt(j);
+            romBanks[i][j] = rom.charCodeAt(i * 0x4000 + j);
         }
     }
     for (i = 0; i < 3; i++) {

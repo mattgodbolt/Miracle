@@ -20,12 +20,16 @@
 .PHONY: all z80 clean
 all: z80 roms.js
 
+ROMS := $(shell find roms -type f | sort)
+
+roms.js: $(ROMS) Makefile
+	echo 'var RomList = [' > roms.js
+	for rom in $(ROMS); do echo \"$$rom\", | sed 's/roms\///g' >> roms.js; done
+	echo '];' >> roms.js
+
 z80:
 	$(MAKE) -C z80
 
-roms.js: bin2js.pl $(shell find roms)
-	perl bin2js.pl roms > roms.js
-
 clean:
 	$(MAKE) -C z80 clean
-	rm -f roms.js snapshots.js
+	rm -f roms.js
