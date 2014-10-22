@@ -1,6 +1,9 @@
 // Work-around for people without Chrome/Firebug.
 if (typeof(console) === 'undefined') {
-    console = {log: function(msg) {} };
+    console = {
+        log: function (msg) {
+        }
+    };
 }
 
 var ram = [];
@@ -25,11 +28,11 @@ const framesPerSecond = 50;
 const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
 const scanLinesPerSecond = scanLinesPerFrame * framesPerSecond;
 const cpuHz = 3.58 * 1000 * 1000; // According to Sega docs.
-const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond)|0;
+const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond) | 0;
 const secsPerHblank = 1 / scanLinesPerSecond;
 
 function line() {
-    event_next_event = tstatesPerHblank; 
+    event_next_event = tstatesPerHblank;
     tstates -= tstatesPerHblank;
     z80_do_opcodes();
     var vdp_status = vdp_hblank();
@@ -81,7 +84,7 @@ function run() {
     lastFrame = now;
     setTimeout(run, adjustedTimeout);
 
-    var runner = function() {
+    var runner = function () {
         if (!running) return;
         try {
             for (var i = 0; i < linesPerYield; ++i) {
@@ -119,7 +122,8 @@ function audio_init() {
         context = new webkitAudioContext();
     } else {
         // Disable sound without the new APIs. 
-        audioRun = function() {};
+        audioRun = function () {
+        };
         soundChip = new SoundChip(10000);
         return;
     }
@@ -148,7 +152,7 @@ function miracle_init() {
     canvas = document.getElementById('screen');
     ctx = canvas.getContext('2d');
     if (ctx.getImageData) {
-        imageData = ctx.getImageData(0,0,256,192);
+        imageData = ctx.getImageData(0, 0, 256, 192);
         fb8 = imageData.data;
         fb32 = new Uint32Array(fb8.buffer);
     } else {
@@ -184,7 +188,7 @@ var keys = {
     68: 8,  // D = JP1 right
     32: 16, // Space = JP1 fire 1
     13: 32, // Enter = JP1 fire 2
-    
+
     38: 1,  // Arrow keys
     40: 2,
     37: 4,
@@ -193,7 +197,7 @@ var keys = {
     89: 16,
     88: 32,
 
-    82: 1<<12,  // R for reset button
+    82: 1 << 12,  // R for reset button
 };
 
 function keyCode(evt) {
@@ -210,13 +214,13 @@ function keyDown(evt) {
         }
     }
     switch (evt.keyCode) {
-    case 80:  // 'P' for pause
-       z80_nmi();
-       break;
-    case 8:  // 'Backspace' is debug
-       breakpoint();
-       break;
-    } 
+        case 80:  // 'P' for pause
+            z80_nmi();
+            break;
+        case 8:  // 'Backspace' is debug
+            breakpoint();
+            break;
+    }
 }
 
 function keyUp(evt) {
@@ -256,24 +260,31 @@ function loadRom(name, rom) {
     for (i = 0; i < 3; i++) {
         pages[i] = i % numRomBanks;
     }
-    romPageMask = (numRomBanks - 1)|0;
+    romPageMask = (numRomBanks - 1) | 0;
     debug_init(name);
 }
 
 function hexword(value) {
-  return ((value >> 12) & 0xf).toString(16) +
-         ((value >> 8) & 0xf).toString(16) + 
-         ((value >> 4) & 0xf).toString(16) +
-         (value & 0xf).toString(16); 
+    return ((value >> 12) & 0xf).toString(16) +
+        ((value >> 8) & 0xf).toString(16) +
+        ((value >> 4) & 0xf).toString(16) +
+        (value & 0xf).toString(16);
 }
 
 function virtualAddress(address) {
     function romAddr(bank, addr) {
         return 'rom' + bank.toString(16) + '_' + hexword(addr);
     }
-    if (address < 0x0400) { return romAddr(0, address); }
-    if (address < 0x4000) { return romAddr(pages[0], address); }
-    if (address < 0x8000) { return romAddr(pages[1], address - 0x4000); }
+
+    if (address < 0x0400) {
+        return romAddr(0, address);
+    }
+    if (address < 0x4000) {
+        return romAddr(pages[0], address);
+    }
+    if (address < 0x8000) {
+        return romAddr(pages[1], address - 0x4000);
+    }
     if (address < 0xc000) {
         if ((ramSelectRegister & 12) == 8) {
             return 'crm_' + hexword(address - 0x8000);
@@ -283,50 +294,74 @@ function virtualAddress(address) {
             return romAddr(pages[2], address - 0x8000);
         }
     }
-    if (address < 0xe000) { return 'ram+' + hexword(address - 0xc000); }
-    if (address < 0xfffc) { return 'ram_' + hexword(address - 0xe000); }
+    if (address < 0xe000) {
+        return 'ram+' + hexword(address - 0xc000);
+    }
+    if (address < 0xfffc) {
+        return 'ram_' + hexword(address - 0xe000);
+    }
     switch (address) {
-        case 0xfffc: return 'rsr';
-        case 0xfffd: return 'rpr_0';
-        case 0xfffe: return 'rpr_1';
-        case 0xffff: return 'rpr_2';
+        case 0xfffc:
+            return 'rsr';
+        case 0xfffd:
+            return 'rpr_0';
+        case 0xfffe:
+            return 'rpr_1';
+        case 0xffff:
+            return 'rpr_2';
     }
     return "unk_" + hexword(address);
 }
 
 function readbyte(address) {
-    address = address|0;
-    var page = (address>>>14) & 3;
+    address = address | 0;
+    var page = (address >>> 14) & 3;
     address &= 0x3fff;
     switch (page) {
-    case 0: 
-        if (address < 0x0400) { return romBanks[0][address]; }
-        return romBanks[pages[0]][address];
-    case 1:
-        return romBanks[pages[1]][address];
-    case 2:
-        switch (ramSelectRegister & 12) {
-        default:
+        case 0:
+            if (address < 0x0400) {
+                return romBanks[0][address];
+            }
+            return romBanks[pages[0]][address];
+        case 1:
+            return romBanks[pages[1]][address];
+        case 2:
+            switch (ramSelectRegister & 12) {
+                default:
+                    break;
+                case 8:
+                    return cartridgeRam[address];
+                case 12:
+                    return cartridgeRam[address + 0x4000];
+            }
             return romBanks[pages[2]][address];
-        case 8: 
-            return cartridgeRam[address];
-        case 12:
-            return cartridgeRam[address + 0x4000];
-        }
-    case 3:
-        return ram[address & 0x1fff];
+        case 3:
+            return ram[address & 0x1fff];
     }
 }
 
 function writebyte(address, value) {
-    address = address|0; value = value|0;
+    address = address | 0;
+    value = value | 0;
     if (address >= 0xfffc) {
         switch (address) {
-        case 0xfffc: ramSelectRegister = value; break;
-        case 0xfffd: value &= romPageMask; pages[0] = value; break;
-        case 0xfffe: value &= romPageMask; pages[1] = value; break;
-        case 0xffff: value &= romPageMask; pages[2] = value; break;
-        default: throw "zoiks";
+            case 0xfffc:
+                ramSelectRegister = value;
+                break;
+            case 0xfffd:
+                value &= romPageMask;
+                pages[0] = value;
+                break;
+            case 0xfffe:
+                value &= romPageMask;
+                pages[1] = value;
+                break;
+            case 0xffff:
+                value &= romPageMask;
+                pages[2] = value;
+                break;
+            default:
+                throw "zoiks";
         }
     }
     address -= 0xc000;
@@ -339,67 +374,73 @@ function writebyte(address, value) {
 function readport(addr) {
     addr &= 0xff;
     switch (addr) {
-    case 0x7e: 
-        return vdp_get_line();
-    case 0x7f:
-        return vdp_get_x();
-    case 0xdc: case 0xc0:
-        // keyboard: if ((inputMode & 7) != 7) return 0xff;
-        return joystick & 0xff;
-    case 0xdd: case 0xc1:
-        // keyboard: if ((inputMode & 7) != 7) return 0xff;
-        return (joystick >> 8) & 0xff;
-    case 0xbe:
-        return vdp_readbyte();
-    case 0xbd: case 0xbf:
-        return vdp_readstatus();
-    case 0xde: 
-        // if we ever support keyboard: return inputMode;
-        return 0xff;
-    case 0xdf:
-        return 0xff; // Unknown use
-    case 0xf2:
-        return 0; // YM2413
-    default:
-        console.log('IO port ' + hexbyte(addr) + '?');
-        return 0xff;
+        case 0x7e:
+            return vdp_get_line();
+        case 0x7f:
+            return vdp_get_x();
+        case 0xdc:
+        case 0xc0:
+            // keyboard: if ((inputMode & 7) != 7) return 0xff;
+            return joystick & 0xff;
+        case 0xdd:
+        case 0xc1:
+            // keyboard: if ((inputMode & 7) != 7) return 0xff;
+            return (joystick >> 8) & 0xff;
+        case 0xbe:
+            return vdp_readbyte();
+        case 0xbd:
+        case 0xbf:
+            return vdp_readstatus();
+        case 0xde:
+            // if we ever support keyboard: return inputMode;
+            return 0xff;
+        case 0xdf:
+            return 0xff; // Unknown use
+        case 0xf2:
+            return 0; // YM2413
+        default:
+            console.log('IO port ' + hexbyte(addr) + '?');
+            return 0xff;
     }
 }
 
 function writeport(addr, val) {
-    val = val|0;
+    val = val | 0;
     addr &= 0xff;
     switch (addr) {
-    case 0x3f:
-        var natbit = ((val >> 5) & 1);
-        if ((val & 1) == 0) natbit = 1;
-        joystick = (joystick & ~(1<<14)) | (natbit<<14);
-        natbit = ((val >> 7) & 1);
-        if ((val & 4) == 0) natbit = 1;
-        joystick = (joystick & ~(1<<15)) | (natbit<<15);
-        break;
-    case 0x7e: case 0x7f:
-        soundChip.poke(val);
-        break;
-    case 0xbd:
-    case 0xbf:
-        vdp_writeaddr(val);
-        break;
-    case 0xbe:
-        vdp_writebyte(val);
-        break;
-    case 0xde: 
-        inputMode = val;
-        break; 
-    case 0xdf:
-        break; // Unknown use
-    case 0xf0: case 0xf1: case 0xf2:
-    break; // YM2413 sound support: TODO
-    case 0x3e:
-    break; // enable/disable of RAM and stuff, ignore
-    default:
-        console.log('IO port ' + hexbyte(addr) + ' = ' + val);
-        break;
+        case 0x3f:
+            var natbit = ((val >> 5) & 1);
+            if ((val & 1) === 0) natbit = 1;
+            joystick = (joystick & ~(1 << 14)) | (natbit << 14);
+            natbit = ((val >> 7) & 1);
+            if ((val & 4) === 0) natbit = 1;
+            joystick = (joystick & ~(1 << 15)) | (natbit << 15);
+            break;
+        case 0x7e:
+        case 0x7f:
+            soundChip.poke(val);
+            break;
+        case 0xbd:
+        case 0xbf:
+            vdp_writeaddr(val);
+            break;
+        case 0xbe:
+            vdp_writebyte(val);
+            break;
+        case 0xde:
+            inputMode = val;
+            break;
+        case 0xdf:
+            break; // Unknown use
+        case 0xf0:
+        case 0xf1:
+        case 0xf2:
+            break; // YM2413 sound support: TODO
+        case 0x3e:
+            break; // enable/disable of RAM and stuff, ignore
+        default:
+            console.log('IO port ' + hexbyte(addr) + ' = ' + val);
+            break;
     }
 }
 

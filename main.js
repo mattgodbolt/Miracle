@@ -20,13 +20,13 @@ function addRomToList(rom) {
         .clone()
         .removeClass('template')
         .text(rom)
-        .click(function() {
+        .click(function () {
             miracle_reset();
             loadRom(rom, loadRomData(rom));
             hideRomChooser();
             start();
         })
-    .appendTo('#rom_list');
+        .appendTo('#rom_list');
 }
 
 function go() {
@@ -45,7 +45,7 @@ function go() {
         vdp.find('.template').clone().removeClass('template').appendTo(vdp).find('.register').text('v' + i);
     }
     disass.find('.template').remove();
-    $('#menu button').each(function() {
+    $('#menu button').each(function () {
         var f = window[$(this).attr('class').match(/menu_(.*)/)[1]];
         $(this).click(f);
     });
@@ -57,9 +57,9 @@ function go() {
     start();
 }
 
-function getDefaultRom() { 
-    if (typeof(localStorage) !== "undefined" && localStorage["rom"]) return localStorage["rom"];
-    return 'SonicTheHedgehog.sms'; 
+function getDefaultRom() {
+    if (typeof(localStorage) !== "undefined" && localStorage.rom) return localStorage.rom;
+    return 'SonicTheHedgehog.sms';
 }
 
 function showRomChooser() {
@@ -78,4 +78,6 @@ function hideAbout() {
     $('#about').hide();
 }
 
-$(function() { go(); });
+$(function () {
+    go();
+});

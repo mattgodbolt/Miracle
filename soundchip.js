@@ -3,11 +3,11 @@ function SoundChip(sampleRate) {
     var soundchipFreq = 3546893.0 / 16.0; // PAL
     var sampleDecrement = soundchipFreq / sampleRate;
 
-    var register = [ 0, 0, 0, 0 ];
-    var counter = [ 0, 0, 0, 0 ];
-    var outputBit = [ 0, 0, 0, 0 ];
-    var volume = [ 0, 0, 0, 0 ];
-    var generators = [ null, null, null, null ];
+    var register = [0, 0, 0, 0];
+    var counter = [0, 0, 0, 0];
+    var outputBit = [0, 0, 0, 0];
+    var volume = [0, 0, 0, 0];
+    var generators = [null, null, null, null];
 
 
     var volumeTable = [];
@@ -19,14 +19,15 @@ function SoundChip(sampleRate) {
     volumeTable[15] = 0;
 
     function toneChannel(channel, out, offset, length) {
-        var reg = register[channel], vol = volume[channel];;
+        var i;
+        var reg = register[channel], vol = volume[channel];
         if (reg <= 1) {
-            for (var i = 0; i < length; ++i) {
+            for (i = 0; i < length; ++i) {
                 out[i + offset] += volume[channel];
             }
             return;
         }
-        for (var i = 0; i < length; ++i) {
+        for (i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
                 counter[channel] += reg;
@@ -37,32 +38,40 @@ function SoundChip(sampleRate) {
     }
 
     var lfsr = 0;
+
     function shiftLfsrWhiteNoise() {
-        var bit = (lfsr & 1) ^ ((lfsr & (1<<3)) >> 3);
+        var bit = (lfsr & 1) ^ ((lfsr & (1 << 3)) >> 3);
         lfsr = (lfsr >> 1) | (bit << 15);
     }
+
     function shiftLfsrPeriodicNoise() {
         lfsr >>= 1;
-        if (lfsr == 0) lfsr = 1<<15;
+        if (lfsr === 0) lfsr = 1 << 15;
     }
+
     var shiftLfsr = shiftLfsrWhiteNoise;
+
     function noisePoked() {
         shiftLfsr = register[3] & 4 ? shiftLfsrWhiteNoise : shiftLfsrPeriodicNoise;
-        lfsr = 1<<15;
+        lfsr = 1 << 15;
     }
 
     function addFor(channel) {
-        channel = channel|0;
+        channel = channel | 0;
         switch (register[channel] & 3) {
-        case 0: return 0x10;
-        case 1: return 0x20;
-        case 2: return 0x40;
-        case 3: return register[channel - 1];
+            case 0:
+                return 0x10;
+            case 1:
+                return 0x20;
+            case 2:
+                return 0x40;
+            case 3:
+                return register[channel - 1];
         }
     }
 
     function noiseChannel(channel, out, offset, length) {
-        var add = addFor(channel), vol = volume[channel];;
+        var add = addFor(channel), vol = volume[channel];
         for (var i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
@@ -75,8 +84,10 @@ function SoundChip(sampleRate) {
     }
 
     var enabled = true;
+
     function generate(out, offset, length) {
-        offset = offset|0; length = length|0;
+        offset = offset | 0;
+        length = length | 0;
         var i;
         for (i = 0; i < length; ++i) {
             out[i + offset] = 0.0;
@@ -95,6 +106,7 @@ function SoundChip(sampleRate) {
     var position = 0;
     var maxBufferSize = 4096;
     var buffer = new Float64Array(maxBufferSize);
+
     function render(out, offset, length) {
         var fromBuffer = position > length ? length : position;
         for (var i = 0; i < fromBuffer; ++i) {
@@ -113,7 +125,7 @@ function SoundChip(sampleRate) {
 
     function advance(time) {
         var num = time * sampleRate + residual;
-        var rounded = num|0;
+        var rounded = num | 0;
         residual = num - rounded;
         if (position + rounded >= maxBufferSize) {
             rounded = maxBufferSize - position;
@@ -124,6 +136,7 @@ function SoundChip(sampleRate) {
     }
 
     var latchedChannel = 0;
+
     function poke(value) {
         if ((value & 0x90) == 0x90) {
             // Volume setting
@@ -141,7 +154,7 @@ function SoundChip(sampleRate) {
         }
     }
 
-    for (var i = 0; i < 3; ++i) {
+    for (i = 0; i < 3; ++i) {
         generators[i] = toneChannel;
     }
     generators[3] = noiseChannel;
@@ -149,11 +162,13 @@ function SoundChip(sampleRate) {
     this.advance = advance;
     this.render = render;
     this.poke = poke;
-    this.enable = function(e) { enabled = e; }
-    this.reset = function() {
+    this.enable = function (e) {
+        enabled = e;
+    };
+    this.reset = function () {
         for (var i = 0; i < 3; ++i) {
             volume[i] = register[i] = 0;
         }
         noisePoked();
-    }
+    };
 }

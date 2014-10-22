@@ -2,15 +2,15 @@ var debugSerial = 0;
 var annotations = null;
 
 function debug_init(romName) {
-    debugSerial = (romBanks[1][0x3ffc]<<8) | romBanks[1][0x3ffd];
+    debugSerial = (romBanks[1][0x3ffc] << 8) | romBanks[1][0x3ffd];
 
     if (!localStorage[debugSerial]) {
-        annotations = { 'romName': romName, 'labels': {} };
+        annotations = {'romName': romName, 'labels': {}};
     } else {
         annotations = JSON.parse(localStorage[debugSerial]);
     }
 
-    console.log('Debug initialised for ' + romName  + ' serial 0x' + hexword(debugSerial), annotations);
+    console.log('Debug initialised for ' + romName + ' serial 0x' + hexword(debugSerial), annotations);
 }
 
 function persistAnnotations() {
@@ -36,7 +36,6 @@ function addressName(addr) {
 }
 
 
-
 function addressHtml(addr) {
     var name = addressName(addr);
     if (name) {
@@ -57,8 +56,8 @@ function labelHtml(addr) {
 
 
 function hexbyte(value) {
-  return ((value >> 4) & 0xf).toString(16) +
-         (value & 0xf).toString(16); 
+    return ((value >> 4) & 0xf).toString(16) +
+        (value & 0xf).toString(16);
 }
 
 function endLabelEdit(content) {
@@ -71,20 +70,22 @@ var disassPc = 0;
 function updateDisassembly(address) {
     var disass = $('#disassembly');
     disassPc = address;
-    disass.children().each(function() {
+    disass.children().each(function () {
         var result = disassemble(address);
         var hex = "";
         for (var i = address; i < result[1]; ++i) {
             if (hex !== "") hex += " ";
-            hex += hexbyte(readbyte(i)); 
+            hex += hexbyte(readbyte(i));
         }
         $(this).find('.dis_addr').html(labelHtml(address));
         $(this).toggleClass('current', address == z80.pc);
         $(this).find('.instr_bytes').text(hex);
         $(this).find('.disassembly').html(result[0]);
         $(this).find('.addr')
-            .editable({editBy: 'dblclick', editClass: 'editable', onSubmit:endLabelEdit })
-            .keypress(function(e) { if (e.which==13) $(this).blur(); });
+            .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
+            .keypress(function (e) {
+                if (e.which == 13) $(this).blur();
+            });
         address = result[1];
     });
 }
@@ -135,15 +136,14 @@ function showDebug(pc) {
 }
 
 function updateDebug(pcOrNone) {
-    if (pcOrNone == null) {
+    if (pcOrNone === null) {
         pcOrNone = disassPc;
     }
     updateDisassembly(pcOrNone);
     for (var reg in z80) {
         var elem = $('#z80_' + reg);
         if (elem) {
-            if (reg.length > 1 && reg[reg.length-1] != 'h'
-                    && reg[reg.length-1] != 'l') {
+            if (reg.length > 1 && reg[reg.length - 1] != 'h' && reg[reg.length - 1] != 'l') {
                 updateElement(elem, hexword(z80[reg]));
             } else {
                 updateElement(elem, hexbyte(z80[reg]));
@@ -151,11 +151,11 @@ function updateDebug(pcOrNone) {
         }
     }
     var i = 0;
-    $('#vdp_registers > div:visible .value').each(function() {
+    $('#vdp_registers > div:visible .value').each(function () {
         updateElement($(this), hexbyte(vdp_regs[i++]));
     });
     i = 0;
-    $('#pages .value').each(function() {
+    $('#pages .value').each(function () {
         updateElement($(this), hexbyte(pages[i++]));
     });
     updateFlags(z80.f);
@@ -176,7 +176,9 @@ function stepUntil(f) {
 
 function step() {
     var curpc = z80.pc;
-    stepUntil(function () { return z80.pc != curpc; });
+    stepUntil(function () {
+        return z80.pc != curpc;
+    });
 }
 
 function isUnconditionalJump(addr) {
@@ -192,7 +194,9 @@ function stepOver() {
         return step();
     }
     var nextPc = nextInstruction(z80.pc);
-    stepUntil(function () { return z80.pc == nextPc; });
+    stepUntil(function () {
+        return z80.pc == nextPc;
+    });
 }
 
 function isReturn(addr) {
@@ -216,27 +220,29 @@ function stepOut() {
 }
 
 function debugKeyPress(key) {
-    if ($('input:visible').length) { return true; }
+    if ($('input:visible').length) {
+        return true;
+    }
     var keyStr = String.fromCharCode(key);
     switch (keyStr) {
-    case 'k':
-        updateDisassembly(prevInstruction(disassPc));
-        break;
-    case 'j':
-        updateDisassembly(nextInstruction(disassPc));
-        break;
-    case 'n':
-        step();
-        break;
-    case 'm':
-        stepOver();
-        break;
-    case 'u':
-        stepOut();
-        break;
-    case 'g':
-        start();
-        break;
+        case 'k':
+            updateDisassembly(prevInstruction(disassPc));
+            break;
+        case 'j':
+            updateDisassembly(nextInstruction(disassPc));
+            break;
+        case 'n':
+            step();
+            break;
+        case 'm':
+            stepOver();
+            break;
+        case 'u':
+            stepOut();
+            break;
+        case 'g':
+            start();
+            break;
     }
     return true;
 }
