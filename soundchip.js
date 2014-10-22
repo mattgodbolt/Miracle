@@ -5,15 +5,16 @@ function SoundChip(sampleRate) {
 
     var register = [0, 0, 0, 0];
     var counter = [0, 0, 0, 0];
-    var outputBit = [0, 0, 0, 0];
+    var outputBit = [false, false, false, false];
     var volume = [0, 0, 0, 0];
     var generators = [null, null, null, null];
 
 
     var volumeTable = [];
     var f = 1.0;
-    for (var i = 0; i < 16; ++i) {
-        volumeTable[i] = f;
+    var i;
+    for (i = 0; i < 16; ++i) {
+        volumeTable[i] = f / generators.length;  // Bakes in the per channel volume
         f *= Math.pow(10, -0.1);
     }
     volumeTable[15] = 0;
@@ -21,17 +22,18 @@ function SoundChip(sampleRate) {
     function toneChannel(channel, out, offset, length) {
         var i;
         var reg = register[channel], vol = volume[channel];
-        if (reg <= 1) {
+        if (reg === 1) {
             for (i = 0; i < length; ++i) {
-                out[i + offset] += volume[channel];
+                out[i + offset] += vol;
             }
             return;
         }
+        if (reg === 0) reg = 1024;
         for (i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
                 counter[channel] += reg;
-                outputBit[channel] ^= 1;
+                outputBit[channel] = !outputBit[channel];
             }
             out[i + offset] += outputBit[channel] ? vol : -vol;
         }
@@ -76,7 +78,7 @@ function SoundChip(sampleRate) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
                 counter[channel] += add;
-                outputBit[channel] ^= 1;
+                outputBit[channel] = !outputBit[channel];
                 if (outputBit[channel]) shiftLfsr();
             }
             out[i + offset] += (lfsr & 1) ? vol : -vol;
@@ -95,10 +97,6 @@ function SoundChip(sampleRate) {
         if (!enabled) return;
         for (i = 0; i < 4; ++i) {
             generators[i](i, out, offset, length);
-        }
-        var scale = 1.0 / 4.0;
-        for (i = 0; i < length; ++i) {
-            out[i + offset] *= scale;
         }
     }
 
@@ -129,8 +127,8 @@ function SoundChip(sampleRate) {
         residual = num - rounded;
         if (position + rounded >= maxBufferSize) {
             rounded = maxBufferSize - position;
-            if (rounded === 0) return;
         }
+        if (rounded === 0) return;
         generate(buffer, position, rounded);
         position += rounded;
     }
@@ -138,19 +136,26 @@ function SoundChip(sampleRate) {
     var latchedChannel = 0;
 
     function poke(value) {
+        var latchData = !!(value & 0x80);
+        if (latchData)
+            latchedChannel = (value >> 5) & 3;
         if ((value & 0x90) == 0x90) {
             // Volume setting
-            var channel = (value >> 5) & 3;
             var newVolume = value & 0x0f;
-            volume[channel] = volumeTable[newVolume];
-        } else if ((value & 0x90) == 0x80) {
-            latchedChannel = (value >> 5) & 3;
-            register[latchedChannel] = (register[latchedChannel] & ~0x0f) | (value & 0x0f);
-            if (latchedChannel == 3) {
-                noisePoked();
-            }
+            volume[latchedChannel] = volumeTable[newVolume];
         } else {
-            register[latchedChannel] = (register[latchedChannel] & 0x0f) | ((value & 0x3f) << 4);
+            // Data of some sort.
+            if (latchedChannel == 3) {
+                // For noise channel we always update the bottom bits of the register.
+                register[latchedChannel] = value & 0x0f;
+                noisePoked();
+            } else if (latchData) {
+                // Low 4 bits
+                register[latchedChannel] = (register[latchedChannel] & ~0x0f) | (value & 0x0f);
+            } else {
+                // High bits
+                register[latchedChannel] = (register[latchedChannel] & 0x0f) | ((value & 0x3f) << 4);
+            }
         }
     }
 
