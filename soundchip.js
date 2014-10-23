@@ -1,7 +1,8 @@
-function SoundChip(sampleRate) {
+function SoundChip(sampleRate, cpuHz) {
     "use strict";
     var soundchipFreq = 3546893.0 / 16.0; // PAL
     var sampleDecrement = soundchipFreq / sampleRate;
+    var samplesPerCycle = sampleRate / cpuHz;
 
     var register = [0, 0, 0, 0];
     var counter = [0, 0, 0, 0];
@@ -100,12 +101,30 @@ function SoundChip(sampleRate) {
         }
     }
 
+    var cyclesPending = 0;
+
+    function catchUp() {
+        if (cyclesPending) {
+            advance(cyclesPending);
+        }
+        cyclesPending = 0;
+    }
+
+    this.polltime = function (cycles) {
+        cyclesPending += cycles;
+    };
+
     var residual = 0;
     var position = 0;
     var maxBufferSize = 4096;
-    var buffer = new Float64Array(maxBufferSize);
-
+    var buffer;
+    if (typeof Float64Array !== "undefined") {
+        buffer = new Float64Array(maxBufferSize);
+    } else {
+        buffer = new Float32Array(maxBufferSize);
+    }
     function render(out, offset, length) {
+        catchUp();
         var fromBuffer = position > length ? length : position;
         for (var i = 0; i < fromBuffer; ++i) {
             out[offset + i] = buffer[i];
@@ -122,7 +141,7 @@ function SoundChip(sampleRate) {
     }
 
     function advance(time) {
-        var num = time * sampleRate + residual;
+        var num = time * samplesPerCycle + residual;
         var rounded = num | 0;
         residual = num - rounded;
         if (position + rounded >= maxBufferSize) {
@@ -136,6 +155,7 @@ function SoundChip(sampleRate) {
     var latchedChannel = 0;
 
     function poke(value) {
+        catchUp();
         var latchData = !!(value & 0x80);
         if (latchData)
             latchedChannel = (value >> 5) & 3;
@@ -164,16 +184,23 @@ function SoundChip(sampleRate) {
     }
     generators[3] = noiseChannel;
 
-    this.advance = advance;
     this.render = render;
     this.poke = poke;
+    this.reset = function () {
+        for (var i = 0; i < 3; ++i) {
+            counter[i] = volume[i] = register[i] = 0;
+        }
+        noisePoked();
+        advance(100000);
+        cyclesPending = 0;
+    };
     this.enable = function (e) {
         enabled = e;
     };
-    this.reset = function () {
-        for (var i = 0; i < 3; ++i) {
-            volume[i] = register[i] = 0;
-        }
-        noisePoked();
+    this.mute = function () {
+        enabled = false;
+    };
+    this.unmute = function () {
+        enabled = true;
     };
 }

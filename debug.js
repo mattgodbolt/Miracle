@@ -167,7 +167,7 @@ function stepUntil(f) {
     for (var i = 0; i < 65536; i++) {
         tstates = 0;
         event_next_event = 1;
-        z80_do_opcodes();
+        z80_do_opcodes(cycleCallback);
         if (f()) break;
     }
     showDebug(z80.pc);

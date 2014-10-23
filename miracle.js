@@ -29,16 +29,18 @@ const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
 const scanLinesPerSecond = scanLinesPerFrame * framesPerSecond;
 const cpuHz = 3.58 * 1000 * 1000; // According to Sega docs.
 const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond) | 0;
-const secsPerHblank = 1 / scanLinesPerSecond;
+
+function cycleCallback(tstates) {
+    soundChip.polltime(tstates);
+}
 
 function line() {
     event_next_event = tstatesPerHblank;
     tstates -= tstatesPerHblank;
-    z80_do_opcodes();
+    z80_do_opcodes(cycleCallback);
     var vdp_status = vdp_hblank();
     var irq = !!(vdp_status & 3);
     z80_set_irq(irq);
-    soundChip.advance(secsPerHblank);
     if (breakpointHit) {
         running = false;
         showDebug(z80.pc);
@@ -124,13 +126,13 @@ function audio_init() {
         // Disable sound without the new APIs. 
         audioRun = function () {
         };
-        soundChip = new SoundChip(10000);
+        soundChip = new SoundChip(10000, cpuHz);
         return;
     }
     var jsAudioNode = context.createScriptProcessor(1024, 0, 1);
     jsAudioNode.onaudioprocess = pumpAudio;
     jsAudioNode.connect(context.destination, 0, 0);
-    soundChip = new SoundChip(context.sampleRate);
+    soundChip = new SoundChip(context.sampleRate, cpuHz);
 }
 
 function audio_enable(enable) {
