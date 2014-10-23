@@ -5,9 +5,11 @@ function SoundChip(sampleRate, cpuHz) {
     var samplesPerCycle = sampleRate / cpuHz;
 
     var register = [0, 0, 0, 0];
+    this.registers = register; // for debug
     var counter = [0, 0, 0, 0];
     var outputBit = [false, false, false, false];
     var volume = [0, 0, 0, 0];
+    this.volume = volume;  // for debug
     var generators = [null, null, null, null];
 
 
@@ -23,13 +25,15 @@ function SoundChip(sampleRate, cpuHz) {
     function toneChannel(channel, out, offset, length) {
         var i;
         var reg = register[channel], vol = volume[channel];
-        if (reg === 1) {
+        // For jsbeeb  0 is treated as 1024. However, I found this
+        // made things like Altered Beast's background music have
+        // a low note play in the background.
+        if (reg <= 1) {
             for (i = 0; i < length; ++i) {
                 out[i + offset] += vol;
             }
             return;
         }
-        if (reg === 0) reg = 1024;
         for (i = 0; i < length; ++i) {
             counter[channel] -= sampleDecrement;
             if (counter[channel] < 0) {
