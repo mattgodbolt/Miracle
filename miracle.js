@@ -221,6 +221,7 @@ function keyDown(evt) {
             break;
         case 8:  // 'Backspace' is debug
             breakpoint();
+            evt.preventDefault();
             break;
     }
 }
