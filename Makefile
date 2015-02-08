@@ -17,8 +17,9 @@
 # Contact details: <matthew@west.co.tt>
 # Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 
-.PHONY: all z80 clean
+.PHONY: all z80 clean dist
 all: z80 roms.js
+dist: all
 
 ROMS := $(shell find roms -type f | sort)
 

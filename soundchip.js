@@ -25,7 +25,7 @@ function SoundChip(sampleRate, cpuHz) {
     function toneChannel(channel, out, offset, length) {
         var i;
         var reg = register[channel], vol = volume[channel];
-        // For jsbeeb  0 is treated as 1024. However, I found this
+        // For jsbeeb 0 is treated as 1024. However, I found this
         // made things like Altered Beast's background music have
         // a low note play in the background.
         if (reg <= 1) {
