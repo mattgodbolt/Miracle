@@ -6,4 +6,4 @@ Requires `make`, `perl` and `python` to build.  Place ROMs in the `roms` directo
 
 z80 emulation and test are based on rev 1071 of http://svn.matt.west.co.tt/svn/jsspec/trunk
 
-Miracle can be taken for a spin at xania.org/miracle/miracle.html
+Miracle can be taken for a spin at http://xania.org/miracle/miracle.html
