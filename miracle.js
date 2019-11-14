@@ -116,12 +116,12 @@ function pumpAudio(event) {
     soundChip.render(chan, 0, chan.length);
 }
 
+var audioContext;
 function audio_init() {
-    var context = null;
     if (typeof AudioContext !== 'undefined') {
-        context = new AudioContext();
+        audioContext = new AudioContext();
     } else if (typeof(webkitAudioContext) !== 'undefined') {
-        context = new webkitAudioContext();
+        audioContext = new webkitAudioContext();
     } else {
         // Disable sound without the new APIs. 
         audioRun = function () {
@@ -129,14 +129,15 @@ function audio_init() {
         soundChip = new SoundChip(10000, cpuHz);
         return;
     }
-    var jsAudioNode = context.createScriptProcessor(1024, 0, 1);
+    var jsAudioNode = audioContext.createScriptProcessor(1024, 0, 1);
     jsAudioNode.onaudioprocess = pumpAudio;
-    jsAudioNode.connect(context.destination, 0, 0);
-    soundChip = new SoundChip(context.sampleRate, cpuHz);
+    jsAudioNode.connect(audioContext.destination, 0, 0);
+    soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
 }
 
 function audio_enable(enable) {
     soundChip.enable(enable);
+    if (audioContext) audioContext.resume();
 }
 
 function audio_reset() {
