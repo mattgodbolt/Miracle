@@ -27,106 +27,130 @@ body {
     font-size: 11px;
 }
 
+div.container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+div.main {
+    flex-grow: 1;
+}
+
 #screen {
-	border: 64px solid black;
-	width: 512px;
-	height: 384px;
+    height: 50%;
+    border: 64px solid black;
     margin-left: auto;
     margin-right: auto;
     display: block;
 }
 
 #menu {
-	clear: left;
-	margin: 0;
-	padding: 0;
-	width: 640px;
-	height: 56px;
-	list-style-type: none;
+    clear: left;
+    margin: 0;
+    padding: 0;
+    width: 640px;
+    height: 56px;
+    list-style-type: none;
 }
+
 #menu li {
-	float: left;
-	margin: 4px;
+    float: left;
+    margin: 4px;
 }
+
 #menu li a {
-	display: block;
-	width: 48px;
-	height: 48px;
-	outline: none;
+    display: block;
+    width: 48px;
+    height: 48px;
+    outline: none;
 }
+
 #menu li #menu_about {
-	float: right;
+    float: right;
 }
+
 #rom_chooser {
-	position: absolute;
-	padding: 8px;
-	left: 128px;
-	top: 16px;
-	width: 384px;
-	background-color: #112222;
-	height: 480px;
-	overflow: auto;
+    position: absolute;
+    padding: 8px;
+    left: 128px;
+    top: 16px;
+    width: 384px;
+    background-color: #112222;
+    height: 480px;
+    overflow: auto;
     border: 1px solid #334444;
 }
+
 input {
     color: white;
 }
+
 #about {
-	position: absolute;
-	left: 64px;
-	top: 32px;
-	width: 512px;
-	background-color: #112222;
-	height: 420px;
-	padding: 4px;
-	text-align: center;
-	overflow: auto;
+    position: absolute;
+    left: 64px;
+    top: 32px;
+    width: 512px;
+    background-color: #112222;
+    height: 420px;
+    padding: 4px;
+    text-align: center;
+    overflow: auto;
     border: 1px solid #334444;
 }
+
 a.close_button {
-	display: block;
-	border: 1px solid black;
-	background-color: #ccc;
-	margin: auto;
-	padding: 4px;
-	width: 200px;
-	margin-bottom: 8px;
-	margin-top: 8px;
-	color: black;
-	text-decoration: none;
-	text-align: center;
-	clear: both;
+    display: block;
+    border: 1px solid black;
+    background-color: #ccc;
+    margin: auto;
+    padding: 4px;
+    width: 200px;
+    margin-bottom: 8px;
+    margin-top: 8px;
+    color: black;
+    text-decoration: none;
+    text-align: center;
+    clear: both;
 }
+
 #rom_list {
-	list-style-type: none;
-	height: 320px;
-	overflow: auto;
-	margin: 0;
-	border: 1px solid #ccc;
-	padding: 0;
+    list-style-type: none;
+    height: 320px;
+    overflow: auto;
+    margin: 0;
+    border: 1px solid #ccc;
+    padding: 0;
 }
+
 #rom_list li {
-	line-height: 40px;
-	border-bottom: 1px solid black;
-	padding-left: 16px;
+    line-height: 40px;
+    border-bottom: 1px solid black;
+    padding-left: 16px;
 }
+
 #rom_list li a {
-	display: block;
+    display: block;
 }
+
 #about h1 {
-	font-size: 18pt;
-	margin-bottom: 0;
+    font-size: 18pt;
+    margin-bottom: 0;
     text-align: center;
 }
+
 #about h2 {
-	font-size: 12pt;
+    font-size: 12pt;
 }
+
 #about a, #about a:hover, #about a:focus {
-	color: white;
+    color: white;
 }
+
 #about #licence {
-	font-size: 9pt;
+    font-size: 9pt;
 }
+
 #debug {
     background-color: #333333;
     border: 1px solid #555555;
@@ -135,18 +159,19 @@ a.close_button {
     position: fixed;
     bottom: 0px;
     right: 0px;
-	font-size: 8pt;
-	font-family: monospace;
+    font-size: 8pt;
+    font-family: monospace;
 }
+
 #registers {
-	float: right;
+    float: right;
     text-align: right;
     width: 90px;
 }
 
 #disassembly {
-    width: 400px; 
-	float: left;
+    width: 400px;
+    float: left;
 }
 
 #vdp_registers, #pages {
@@ -202,7 +227,7 @@ a.close_button {
 }
 
 .template {
-	display: none;
+    display: none;
 }
 
 .help {

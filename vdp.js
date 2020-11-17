@@ -119,7 +119,7 @@ var prev_border = null;
 var borderColourCss = null;
 function update_border() {
     var borderIndex = 16 + (vdp_regs[7] & 0xf);
-    if (paletteRGB[borderIndex] == prev_border) return;
+    if (paletteRGB[borderIndex] === prev_border) return;
     prev_border = paletteRGB[borderIndex];
     // TODO: consider doing away with this code and draw the border manually
     borderColourCss = 'rgb(' + paletteR[borderIndex] + ',' + paletteG[borderIndex] + ',' + paletteB[borderIndex] + ')';
@@ -449,7 +449,7 @@ function vdp_hblank() {
     const firstDisplayLine = 3 + 13 + 54;
     const pastEndDisplayLine = firstDisplayLine + 192;
     const endOfFrame = pastEndDisplayLine + 48 + 3;
-    if (vdp_current_line == firstDisplayLine) vdp_hblank_counter = vdp_regs[10];
+    if (vdp_current_line === firstDisplayLine) vdp_hblank_counter = vdp_regs[10];
     if (vdp_current_line >= firstDisplayLine && vdp_current_line < pastEndDisplayLine) {
         rasterize_line(vdp_current_line - firstDisplayLine);
         if (--vdp_hblank_counter < 0) {

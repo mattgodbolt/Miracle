@@ -11,7 +11,7 @@ function loadRomData(name) {
     request.open("GET", path, false);
     request.overrideMimeType('text/plain; charset=x-user-defined');
     request.send(null);
-    if (request.status != 200) return [];
+    if (request.status !== 200) return [];
     return request.response;
 }
 
@@ -58,7 +58,7 @@ function go() {
 }
 
 function getDefaultRom() {
-    if (typeof(localStorage) !== "undefined" && localStorage.rom) return localStorage.rom;
+    if (typeof (localStorage) !== "undefined" && localStorage.rom) return localStorage.rom;
     return 'SonicTheHedgehog.sms';
 }
 

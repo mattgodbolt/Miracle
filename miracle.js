@@ -1,5 +1,5 @@
 // Work-around for people without Chrome/Firebug.
-if (typeof(console) === 'undefined') {
+if (typeof (console) === 'undefined') {
     console = {
         log: function (msg) {
         }
@@ -110,6 +110,7 @@ function stop() {
 function reset() {
     miracle_reset();
 }
+
 function pumpAudio(event) {
     var outBuffer = event.outputBuffer;
     var chan = outBuffer.getChannelData(0);
@@ -117,10 +118,11 @@ function pumpAudio(event) {
 }
 
 var audioContext;
+
 function audio_init() {
     if (typeof AudioContext !== 'undefined') {
         audioContext = new AudioContext();
-    } else if (typeof(webkitAudioContext) !== 'undefined') {
+    } else if (typeof (webkitAudioContext) !== 'undefined') {
         audioContext = new webkitAudioContext();
     } else {
         // Disable sound without the new APIs. 
@@ -159,7 +161,7 @@ function miracle_init() {
         fb8 = imageData.data;
         fb32 = new Uint32Array(fb8.buffer);
     } else {
-        alert('upgrade your browser, dude');
+        alert('Unsupported browser...');
         // Unsupported....
     }
     document.onkeydown = keyDown;
@@ -206,6 +208,7 @@ var keys = {
 function keyCode(evt) {
     return evt.which || evt.charCode || evt.keyCode;
 }
+
 function keyDown(evt) {
     if (!running) return;
     var key = keys[keyCode(evt)];

@@ -67,6 +67,7 @@ function endLabelEdit(content) {
 }
 
 var disassPc = 0;
+
 function updateDisassembly(address) {
     var disass = $('#disassembly');
     disassPc = address;
@@ -78,24 +79,24 @@ function updateDisassembly(address) {
             hex += hexbyte(readbyte(i));
         }
         $(this).find('.dis_addr').html(labelHtml(address));
-        $(this).toggleClass('current', address == z80.pc);
+        $(this).toggleClass('current', address === z80.pc);
         $(this).find('.instr_bytes').text(hex);
         $(this).find('.disassembly').html(result[0]);
         $(this).find('.addr')
             .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
             .keypress(function (e) {
-                if (e.which == 13) $(this).blur();
+                if (e.which === 13) $(this).blur();
             });
         address = result[1];
     });
 }
 
 function prevInstruction(address) {
-    for (var startingPoint = address - 20; startingPoint != address; startingPoint++) {
+    for (var startingPoint = address - 20; startingPoint !== address; startingPoint++) {
         var addr = startingPoint & 0xffff;
         while (addr < address) {
             var result = disassemble(addr);
-            if (result[1] == address) {
+            if (result[1] === address) {
                 return addr;
             }
             addr = result[1];
@@ -109,7 +110,7 @@ function nextInstruction(address) {
 }
 
 function updateElement(elem, newVal) {
-    elem.toggleClass('changed', newVal != elem.text()).text(newVal);
+    elem.toggleClass('changed', newVal !== elem.text()).text(newVal);
 }
 
 function updateFlags(f) {
@@ -143,7 +144,7 @@ function updateDebug(pcOrNone) {
     for (var reg in z80) {
         var elem = $('#z80_' + reg);
         if (elem) {
-            if (reg.length > 1 && reg[reg.length - 1] != 'h' && reg[reg.length - 1] != 'l') {
+            if (reg.length > 1 && reg[reg.length - 1] !== 'h' && reg[reg.length - 1] !== 'l') {
                 updateElement(elem, hexword(z80[reg]));
             } else {
                 updateElement(elem, hexbyte(z80[reg]));
@@ -177,16 +178,13 @@ function stepUntil(f) {
 function step() {
     var curpc = z80.pc;
     stepUntil(function () {
-        return z80.pc != curpc;
+        return z80.pc !== curpc;
     });
 }
 
 function isUnconditionalJump(addr) {
     var result = disassemble(addr);
-    if (result[0].match(/^(JR 0x|JP|RET|RST)/)) {
-        return true;
-    }
-    return false;
+    return !!result[0].match(/^(JR 0x|JP|RET|RST)/);
 }
 
 function stepOver() {
@@ -195,16 +193,13 @@ function stepOver() {
     }
     var nextPc = nextInstruction(z80.pc);
     stepUntil(function () {
-        return z80.pc == nextPc;
+        return z80.pc === nextPc;
     });
 }
 
 function isReturn(addr) {
     var result = disassemble(addr);
-    if (result[0].match(/^RET/)) {
-        return true;
-    }
-    return false;
+    return !!result[0].match(/^RET/);
 }
 
 function stepOut() {
@@ -213,7 +208,7 @@ function stepOut() {
         if (z80.sp >= sp && isReturn(z80.pc)) {
             var nextInstr = nextInstruction(z80.pc);
             step();
-            return z80.pc != nextInstr;
+            return z80.pc !== nextInstr;
         }
         return false;
     });

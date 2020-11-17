@@ -163,13 +163,13 @@ function SoundChip(sampleRate, cpuHz) {
         var latchData = !!(value & 0x80);
         if (latchData)
             latchedChannel = (value >> 5) & 3;
-        if ((value & 0x90) == 0x90) {
+        if ((value & 0x90) === 0x90) {
             // Volume setting
             var newVolume = value & 0x0f;
             volume[latchedChannel] = volumeTable[newVolume];
         } else {
             // Data of some sort.
-            if (latchedChannel == 3) {
+            if (latchedChannel === 3) {
                 // For noise channel we always update the bottom bits of the register.
                 register[latchedChannel] = value & 0x0f;
                 noisePoked();
