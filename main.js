@@ -15,22 +15,19 @@ function loadRomData(name) {
     return request.response;
 }
 
+function resetLoadAndStart(filename, romdata) {
+    miracle_reset();
+    loadRom(filename, romdata);
+    hideRomChooser();
+    start();
+}
+
 function loadUploadFile(file) {
     var reader = new FileReader();
     reader.onload = function (e) {
-        miracle_reset();
-        loadRom(file.name, reader.result);
-        hideRomChooser();
-        start();
+        resetLoadAndStart(file.name, reader.result);
     };
     reader.readAsBinaryString(file);
-}
-
-function loadExistingRomAndStart(rom) {
-    miracle_reset();
-    loadRom(rom, loadRomData(rom));
-    hideRomChooser();
-    start();
 }
 
 function addRomToList(rom) {
@@ -39,7 +36,7 @@ function addRomToList(rom) {
         .removeClass('template')
         .text(rom)
         .click(function () {
-            loadExistingRomAndStart(rom);
+            resetLoadAndStart(rom, loadRomData(rom));
         })
         .appendTo('#rom_list');
 }
