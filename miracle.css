@@ -242,3 +242,7 @@ a.close_button {
     padding-right: 2px;
     background-color: #222222;
 }
+
+.rom-to-select {
+    cursor: pointer;
+}

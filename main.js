@@ -15,16 +15,28 @@ function loadRomData(name) {
     return request.response;
 }
 
+function resetLoadAndStart(filename, romdata) {
+    miracle_reset();
+    loadRom(filename, romdata);
+    hideRomChooser();
+    start();
+}
+
+function loadUploadFile(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        resetLoadAndStart(file.name, reader.result);
+    };
+    reader.readAsBinaryString(file);
+}
+
 function addRomToList(rom) {
     $('#rom_list .template')
         .clone()
         .removeClass('template')
         .text(rom)
         .click(function () {
-            miracle_reset();
-            loadRom(rom, loadRomData(rom));
-            hideRomChooser();
-            start();
+            resetLoadAndStart(rom, loadRomData(rom));
         })
         .appendTo('#rom_list');
 }
@@ -50,6 +62,15 @@ function go() {
     var i;
     hideRomChooser();
     hideAbout();
+
+    var uploadElem = $('#file_upload');
+    uploadElem.change(function (e) {
+        var files = e.target.files;
+        if (files && files.length) {
+            loadUploadFile(files[0]);
+        }
+    });
+
     for (i = 0; i < RomList.length; ++i) {
         addRomToList(RomList[i]);
     }
@@ -90,8 +111,14 @@ function showRomChooser() {
     $('#rom_chooser').show();
 }
 
+function clearFileUploadElement() {
+    var uploadElem = $('#file_upload')[0];
+    uploadElem.value = '';
+}
+
 function hideRomChooser() {
     $('#rom_chooser').hide();
+    clearFileUploadElement();
 }
 
 function showAbout() {
