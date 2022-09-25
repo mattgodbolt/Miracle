@@ -29,6 +29,23 @@ function addRomToList(rom) {
         .appendTo('#rom_list');
 }
 
+function parseQuery() {
+    const parsedQuery = {};
+
+    let queryString = document.location.search.substring(1) + "&" + window.location.hash.substring(1);
+
+    queryString.split("&").forEach(function (keyval) {
+        const keyAndVal = keyval.split("=");
+        const key = decodeURIComponent(keyAndVal[0]);
+
+        let val = null;
+        if (keyAndVal.length > 1) val = decodeURIComponent(keyAndVal[1]);
+        parsedQuery[key] = val;
+    });
+
+    return parsedQuery;
+}
+
 function go() {
     var i;
     hideRomChooser();
@@ -52,8 +69,15 @@ function go() {
     z80_init();
     miracle_init();
     miracle_reset();
-    const defaultRom = getDefaultRom();
-    loadRom(defaultRom, loadRomData(defaultRom));
+
+    const parsedQuery = parseQuery();
+    if (parsedQuery['b64sms']) {
+        loadRom('b64.sms', atob(parsedQuery['b64sms']));
+    } else {
+        const defaultRom = getDefaultRom();
+        loadRom(defaultRom, loadRomData(defaultRom));
+    }
+
     start();
 }
 
