@@ -15,7 +15,7 @@ jobs:
         run:
           mkdir roms
           cd roms
-          curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zxf
+          curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
       - name: Build distribution
         run: |
           make dist
