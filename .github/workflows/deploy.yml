@@ -11,14 +11,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10' 
+      - name: Unpack existing ROMs
+        run:
+          mkdir roms
+          cd roms
+          curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zxf
       - name: Build distribution
         run: |
           make dist
-      # - uses: jakejarvis/s3-sync-action@master
-      #   with:
-      #     args: --cache-control max-age=30 --metadata-directive REPLACE
-      #   env:
-      #     AWS_S3_BUCKET: bbc.xania.org
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     SOURCE_DIR: "out/dist"
+      - uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --cache-control max-age=30 --metadata-directive REPLACE
+        env:
+          AWS_S3_BUCKET: miracle.xania.org
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: "."
