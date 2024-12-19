@@ -20,6 +20,7 @@
 .PHONY: all z80 clean dist
 all: z80 src/roms.js
 dist: all
+	npm install
 	npm run build
 
 ROMS := $(shell find public/roms -type f | sort)
