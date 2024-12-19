@@ -18,19 +18,19 @@
 # Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 
 .PHONY: all z80 clean dist
-all: z80 roms.js
+all: z80 src/roms.js
 dist: all
 
 ROMS := $(shell find roms -type f | sort)
 
-roms.js: $(ROMS) Makefile
-	echo 'var RomList = [' > roms.js
-	for rom in $(ROMS); do echo \"$$rom\", | sed 's/roms\///g' >> roms.js; done
-	echo '];' >> roms.js
+src/roms.js: $(ROMS) Makefile
+	echo 'export const RomList = [' > src/roms.js
+	for rom in $(ROMS); do echo \"$$rom\", | sed 's/roms\///g' >> src/roms.js; done
+	echo '];' >> src/roms.js
 
 z80:
-	$(MAKE) -C z80
+	$(MAKE) -C src/z80
 
 clean:
-	$(MAKE) -C z80 clean
-	rm -f roms.js
+	$(MAKE) -C src/z80 clean
+	rm -f src/roms.js

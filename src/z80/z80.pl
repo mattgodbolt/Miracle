@@ -94,7 +94,7 @@ sub arithmetic_logical ($$$) {
         print "      $opcode($arg2);\n";
     } elsif( $arg2 eq '(REGISTER+dd)' ) {
         print << "CODE";
-      tstates += 11;        /* FIXME: how is this contended? */
+      addTstates(11);        /* FIXME: how is this contended? */
       {
     var bytetemp = 
         readbyte( (REGISTER + sign_extend(readbyte( PC++ ))) & 0xffff );
@@ -106,7 +106,7 @@ CODE
         my $register = ( $arg2 eq '(HL)' ? 'HL' : 'PC' );
         my $increment = ( $register eq 'PC' ? '++' : '' );
         print << "CODE";
-      tstates+=3;
+      addTstates(3);
       {
     var bytetemp = readbyte( ${register}R$increment );
     $opcode(bytetemp);
@@ -124,7 +124,7 @@ CODE
         }
     print "      ${opcode}16(${arg1}R,${arg2}R,$arg1h,$arg1l);\n";
     } elsif( $arg1 eq 'HL' and length $arg2 == 2 ) {
-    print "      tstates += 7;\n      ${opcode}16(${arg2}R);\n";
+    print "      addTstates(7);\n      ${opcode}16(${arg2}R);\n";
     }
 }
 
@@ -132,7 +132,7 @@ sub call_jp ($$$) {
 
     my( $opcode, $condition, $offset ) = @_;
 
-    print "      tstates+=6;\n";
+    print "      addTstates(6);\n";
 
     if( not defined $offset ) {
     print "      $opcode();\n";
@@ -158,7 +158,7 @@ sub cpi_cpd ($) {
       lookup = ( (        A & 0x08 ) >> 3 ) |
                ( (  (value) & 0x08 ) >> 2 ) |
                ( ( bytetemp & 0x08 ) >> 1 );
-    tstates+=8;
+    addTstates(8);
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     var bctemp = (BCR - 1) & 0xffff; B = bctemp >> 8; C = bctemp & 0xff;
     F = ( F & FLAG_C ) | ( BCR ? ( FLAG_V | FLAG_N ) : FLAG_N ) |
@@ -182,7 +182,7 @@ sub cpir_cpdr ($) {
       lookup = ( (        A & 0x08 ) >> 3 ) |
            ( (  (value) & 0x08 ) >> 2 ) |
            ( ( bytetemp & 0x08 ) >> 1 );
-    tstates+=8;
+    addTstates(8);
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     var bctemp = (BCR - 1) & 0xffff; B = bctemp >> 8; C = bctemp & 0xff;
     F = ( F & FLAG_C ) | ( BCR ? ( FLAG_V | FLAG_N ) : FLAG_N ) |
@@ -191,7 +191,7 @@ sub cpir_cpdr ($) {
     if(F & FLAG_H) bytetemp--;
     F |= ( bytetemp & FLAG_3 ) | ( (bytetemp&0x02) ? FLAG_5 : 0 );
     if( ( F & ( FLAG_V | FLAG_Z ) ) == FLAG_V ) {
-      tstates+=5;
+      addTstates(5);
       PC-=2;
     }
       }
@@ -209,12 +209,12 @@ sub inc_dec ($$) {
     } elsif( length $arg == 2 or $arg eq 'REGISTER' ) {
         if ($arg eq 'SP') {
   print << "CODE";
-      tstates += 2;
+      addTstates(2);
       $arg = ($arg $modifier 1) & 0xffff;
 CODE
         } else {
  print << "CODE";
-      tstates += 2;
+      addTstates(2);
       var wordtemp = (${arg}R $modifier 1) & 0xffff;
       $highreg{$arg} = wordtemp >> 8;
       $lowreg{$arg} = wordtemp & 0xff;
@@ -222,7 +222,7 @@ CODE
         }
     } elsif( $arg eq '(HL)' ) {
     print << "CODE";
-      tstates+=7;
+      addTstates(7);
       {
     var bytetemp = readbyte( HLR );
     $opcode(bytetemp);
@@ -231,7 +231,7 @@ CODE
 CODE
     } elsif( $arg eq '(REGISTER+dd)' ) {
     print << "CODE";
-      tstates += 15;        /* FIXME: how is this contended? */
+      addTstates(15);        /* FIXME: how is this contended? */
       {
     var wordtemp =
         (REGISTER + sign_extend(readbyte( PC++ ))) & 0xffff;
@@ -254,7 +254,7 @@ sub ini_ind ($) {
     print << "CODE";
       {
     var initemp = readport( BCR );
-    tstates += 5; contend_io( BCR, 3 );
+    addTstates(5); contend_io( BCR, 3 );
     writebyte(HLR,initemp);
     B = (B-1)&0xff;
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
@@ -273,14 +273,14 @@ sub inir_indr ($) {
     print << "CODE";
       {
     var initemp=readport( BCR );
-    tstates += 5; contend_io( BCR, 3 );
+    addTstates(5); contend_io( BCR, 3 );
     writebyte(HLR,initemp);
     B = (B-1)&0xff;
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     F = (initemp & 0x80 ? FLAG_N : 0 ) | sz53_table[B];
     /* C,H and P/V flags not implemented */
     if(B) {
-      tstates+=5;
+      addTstates(5);
       PC-=2;
     }
       }
@@ -297,7 +297,7 @@ sub ldi_ldd ($) {
     print << "CODE";
       {
     var bytetemp=readbyte( HLR );
-    tstates+=8;
+    addTstates(8);
     var bctemp = (BCR - 1) & 0xffff; B = bctemp >> 8; C = bctemp & 0xff;
     writebyte(DER,bytetemp);
     var detemp = (DER $modifier 1) & 0xffff; D = detemp >> 8; E = detemp & 0xff;
@@ -319,7 +319,7 @@ sub ldir_lddr ($) {
     print << "CODE";
       {
     var bytetemp=readbyte( HLR );
-    tstates+=8;
+    addTstates(8);
     writebyte(DER,bytetemp);
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     var detemp = (DER $modifier 1) & 0xffff; D = detemp >> 8; E = detemp & 0xff;
@@ -328,7 +328,7 @@ sub ldir_lddr ($) {
     F = ( F & ( FLAG_C | FLAG_Z | FLAG_S ) ) | ( BCR ? FLAG_V : 0 ) |
       ( bytetemp & FLAG_3 ) | ( (bytetemp & 0x02) ? FLAG_5 : 0 );
     if(BCR) {
-      tstates+=5;
+      addTstates(5);
       PC-=2;
     }
       }
@@ -344,7 +344,7 @@ sub otir_otdr ($) {
     print << "CODE";
       {
     var outitemp=readbyte( HLR );
-    tstates+=5;
+    addTstates(5);
     B = (B-1)&0xff;
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     /* This does happen first, despite what the specs say */
@@ -353,7 +353,7 @@ sub otir_otdr ($) {
     /* C,H and P/V flags not implemented */
     if(B) {
       contend_io( BCR, 1 );
-      tstates+=7;
+      addTstates(7);
       PC-=2;
     } else {
       contend_io( BCR, 3 );
@@ -372,7 +372,7 @@ sub outi_outd ($) {
       {
     var outitemp=readbyte( HLR );
     B = (B-1)&0xff;    /* This does happen first, despite what the specs say */
-    tstates+=5; contend_io( BCR, 3 );
+    addTstates(5); contend_io( BCR, 3 );
     var hltemp = (HLR $modifier 1) & 0xffff; H = hltemp >> 8; L = hltemp & 0xff;
     writeport(BCR,outitemp);
     F = (outitemp & 0x80 ? FLAG_N : 0 ) | sz53_table[B];
@@ -418,12 +418,12 @@ sub res_set ($$$) {
     print "      $register $operator= $hex_mask;\n";
     } elsif( $register eq '(HL)' ) {
     print << "CODE";
-      tstates+=7;
+      addTstates(7);
       writebyte(HLR, readbyte(HLR) $operator $hex_mask);
 CODE
     } elsif( $register eq '(REGISTER+dd)' ) {
     print << "CODE";
-      tstates += 8;
+      addTstates(8);
       writebyte(tempaddr, readbyte(tempaddr) $operator $hex_mask);
 CODE
     }
@@ -439,14 +439,14 @@ sub rotate_shift ($$) {
     print << "CODE";
       {
     var bytetemp = readbyte(HLR);
-    tstates+=7;
+    addTstates(7);
     $opcode(bytetemp);
     writebyte(HLR,bytetemp);
       }
 CODE
     } elsif( $register eq '(REGISTER+dd)' ) {
     print << "CODE";
-      tstates += 8;
+      addTstates(8);
       {
     var bytetemp = readbyte(tempaddr);
     $opcode(bytetemp);
@@ -472,7 +472,7 @@ sub opcode_BIT (@) {
     print "      BIT( $bit, $register );\n";
     } elsif( $register eq '(REGISTER+dd)' ) {
     print << "BIT";
-      tstates += 5;
+      addTstates(5);
       {
     var bytetemp = readbyte( tempaddr );
     BIT_I( $bit, bytetemp, tempaddr );
@@ -482,7 +482,7 @@ BIT
     print << "BIT";
       {
     var bytetemp = readbyte( HLR );
-    tstates+=4;
+    addTstates(4);
     BIT( $bit, bytetemp);
       }
 BIT
@@ -539,7 +539,7 @@ sub opcode_DI (@) { print "      IFF1=IFF2=0;\n"; }
 
 sub opcode_DJNZ (@) {
     print << "DJNZ";
-      tstates+=4;
+      addTstates(4);
       B = (B-1) & 0xff;
       if(B) { JR(); }
       PC++;
@@ -575,7 +575,7 @@ EX
       {
     var bytetempl = readbyte( SP     ),
                      bytetemph = readbyte( SP + 1 );
-    tstates+=15;
+    addTstates(15);
     writebyte(SP+1,$high); writebyte(SP,$low);
     $low=bytetempl; $high=bytetemph;
       }
@@ -622,7 +622,7 @@ sub opcode_IN (@) {
     print << "IN";
       { 
     var intemp;
-    tstates+=4;
+    addTstates(4);
     intemp = readbyte( PC++ ) + ( A << 8 );
     PC &= 0xffff;
     contend_io( intemp, 3 );
@@ -631,7 +631,7 @@ sub opcode_IN (@) {
 IN
     } elsif( $register eq 'F' and $port eq '(C)' ) {
     print << "IN";
-      tstates += 1;
+      addTstates(1);
       {
     var bytetemp;
     IN(bytetemp,BCR);
@@ -639,7 +639,7 @@ IN
 IN
     } elsif( length $register == 1 and $port eq '(C)' ) {
     print << "IN";
-      tstates += 1;
+      addTstates(1);
       IN($register,BCR);
 IN
     }
@@ -674,7 +674,7 @@ sub opcode_JR (@) {
 
     if( not defined $offset ) { $offset = $condition; $condition = ''; }
 
-    print "      tstates+=3;\n";
+    print "      addTstates(3);\n";
 
     if( !$condition ) {
     print "      JR();\n";
@@ -697,37 +697,37 @@ sub opcode_LD (@) {
 
         if( $dest eq 'R' and $src eq 'A' ) {
         print << "LD";
-      tstates += 1;
+      addTstates(1);
       /* Keep the RZX instruction counter right */
       /* rzx_instructions_offset += ( R - A ); */
       R=R7=A;
 LD
             } elsif( $dest eq 'A' and $src eq 'R' ) {
         print << "LD";
-      tstates += 1;
+      addTstates(1);
       A=(R&0x7f) | (R7&0x80);
       F = ( F & FLAG_C ) | sz53_table[A] | ( IFF2 ? FLAG_V : 0 );
 LD
         } else {
-        print "      tstates += 1;\n" if $src eq 'I' or $dest eq 'I';
+        print "      addTstates(1);\n" if $src eq 'I' or $dest eq 'I';
         print "      $dest=$src;\n" if $dest ne $src;
         if( $dest eq 'A' and $src eq 'I' ) {
             print "      F = ( F & FLAG_C ) | sz53_table[A] | ( IFF2 ? FLAG_V : 0 );\n";
         }
         }
     } elsif( $src eq 'nn' ) {
-        print "      tstates+=3;\n      $dest=readbyte(PC++); PC &= 0xffff;\n";
+        print "      addTstates(3);\n      $dest=readbyte(PC++); PC &= 0xffff;\n";
     } elsif( $src =~ /^\(..\)$/ ) {
         my $register = substr $src, 1, 2;
         print << "LD";
-      tstates+=3;
+      addTstates(3);
       $dest=readbyte(${register}R);
 LD
         } elsif( $src eq '(nnnn)' ) {
         print << "LD";
       {
     var wordtemp;
-    tstates+=9;
+    addTstates(9);
     wordtemp = readbyte(PC++);
     PC &= 0xffff;
     wordtemp|= ( readbyte(PC++) << 8 );
@@ -737,7 +737,7 @@ LD
 LD
         } elsif( $src eq '(REGISTER+dd)' ) {
         print << "LD";
-      tstates += 11;        /* FIXME: how is this contended? */
+      addTstates(11);        /* FIXME: how is this contended? */
       $dest = readbyte( (REGISTER + sign_extend(readbyte( PC++ ))) & 0xffff );
       PC &= 0xffff;
 LD
@@ -756,7 +756,7 @@ LD
     if( $src eq 'nnnn' ) {
       if( $dest eq 'SP') {
         print << "LD";
-      tstates+=6;
+      addTstates(6);
       var splow = readbyte(PC++);
       PC &= 0xffff;
       var sphigh=readbyte(PC++);
@@ -765,7 +765,7 @@ LD
 LD
       } else {
         print << "LD";
-      tstates+=6;
+      addTstates(6);
       $low=readbyte(PC++);
       PC &= 0xffff;
       $high=readbyte(PC++);
@@ -773,9 +773,9 @@ LD
 LD
       }
         } elsif( $src eq 'HL') {
-        print "      tstates += 2;\n      SP=${src}R;\n";
+        print "      addTstates(2);\n      SP=${src}R;\n";
         } elsif( $src eq 'REGISTER' ) {
-        print "      tstates += 2;\n      SP=$src;\n";
+        print "      addTstates(2);\n      SP=$src;\n";
         } elsif( $src eq '(nnnn)' ) {
           if ( $dest eq 'SP') {
         print "      LD16_RRNNW($dest);\n";
@@ -790,12 +790,12 @@ LD
 
     if( length $src == 1 ) {
         print << "LD";
-      tstates+=3;
+      addTstates(3);
       writebyte(${register}R,$src);
 LD
     } elsif( $src eq 'nn' ) {
         print << "LD";
-      tstates+=6;
+      addTstates(6);
       writebyte(${register}R,readbyte(PC++));
       PC &= 0xffff;
 LD
@@ -805,11 +805,11 @@ LD
 
     if( $src eq 'A' ) {
         print << "LD";
-      tstates+=3;
+      addTstates(3);
       {
     var wordtemp = readbyte( PC++ );
     PC &= 0xffff;
-    tstates+=6;
+    addTstates(6);
     wordtemp|=readbyte(PC++) << 8;
     PC &= 0xffff;
     writebyte(wordtemp,A);
@@ -833,13 +833,13 @@ LD
 
     if( length $src == 1 ) {
     print << "LD";
-      tstates += 11;        /* FIXME: how is this contended? */
+      addTstates(11);        /* FIXME: how is this contended? */
       writebyte( (REGISTER + sign_extend(readbyte( PC++ ))) & 0xffff, $src );
       PC &= 0xffff;
 LD
         } elsif( $src eq 'nn' ) {
         print << "LD";
-      tstates += 11;        /* FIXME: how is this contended? */
+      addTstates(11);        /* FIXME: how is this contended? */
       {
     var wordtemp =
         (REGISTER + sign_extend(readbyte( PC++ ))) & 0xffff;
@@ -887,7 +887,7 @@ sub opcode_OUT (@) {
     print << "OUT";
       { 
     var outtemp;
-    tstates+=4;
+    addTstates(4);
     outtemp = readbyte( PC++ ) + ( A << 8 );
     PC &= 0xffff;
     OUT( outtemp , A );
@@ -895,7 +895,7 @@ sub opcode_OUT (@) {
 OUT
     } elsif( $port eq '(C)' and length $register == 1 ) {
     print << "OUT";
-      tstates += 1;
+      addTstates(1);
       OUT(BCR,$register);
 OUT
     }
@@ -912,7 +912,7 @@ sub opcode_PUSH (@) {
 
     my( $regpair ) = @_;
 
-    print "      tstates++;\n";
+    print "      addTstates(1);\n";
     push_pop( 'PUSH', $regpair );
 }
 
@@ -925,7 +925,7 @@ sub opcode_RET (@) {
     if( not defined $condition ) {
     print "      RET();\n";
     } else {
-    print "      tstates++;\n";
+    print "      addTstates(1);\n";
 
     if( defined $not{$condition} ) {
         print "      if( ! ( F & FLAG_$flag{$condition} ) ) { RET(); }\n";
@@ -970,7 +970,7 @@ sub opcode_RLD (@) {
     print << "RLD";
       {
     var bytetemp = readbyte( HLR );
-    tstates+=10;
+    addTstates(10);
     writebyte(HLR, ((bytetemp & 0x0f) << 4 ) | ( A & 0x0f ) );
     A = ( A & 0xf0 ) | ( bytetemp >> 4 );
     F = ( F & FLAG_C ) | sz53p_table[A];
@@ -1005,7 +1005,7 @@ sub opcode_RRD (@) {
     print << "RRD";
       {
     var bytetemp = readbyte( HLR );
-    tstates+=10;
+    addTstates(10);
     writebyte(HLR,  ( (A & 0x0f) << 4 ) | ( bytetemp >> 4 ) );
     A = ( A & 0xf0 ) | ( bytetemp & 0x0f );
     F = ( F & FLAG_C ) | sz53p_table[A];
@@ -1017,7 +1017,7 @@ sub opcode_RST (@) {
 
     my( $value ) = @_;
 
-    printf "      tstates++;\n      RST(0x%02x);\n", hex $value;
+    printf "      addTstates(1);\n      RST(0x%02x);\n", hex $value;
 }
 
 sub opcode_SBC (@) { arithmetic_logical( 'SBC', $_[0], $_[1] ); }
@@ -1071,7 +1071,7 @@ sub opcode_shift (@) {
       /* FIXME: contention here is just a guess */
       {
     var opcode3;
-    tstates+=7;
+    addTstates(7);
     tempaddr =
         REGISTER + sign_extend(readbyte_internal( PC++ ));
     PC &= 0xffff;
@@ -1084,7 +1084,7 @@ shift
     print << "shift";
       {
     var opcode2;
-    tstates+=4;
+    addTstates(4);
     opcode2 = readbyte_internal( PC++ );
     PC &= 0xffff;
     R = (R+1) & 0x7f;
@@ -1161,7 +1161,7 @@ while(<>) {
         my $hexmask = res_set_hexmask( $opcode, $bit );
 
         print << "CODE";
-      tstates += 8;
+      addTstates(8);
       $register=readbyte(tempaddr) $operator $hexmask;
       writebyte(tempaddr, $register);
       };
@@ -1169,7 +1169,7 @@ CODE
     } else {
 
         print << "CODE";
-      tstates += 8;
+      addTstates(8);
       $register=readbyte(tempaddr);
       $opcode($register);
       writebyte(tempaddr, $register);

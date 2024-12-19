@@ -1,6 +1,10 @@
+import { hexbyte, readbyte } from "../miracle";
+import { addressHtml } from "../debug";
+import { sign_extend } from "./z80_ops_full";
+
 #define STRINGIZE(AA) #AA
-function disassemble(address) {
-  opcode = readbyte(address);
+export function disassemble(address) {
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   switch (opcode) {
@@ -10,7 +14,7 @@ function disassemble(address) {
 }
 
 function disassemble_CB(address) {
-  opcode = readbyte(address);
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   switch (opcode) {
@@ -20,7 +24,7 @@ function disassemble_CB(address) {
 }
 
 function disassemble_ED(address) {
-  opcode = readbyte(address);
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   switch (opcode) {
@@ -36,7 +40,7 @@ var dis_REGISTER;
 #define REGISTERH dis_REGISTER + "H"
 
 function disassemble_DD(address) {
-  opcode = readbyte(address);
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   dis_REGISTER = "IX";
@@ -47,7 +51,7 @@ function disassemble_DD(address) {
 }
 
 function disassemble_FD(address) {
-  opcode = readbyte(address);
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   dis_REGISTER = "IY";
@@ -58,7 +62,7 @@ function disassemble_FD(address) {
 }
 
 function disassemble_DDFDCB(address) {
-  opcode = readbyte(address);
+  const opcode = readbyte(address);
   address++;
   var res = "??";
   switch (opcode) {

@@ -150,7 +150,7 @@
   var lookup = ( (  (value1) & 0x0800 ) >> 11 ) | \
                 ( (  (value2) & 0x0800 ) >> 10 ) | \
                 ( ( add16temp & 0x0800 ) >>  9 );  \
-  tstates += 7;\
+  addTstates(7);\
   (value1h) = (add16temp >> 8) & 0xff; (value1l) = add16temp & 0xff;\
   F = ( F & ( FLAG_V | FLAG_Z | FLAG_S ) ) |\
     ( add16temp & 0x10000 ? FLAG_C : 0 )|\
@@ -177,7 +177,7 @@
   var calltempl, calltemph; \
   calltempl=readbyte(PC++);\
   PC &= 0xffff;\
-  tstates++;\
+  addTstates(1);\
   calltemph=readbyte(PC++);\
   PC &= 0xffff;\
   PUSH16W(PC);\
@@ -231,7 +231,7 @@ tstates+=(time);\
 #define LD16_NNRR(regl,regh)\
 {\
   var ldtemp; \
-  tstates+=12;\
+  addTstates(12);\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
   ldtemp|=readbyte(PC++) << 8;\
@@ -244,7 +244,7 @@ tstates+=(time);\
 #define LD16_RRNN(regl,regh)\
 {\
   var ldtemp; \
-  tstates+=12;\
+  addTstates(12);\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
   ldtemp|=readbyte(PC++) << 8;\
@@ -257,7 +257,7 @@ tstates+=(time);\
 #define LD16_RRNNW(reg)\
 {\
   var ldtemp; \
-  tstates+=12;\
+  addTstates(12);\
   ldtemp=readbyte(PC++);\
   PC &= 0xffff;\
   ldtemp|=readbyte(PC++) << 8;\
@@ -279,7 +279,7 @@ tstates+=(time);\
 
 #define JR()\
 {\
-  tstates+=5;\
+  addTstates(5);\
   PC += sign_extend(readbyte( PC )); \
   PC &= 0xffff; \
 }
@@ -298,7 +298,7 @@ tstates+=(time);\
 
 #define POP16(regl,regh)\
 {\
-  tstates+=6;\
+  addTstates(6);\
   (regl)=readbyte(SP++);\
   SP &= 0xffff;\
   (regh)=readbyte(SP++);\
@@ -307,7 +307,7 @@ tstates+=(time);\
 
 #define POP16W(reg)\
 {\
-  tstates+=6;\
+  addTstates(6);\
   var lowbyte =readbyte(SP++);\
   SP &= 0xffff;\
   var highbyte=readbyte(SP++);\
@@ -317,7 +317,7 @@ tstates+=(time);\
 
 #define PUSH16(regl,regh)\
 {\
-  tstates+=6;\
+  addTstates(6);\
   SP--; SP &= 0xffff;\
   writebyte(SP,(regh));\
   SP--; SP &= 0xffff;\
@@ -325,7 +325,7 @@ tstates+=(time);\
 }
 #define PUSH16W(reg)\
 {\
-  tstates+=6;\
+  addTstates(6);\
   SP--; SP &= 0xffff;\
   writebyte(SP,(reg) >> 8);\
   SP--; SP &= 0xffff;\

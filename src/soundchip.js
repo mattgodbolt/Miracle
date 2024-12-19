@@ -1,4 +1,4 @@
-function SoundChip(sampleRate, cpuHz) {
+export function SoundChip(sampleRate, cpuHz) {
     "use strict";
     var soundchipFreq = 3546893.0 / 16.0; // PAL
     var sampleDecrement = soundchipFreq / sampleRate;

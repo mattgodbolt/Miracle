@@ -1,7 +1,16 @@
+import { clearBreakpoint, romBanks, hexbyte, hexword, readbyte, virtualAddress,
+    audio_enable, cycleCallback, start
+ } from "./miracle";
+import { z80 } from './z80/z80_full';
+import { z80_do_opcodes } from './z80/z80_ops_full';
+import { disassemble } from './z80/z80_dis';
+import { vdp_regs } from "./vdp";
+import { setEventNextEvent, setTstates } from "./z80/z80_ops_full";
+
 var debugSerial = 0;
 var annotations = null;
 
-function debug_init(romName) {
+export function debug_init(romName) {
     debugSerial = (romBanks[1][0x3ffc] << 8) | romBanks[1][0x3ffd];
 
     if (!localStorage[debugSerial]) {
@@ -36,7 +45,7 @@ function addressName(addr) {
 }
 
 
-function addressHtml(addr) {
+export function addressHtml(addr) {
     var name = addressName(addr);
     if (name) {
         return name + ' (0x' + hexword(addr) + ')';
@@ -54,11 +63,6 @@ function labelHtml(addr) {
     }
 }
 
-
-function hexbyte(value) {
-    return ((value >> 4) & 0xf).toString(16) +
-        (value & 0xf).toString(16);
-}
 
 function endLabelEdit(content) {
     var addr = $(this).attr('title') || content.previous;
@@ -82,11 +86,12 @@ function updateDisassembly(address) {
         $(this).toggleClass('current', address === z80.pc);
         $(this).find('.instr_bytes').text(hex);
         $(this).find('.disassembly').html(result[0]);
-        $(this).find('.addr')
-            .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
-            .keypress(function (e) {
-                if (e.which === 13) $(this).blur();
-            });
+        // TODO(#18) re-enable this once there's a solution
+        // $(this).find('.addr')
+        //     .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
+        //     .keypress(function (e) {
+        //         if (e.which === 13) $(this).blur();
+        //     });
         address = result[1];
     });
 }
@@ -128,7 +133,7 @@ function updateFlags(f) {
     }
 }
 
-function showDebug(pc) {
+export function showDebug(pc) {
     $('#debug').show(200);
     for (var i = 0; i < $('#disassembly').children().length / 2; i++) {
         pc = prevInstruction(pc);
@@ -162,12 +167,12 @@ function updateDebug(pcOrNone) {
     updateFlags(z80.f);
 }
 
-function stepUntil(f) {
+export function stepUntil(f) {
     audio_enable(true);
-    breakpointHit = false;
+    clearBreakpoint();
     for (var i = 0; i < 65536; i++) {
-        tstates = 0;
-        event_next_event = 1;
+        setTstates(0);
+        setEventNextEvent(1);
         z80_do_opcodes(cycleCallback);
         if (f()) break;
     }
@@ -175,7 +180,7 @@ function stepUntil(f) {
     audio_enable(false);
 }
 
-function step() {
+export function step() {
     var curpc = z80.pc;
     stepUntil(function () {
         return z80.pc !== curpc;
@@ -187,7 +192,7 @@ function isUnconditionalJump(addr) {
     return !!result[0].match(/^(JR 0x|JP|RET|RST)/);
 }
 
-function stepOver() {
+export function stepOver() {
     if (isUnconditionalJump(z80.pc)) {
         return step();
     }
@@ -202,7 +207,7 @@ function isReturn(addr) {
     return !!result[0].match(/^RET/);
 }
 
-function stepOut() {
+export function stepOut() {
     var sp = z80.sp;
     stepUntil(function () {
         if (z80.sp >= sp && isReturn(z80.pc)) {
@@ -214,7 +219,7 @@ function stepOut() {
     });
 }
 
-function debugKeyPress(key) {
+export function debugKeyPress(key) {
     if ($('input:visible').length) {
         return true;
     }

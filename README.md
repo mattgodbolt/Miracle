@@ -1,6 +1,8 @@
 Miracle - a Javascript Sega Master System emulator
 --------------------------------------------------
 
+TODO RE-DOCUMENT AND TEST
+
 Requires `make`, `perl` and `python` to build.  Place ROMs in the `roms` directory as
 `romname.sms` and then run `make` to build the emulation script files and the ROM data.
 

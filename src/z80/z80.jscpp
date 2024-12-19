@@ -18,6 +18,9 @@
     Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 */
 
+import { readbyte, readport, writebyte, writeport } from "../miracle";
+import { addTstates } from "./z80_ops_full";
+
 #include "z80_macros.jscpp"
 
 function byteTable(values) {
@@ -34,22 +37,22 @@ function byteTable(values) {
    result, 1 is the 3rd bit of the 1st argument and 2 is the
    third bit of the 2nd argument; the tables differ for add and subtract
    operations */
-const halfcarry_add_table = byteTable([ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ]);
-const halfcarry_sub_table = byteTable([ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ]);
+export const halfcarry_add_table = byteTable([ 0, FLAG_H, FLAG_H, FLAG_H, 0, 0, 0, FLAG_H ]);
+export const halfcarry_sub_table = byteTable([ 0, 0, FLAG_H, 0, FLAG_H, 0, FLAG_H, FLAG_H ]);
 
 /* Similarly, overflow can be determined by looking at the 7th bits; again
    the hash into this table is r12 */
-const overflow_add_table = byteTable([ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ]);
-const overflow_sub_table = byteTable([ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ]);
+export const overflow_add_table = byteTable([ 0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0 ]);
+export const overflow_sub_table = byteTable([ 0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0 ]);
 
 /* Some more tables; initialised in z80_init_tables() */
 
-var sz53_table = new Uint8Array(256); /* The S, Z, 5 and 3 bits of the index */
-var parity_table = new Uint8Array(256); /* The parity of the lookup value */
-var sz53p_table = new Uint8Array(256); /* OR the above two tables together */
+export var sz53_table = new Uint8Array(256); /* The S, Z, 5 and 3 bits of the index */
+export var parity_table = new Uint8Array(256); /* The parity of the lookup value */
+export var sz53p_table = new Uint8Array(256); /* OR the above two tables together */
 
 /* This is what everything acts on! */
-var z80 = {
+export var z80 = {
     a:0, f:0, b:0, c:0, d:0, e:0, h:0, l:0,
     a_:0, f_:0, b_:0, c_:0, d_:0, e_:0, h_:0, l_:0,
     ixh:0, ixl:0, iyh:0, iyl:0,
@@ -62,7 +65,7 @@ var z80 = {
 };
 
 /* Set up the z80 emulation */
-function z80_init() {
+export function z80_init() {
   z80_init_tables();
 }
 
@@ -84,7 +87,7 @@ function z80_init_tables() {
 }
 
 /* Reset the z80 */
-function z80_reset() {
+export function z80_reset() {
   A =F =B =C =D =E =H =L =0;
   A_ =F_ =B_ =C_ =D_ =E_=H_ =L_=0;
   IXH=IXL=IYH=IYL=0;
@@ -96,13 +99,13 @@ function z80_reset() {
   z80.irq_suppress = true;
 }
 
-function z80_set_irq(asserted) {
+export function z80_set_irq(asserted) {
     z80.irq_pending = asserted;
     if (z80.irq_pending && IFF1) z80_interrupt();
 }
 
 /* Process a z80 maskable interrupt */
-function z80_interrupt() {
+export function z80_interrupt() {
   /* Process if IFF1 set && (if a Timex machine, SCLD INTDISABLE is clear) */
   if( IFF1 ) {
     
@@ -118,14 +121,14 @@ function z80_interrupt() {
     R = (R+1) & 0x7f; /* rzx_instructions_offset--; */
 
     switch(IM) {
-      case 0: PC = 0x0038; tstates+=12; break;
-      case 1: PC = 0x0038; tstates+=13; break;
+      case 0: PC = 0x0038; addTstates(12); break;
+      case 1: PC = 0x0038; addTstates(13); break;
       case 2: 
     {
       var inttemp=(0x100*I)+0xff;
       var pcl = readbyte(inttemp++); inttemp &= 0xfff; var pch = readbyte(inttemp);
       PC = pcl | (pch << 8);
-      tstates+=19;
+      addTstates(19);
       break;
     }
       default:
@@ -135,10 +138,10 @@ function z80_interrupt() {
   }
 }
 
-function z80_instruction_hook() {}
+export function z80_instruction_hook() {}
 
 /* Process a z80 non-maskable interrupt */
-function z80_nmi() {
+export function z80_nmi() {
   /* FIXME: what happens if the z80 is HALTed? */
 
   IFF1 = 0;
@@ -151,5 +154,5 @@ function z80_nmi() {
   /* FIXME: how is R affected? */
 
   /* FIXME: how does contention apply here? */
-  tstates += 11; PC = 0x0066;
+  addTstates(11); PC = 0x0066;
 }
