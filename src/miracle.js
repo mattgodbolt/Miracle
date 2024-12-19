@@ -1,9 +1,22 @@
-import { vdp_init, vdp_reset, vdp_get_line, 
-    vdp_get_x, vdp_hblank, vdp_writeaddr, vdp_writebyte, vdp_readbyte, vdp_readstatus
- } from "./vdp";
+import {
+  vdp_init,
+  vdp_reset,
+  vdp_get_line,
+  vdp_get_x,
+  vdp_hblank,
+  vdp_writeaddr,
+  vdp_writebyte,
+  vdp_readbyte,
+  vdp_readstatus,
+} from "./vdp";
 import { SoundChip } from "./soundchip";
 import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80_full";
-import { tstates, setEventNextEvent, setTstates, z80_do_opcodes } from "./z80/z80_ops_full";
+import {
+  tstates,
+  setEventNextEvent,
+  setTstates,
+  z80_do_opcodes,
+} from "./z80/z80_ops_full";
 import { debug_init, showDebug, debugKeyPress } from "./debug";
 
 // Work-around for people without Chrome/Firebug.
@@ -284,8 +297,7 @@ export function loadRom(name, rom) {
 }
 
 export function hexbyte(value) {
-    return ((value >> 4) & 0xf).toString(16) +
-        (value & 0xf).toString(16);
+  return ((value >> 4) & 0xf).toString(16) + (value & 0xf).toString(16);
 }
 
 export function hexword(value) {
