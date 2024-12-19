@@ -6,9 +6,9 @@ import { step, stepOver, stepOut } from "./debug";
 
 function loadRomData(name) {
   "use strict";
-  var path = "roms/" + name;
+  const path = "roms/" + name;
   console.log("Loading ROM from " + path);
-  var request = new XMLHttpRequest();
+  const request = new XMLHttpRequest();
   request.open("GET", path, false);
   request.overrideMimeType("text/plain; charset=x-user-defined");
   request.send(null);
@@ -24,7 +24,7 @@ function resetLoadAndStart(filename, romdata) {
 }
 
 function loadUploadFile(file) {
-  var reader = new FileReader();
+  const reader = new FileReader();
   reader.onload = function () {
     resetLoadAndStart(file.name, reader.result);
   };
@@ -45,7 +45,7 @@ function addRomToList(rom) {
 function parseQuery() {
   const parsedQuery = {};
 
-  let queryString =
+  const queryString =
     document.location.search.substring(1) +
     "&" +
     window.location.hash.substring(1);
@@ -63,13 +63,13 @@ function parseQuery() {
 }
 
 function go() {
-  var i;
+  let i;
   hideRomChooser();
   hideAbout();
 
-  var uploadElem = $("#file_upload");
+  const uploadElem = $("#file_upload");
   uploadElem.change(function (e) {
-    var files = e.target.files;
+    const files = e.target.files;
     if (files && files.length) {
       loadUploadFile(files[0]);
     }
@@ -78,11 +78,11 @@ function go() {
   for (i = 0; i < RomList.length; ++i) {
     addRomToList(RomList[i]);
   }
-  var disass = $("#disassembly");
+  const disass = $("#disassembly");
   for (i = 0; i < 32; i++) {
     disass.find(".template").clone().removeClass("template").appendTo(disass);
   }
-  var vdp = $("#vdp_registers");
+  const vdp = $("#vdp_registers");
   for (i = 0; i < 11; i++) {
     vdp
       .find(".template")
@@ -127,7 +127,7 @@ function showRomChooser() {
 }
 
 function clearFileUploadElement() {
-  var uploadElem = $("#file_upload")[0];
+  const uploadElem = $("#file_upload")[0];
   uploadElem.value = "";
 }
 

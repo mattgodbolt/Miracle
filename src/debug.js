@@ -17,8 +17,8 @@ import { disassemble } from "./z80/z80_dis";
 import { vdp_regs } from "./vdp";
 import { setEventNextEvent, setTstates } from "./z80/z80_ops_full";
 
-var debugSerial = 0;
-var annotations = null;
+let debugSerial = 0;
+let annotations = null;
 
 export function debug_init(romName) {
   debugSerial = (romBanks[1][0x3ffc] << 8) | romBanks[1][0x3ffd];
@@ -50,7 +50,7 @@ export function debug_init(romName) {
 // }
 
 function addressName(addr) {
-  var virtual = virtualAddress(addr);
+  const virtual = virtualAddress(addr);
   if (annotations.labels[virtual]) {
     return (
       '<span class="addr label" title="' +
@@ -64,7 +64,7 @@ function addressName(addr) {
 }
 
 export function addressHtml(addr) {
-  var name = addressName(addr);
+  const name = addressName(addr);
   if (name) {
     return name + " (0x" + hexword(addr) + ")";
   } else {
@@ -73,7 +73,7 @@ export function addressHtml(addr) {
 }
 
 function labelHtml(addr) {
-  var name = addressName(addr);
+  const name = addressName(addr);
   if (name) {
     return name + ":";
   } else {
@@ -88,15 +88,15 @@ function labelHtml(addr) {
 //   setLabel(virtual, content.current);
 // }
 
-var disassPc = 0;
+let disassPc = 0;
 
 function updateDisassembly(address) {
-  var disass = $("#disassembly");
+  const disass = $("#disassembly");
   disassPc = address;
   disass.children().each(function () {
-    var result = disassemble(address);
-    var hex = "";
-    for (var i = address; i < result[1]; ++i) {
+    const result = disassemble(address);
+    let hex = "";
+    for (let i = address; i < result[1]; ++i) {
       if (hex !== "") hex += " ";
       hex += hexbyte(readbyte(i));
     }
@@ -116,13 +116,13 @@ function updateDisassembly(address) {
 
 function prevInstruction(address) {
   for (
-    var startingPoint = address - 20;
+    let startingPoint = address - 20;
     startingPoint !== address;
     startingPoint++
   ) {
-    var addr = startingPoint & 0xffff;
+    let addr = startingPoint & 0xffff;
     while (addr < address) {
-      var result = disassemble(addr);
+      const result = disassemble(addr);
       if (result[1] === address) {
         return addr;
       }
@@ -141,10 +141,10 @@ function updateElement(elem, newVal) {
 }
 
 function updateFlags(f) {
-  var string = "cnp_h_zs";
-  for (var i = 0; i < 8; ++i) {
-    var r = string[i];
-    var elem = $("#z80_flag_" + r);
+  const string = "cnp_h_zs";
+  for (let i = 0; i < 8; ++i) {
+    let r = string[i];
+    const elem = $("#z80_flag_" + r);
     if (f & 1) {
       r = r.toUpperCase();
     }
@@ -157,7 +157,7 @@ function updateFlags(f) {
 
 export function showDebug(pc) {
   $("#debug").show(200);
-  for (var i = 0; i < $("#disassembly").children().length / 2; i++) {
+  for (let i = 0; i < $("#disassembly").children().length / 2; i++) {
     pc = prevInstruction(pc);
   }
   updateDebug(pc);
@@ -168,8 +168,8 @@ function updateDebug(pcOrNone) {
     pcOrNone = disassPc;
   }
   updateDisassembly(pcOrNone);
-  for (var reg in z80) {
-    var elem = $("#z80_" + reg);
+  for (const reg in z80) {
+    const elem = $("#z80_" + reg);
     if (elem) {
       if (
         reg.length > 1 &&
@@ -182,7 +182,7 @@ function updateDebug(pcOrNone) {
       }
     }
   }
-  var i = 0;
+  let i = 0;
   $("#vdp_registers > div:visible .value").each(function () {
     updateElement($(this), hexbyte(vdp_regs[i++]));
   });
@@ -196,7 +196,7 @@ function updateDebug(pcOrNone) {
 export function stepUntil(f) {
   audio_enable(true);
   clearBreakpoint();
-  for (var i = 0; i < 65536; i++) {
+  for (let i = 0; i < 65536; i++) {
     setTstates(0);
     setEventNextEvent(1);
     z80_do_opcodes(cycleCallback);
@@ -207,14 +207,14 @@ export function stepUntil(f) {
 }
 
 export function step() {
-  var curpc = z80.pc;
+  const curpc = z80.pc;
   stepUntil(function () {
     return z80.pc !== curpc;
   });
 }
 
 function isUnconditionalJump(addr) {
-  var result = disassemble(addr);
+  const result = disassemble(addr);
   return !!result[0].match(/^(JR 0x|JP|RET|RST)/);
 }
 
@@ -222,22 +222,22 @@ export function stepOver() {
   if (isUnconditionalJump(z80.pc)) {
     return step();
   }
-  var nextPc = nextInstruction(z80.pc);
+  const nextPc = nextInstruction(z80.pc);
   stepUntil(function () {
     return z80.pc === nextPc;
   });
 }
 
 function isReturn(addr) {
-  var result = disassemble(addr);
+  const result = disassemble(addr);
   return !!result[0].match(/^RET/);
 }
 
 export function stepOut() {
-  var sp = z80.sp;
+  const sp = z80.sp;
   stepUntil(function () {
     if (z80.sp >= sp && isReturn(z80.pc)) {
-      var nextInstr = nextInstruction(z80.pc);
+      const nextInstr = nextInstruction(z80.pc);
       step();
       return z80.pc !== nextInstr;
     }
@@ -249,7 +249,7 @@ export function debugKeyPress(key) {
   if ($("input:visible").length) {
     return true;
   }
-  var keyStr = String.fromCharCode(key);
+  const keyStr = String.fromCharCode(key);
   switch (keyStr) {
     case "k":
       updateDisassembly(prevInstruction(disassPc));

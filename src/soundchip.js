@@ -1,20 +1,20 @@
 export function SoundChip(sampleRate, cpuHz) {
   "use strict";
-  var soundchipFreq = 3546893.0 / 16.0; // PAL
-  var sampleDecrement = soundchipFreq / sampleRate;
-  var samplesPerCycle = sampleRate / cpuHz;
+  const soundchipFreq = 3546893.0 / 16.0; // PAL
+  const sampleDecrement = soundchipFreq / sampleRate;
+  const samplesPerCycle = sampleRate / cpuHz;
 
-  var register = [0, 0, 0, 0];
+  const register = [0, 0, 0, 0];
   this.registers = register; // for debug
-  var counter = [0, 0, 0, 0];
-  var outputBit = [false, false, false, false];
-  var volume = [0, 0, 0, 0];
+  const counter = [0, 0, 0, 0];
+  const outputBit = [false, false, false, false];
+  const volume = [0, 0, 0, 0];
   this.volume = volume; // for debug
-  var generators = [null, null, null, null];
+  const generators = [null, null, null, null];
 
-  var volumeTable = [];
-  var f = 1.0;
-  var i;
+  const volumeTable = [];
+  let f = 1.0;
+  let i;
   for (i = 0; i < 16; ++i) {
     volumeTable[i] = f / generators.length; // Bakes in the per channel volume
     f *= Math.pow(10, -0.1);
@@ -22,8 +22,8 @@ export function SoundChip(sampleRate, cpuHz) {
   volumeTable[15] = 0;
 
   function toneChannel(channel, out, offset, length) {
-    var i;
-    var reg = register[channel],
+    let i;
+    const reg = register[channel],
       vol = volume[channel];
     // For jsbeeb 0 is treated as 1024. However, I found this
     // made things like Altered Beast's background music have
@@ -44,10 +44,10 @@ export function SoundChip(sampleRate, cpuHz) {
     }
   }
 
-  var lfsr = 0;
+  let lfsr = 0;
 
   function shiftLfsrWhiteNoise() {
-    var bit = (lfsr & 1) ^ ((lfsr & (1 << 3)) >> 3);
+    const bit = (lfsr & 1) ^ ((lfsr & (1 << 3)) >> 3);
     lfsr = (lfsr >> 1) | (bit << 15);
   }
 
@@ -56,7 +56,7 @@ export function SoundChip(sampleRate, cpuHz) {
     if (lfsr === 0) lfsr = 1 << 15;
   }
 
-  var shiftLfsr = shiftLfsrWhiteNoise;
+  let shiftLfsr = shiftLfsrWhiteNoise;
 
   function noisePoked() {
     shiftLfsr = register[3] & 4 ? shiftLfsrWhiteNoise : shiftLfsrPeriodicNoise;
@@ -78,9 +78,9 @@ export function SoundChip(sampleRate, cpuHz) {
   }
 
   function noiseChannel(channel, out, offset, length) {
-    var add = addFor(channel),
+    const add = addFor(channel),
       vol = volume[channel];
-    for (var i = 0; i < length; ++i) {
+    for (let i = 0; i < length; ++i) {
       counter[channel] -= sampleDecrement;
       if (counter[channel] < 0) {
         counter[channel] += add;
@@ -91,12 +91,12 @@ export function SoundChip(sampleRate, cpuHz) {
     }
   }
 
-  var enabled = true;
+  let enabled = true;
 
   function generate(out, offset, length) {
     offset = offset | 0;
     length = length | 0;
-    var i;
+    let i;
     for (i = 0; i < length; ++i) {
       out[i + offset] = 0.0;
     }
@@ -106,7 +106,7 @@ export function SoundChip(sampleRate, cpuHz) {
     }
   }
 
-  var cyclesPending = 0;
+  let cyclesPending = 0;
 
   function catchUp() {
     if (cyclesPending) {
@@ -119,10 +119,10 @@ export function SoundChip(sampleRate, cpuHz) {
     cyclesPending += cycles;
   };
 
-  var residual = 0;
-  var position = 0;
-  var maxBufferSize = 4096;
-  var buffer;
+  let residual = 0;
+  let position = 0;
+  const maxBufferSize = 4096;
+  let buffer;
   if (typeof Float64Array !== "undefined") {
     buffer = new Float64Array(maxBufferSize);
   } else {
@@ -130,13 +130,13 @@ export function SoundChip(sampleRate, cpuHz) {
   }
   function render(out, offset, length) {
     catchUp();
-    var fromBuffer = position > length ? length : position;
-    for (var i = 0; i < fromBuffer; ++i) {
+    const fromBuffer = position > length ? length : position;
+    for (let i = 0; i < fromBuffer; ++i) {
       out[offset + i] = buffer[i];
     }
     offset += fromBuffer;
     length -= fromBuffer;
-    for (i = fromBuffer; i < position; ++i) {
+    for (let i = fromBuffer; i < position; ++i) {
       buffer[i - fromBuffer] = buffer[i];
     }
     position -= fromBuffer;
@@ -146,8 +146,8 @@ export function SoundChip(sampleRate, cpuHz) {
   }
 
   function advance(time) {
-    var num = time * samplesPerCycle + residual;
-    var rounded = num | 0;
+    const num = time * samplesPerCycle + residual;
+    let rounded = num | 0;
     residual = num - rounded;
     if (position + rounded >= maxBufferSize) {
       rounded = maxBufferSize - position;
@@ -157,15 +157,15 @@ export function SoundChip(sampleRate, cpuHz) {
     position += rounded;
   }
 
-  var latchedChannel = 0;
+  let latchedChannel = 0;
 
   function poke(value) {
     catchUp();
-    var latchData = !!(value & 0x80);
+    const latchData = !!(value & 0x80);
     if (latchData) latchedChannel = (value >> 5) & 3;
     if ((value & 0x90) === 0x90) {
       // Volume setting
-      var newVolume = value & 0x0f;
+      const newVolume = value & 0x0f;
       volume[latchedChannel] = volumeTable[newVolume];
     } else {
       // Data of some sort.
@@ -193,7 +193,7 @@ export function SoundChip(sampleRate, cpuHz) {
   this.render = render;
   this.poke = poke;
   this.reset = function () {
-    for (var i = 0; i < 3; ++i) {
+    for (let i = 0; i < 3; ++i) {
       counter[i] = volume[i] = register[i] = 0;
     }
     noisePoked();

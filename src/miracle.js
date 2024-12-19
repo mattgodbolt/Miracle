@@ -20,24 +20,24 @@ import {
 } from "./z80/z80_ops_full";
 import { debug_init, showDebug, debugKeyPress } from "./debug";
 
-var ram = [];
-var cartridgeRam = [];
+let ram = [];
+let cartridgeRam = [];
 export const romBanks = [];
 export let pages;
-var ramSelectRegister = 0;
-var romPageMask = 0;
-var breakpointHit = false;
-var running = false;
+let ramSelectRegister = 0;
+let romPageMask = 0;
+let breakpointHit = false;
+let running = false;
 
 export let canvas;
-var ctx;
-var imageData;
-var fb8;
+let ctx;
+let imageData;
+let fb8;
 export let fb32;
 
-var joystick = 0xffff;
+let joystick = 0xffff;
 
-var soundChip;
+let soundChip;
 
 const framesPerSecond = 50;
 const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
@@ -57,8 +57,8 @@ function line() {
   setEventNextEvent(tstatesPerHblank);
   setTstates(tstates - tstatesPerHblank);
   z80_do_opcodes(cycleCallback);
-  var vdp_status = vdp_hblank();
-  var irq = !!(vdp_status & 3);
+  const vdp_status = vdp_hblank();
+  const irq = !!(vdp_status & 3);
   z80_set_irq(irq);
   if (breakpointHit) {
     running = false;
@@ -83,8 +83,8 @@ export function start() {
 }
 
 const targetTimeout = 1000 / framesPerSecond;
-var adjustedTimeout = targetTimeout;
-var lastFrame = null;
+let adjustedTimeout = targetTimeout;
+let lastFrame = null;
 const linesPerYield = 20;
 
 function run() {
@@ -92,23 +92,23 @@ function run() {
     showDebug(z80.pc);
     return;
   }
-  var now = Date.now();
+  const now = Date.now();
   if (lastFrame) {
     // Try and tweak the timeout to achieve target frame rate.
-    var timeSinceLast = now - lastFrame;
+    const timeSinceLast = now - lastFrame;
     if (timeSinceLast < 2 * targetTimeout) {
       // Ignore huge delays (e.g. trips in and out of the debugger)
-      var diff = timeSinceLast - targetTimeout;
+      const diff = timeSinceLast - targetTimeout;
       adjustedTimeout -= 0.1 * diff;
     }
   }
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
 
-  var runner = function () {
+  const runner = function () {
     if (!running) return;
     try {
-      for (var i = 0; i < linesPerYield; ++i) {
+      for (let i = 0; i < linesPerYield; ++i) {
         if (line()) return;
       }
     } catch (e) {
@@ -127,12 +127,12 @@ export function stop() {
 }
 
 function pumpAudio(event) {
-  var outBuffer = event.outputBuffer;
-  var chan = outBuffer.getChannelData(0);
+  const outBuffer = event.outputBuffer;
+  const chan = outBuffer.getChannelData(0);
   soundChip.render(chan, 0, chan.length);
 }
 
-var audioContext;
+let audioContext;
 
 function audio_init() {
   if (typeof AudioContext !== "undefined") {
@@ -144,7 +144,7 @@ function audio_init() {
     soundChip = new SoundChip(10000, cpuHz);
     return;
   }
-  var jsAudioNode = audioContext.createScriptProcessor(1024, 0, 1);
+  const jsAudioNode = audioContext.createScriptProcessor(1024, 0, 1);
   jsAudioNode.onaudioprocess = pumpAudio;
   jsAudioNode.connect(audioContext.destination, 0, 0);
   soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
@@ -183,13 +183,13 @@ export function miracle_init() {
 }
 
 export function miracle_reset() {
-  for (var i = 0x0000; i < 0x2000; i++) {
+  for (let i = 0x0000; i < 0x2000; i++) {
     ram[i] = 0;
   }
-  for (i = 0x0000; i < 0x8000; i++) {
+  for (let i = 0x0000; i < 0x8000; i++) {
     cartridgeRam[i] = 0;
   }
-  for (i = 0; i < 3; i++) {
+  for (let i = 0; i < 3; i++) {
     pages[i] = i;
   }
   ramSelectRegister = 0;
@@ -199,7 +199,7 @@ export function miracle_reset() {
   audio_reset();
 }
 
-var keys = {
+const keys = {
   87: 1, // W = JP1 up
   83: 2, // S = JP1 down
   65: 4, // A = JP1 left
@@ -224,7 +224,7 @@ function keyCode(evt) {
 
 function keyDown(evt) {
   if (!running) return;
-  var key = keys[keyCode(evt)];
+  const key = keys[keyCode(evt)];
   if (key) {
     joystick &= ~key;
     if (!evt.metaKey) {
@@ -245,7 +245,7 @@ function keyDown(evt) {
 
 function keyUp(evt) {
   if (!running) return;
-  var key = keys[keyCode(evt)];
+  const key = keys[keyCode(evt)];
   if (key) {
     joystick |= key;
     if (!evt.metaKey) {
@@ -268,12 +268,12 @@ export function paintScreen() {
 }
 
 export function loadRom(name, rom) {
-  var numRomBanks = rom.length / 0x4000;
-  var i;
+  const numRomBanks = rom.length / 0x4000;
+  let i;
   console.log("Loading rom of " + numRomBanks + " banks");
   for (i = 0; i < numRomBanks; i++) {
     romBanks[i] = new Uint8Array(0x4000);
-    for (var j = 0; j < 0x4000; j++) {
+    for (let j = 0; j < 0x4000; j++) {
       romBanks[i][j] = rom.charCodeAt(i * 0x4000 + j);
     }
   }
@@ -341,7 +341,7 @@ export function virtualAddress(address) {
 
 export function readbyte(address) {
   address = address | 0;
-  var page = (address >>> 14) & 3;
+  const page = (address >>> 14) & 3;
   address &= 0x3fff;
   switch (page) {
     case 0:
@@ -434,14 +434,15 @@ export function writeport(addr, val) {
   val = val | 0;
   addr &= 0xff;
   switch (addr) {
-    case 0x3f:
-      var natbit = (val >> 5) & 1;
+    case 0x3f: {
+      let natbit = (val >> 5) & 1;
       if ((val & 1) === 0) natbit = 1;
       joystick = (joystick & ~(1 << 14)) | (natbit << 14);
       natbit = (val >> 7) & 1;
       if ((val & 4) === 0) natbit = 1;
       joystick = (joystick & ~(1 << 15)) | (natbit << 15);
       break;
+    }
     case 0x7e:
     case 0x7f:
       soundChip.poke(val);
@@ -470,7 +471,7 @@ export function writeport(addr, val) {
   }
 }
 
-function breakpoint() {
+export function breakpoint() {
   setEventNextEvent(0);
   breakpointHit = true;
   audio_enable(false);

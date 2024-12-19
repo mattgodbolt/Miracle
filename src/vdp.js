@@ -1,24 +1,24 @@
 import { canvas, fb32, hexbyte, paintScreen, hexword } from "./miracle";
-import { breakpoint } from "./debug";
+import { breakpoint } from "./miracle";
 import { z80_set_irq } from "./z80/z80_full";
 
-var vram = [];
-var vramUntwiddled = [];
-export var vdp_regs = [];
-var palette = [];
-var paletteR = [];
-var paletteG = [];
-var paletteB = [];
-var paletteRGB = [];
+let vram = [];
+let vramUntwiddled = [];
+export let vdp_regs = [];
+let palette = [];
+let paletteR = [];
+let paletteG = [];
+let paletteB = [];
+let paletteRGB = [];
 
-var vdp_addr_state = 0;
-var vdp_mode_select = 0;
-var vdp_addr_latch = 0;
-var vdp_addr = 0;
-var vdp_current_line = 0;
-var vdp_status = 0;
-var vdp_pending_hblank = false;
-var vdp_hblank_counter = 0;
+let vdp_addr_state = 0;
+let vdp_mode_select = 0;
+let vdp_addr_latch = 0;
+let vdp_addr = 0;
+let vdp_current_line = 0;
+let vdp_status = 0;
+let vdp_pending_hblank = false;
+let vdp_hblank_counter = 0;
 
 export function vdp_writeaddr(val) {
   if (vdp_addr_state === 0) {
@@ -32,8 +32,8 @@ export function vdp_writeaddr(val) {
         vdp_mode_select = 0;
         vdp_addr = vdp_addr_latch | ((val & 0x3f) << 8);
         break;
-      case 2:
-        var regnum = val & 0xf;
+      case 2: {
+        const regnum = val & 0xf;
         vdp_regs[regnum] = vdp_addr_latch;
         switch (regnum) {
           case 7:
@@ -41,6 +41,7 @@ export function vdp_writeaddr(val) {
             break;
         }
         break;
+      }
       case 3:
         vdp_mode_select = 1;
         vdp_addr = vdp_addr_latch & 0x1f;
@@ -51,7 +52,7 @@ export function vdp_writeaddr(val) {
 
 export function vdp_writepalette(val) {
   function expandBits(val) {
-    var v = val & 3;
+    let v = val & 3;
     v |= v << 2;
     v |= v << 4;
     return v;
@@ -72,15 +73,15 @@ export function vdp_writepalette(val) {
 
 export function vdp_writeram(val) {
   vram[vdp_addr] = val;
-  var planarBase = vdp_addr & 0x3ffc;
-  var twiddledBase = planarBase * 2;
-  var val0 = vram[planarBase];
-  var val1 = vram[planarBase + 1];
-  var val2 = vram[planarBase + 2];
-  var val3 = vram[planarBase + 3];
-  for (var i = 0; i < 8; ++i) {
-    var effectiveBit = 7 - i;
-    var index =
+  const planarBase = vdp_addr & 0x3ffc;
+  const twiddledBase = planarBase * 2;
+  const val0 = vram[planarBase];
+  const val1 = vram[planarBase + 1];
+  const val2 = vram[planarBase + 2];
+  const val3 = vram[planarBase + 3];
+  for (let i = 0; i < 8; ++i) {
+    const effectiveBit = 7 - i;
+    const index =
       ((val0 >>> effectiveBit) & 1) |
       (((val1 >>> effectiveBit) & 1) << 1) |
       (((val2 >>> effectiveBit) & 1) << 2) |
@@ -120,10 +121,10 @@ export function vdp_readbyte() {
   }
 }
 
-var prev_border = null;
-var borderColourCss = null;
+let prev_border = null;
+let borderColourCss = null;
 function update_border() {
-  var borderIndex = 16 + (vdp_regs[7] & 0xf);
+  const borderIndex = 16 + (vdp_regs[7] & 0xf);
   if (paletteRGB[borderIndex] === prev_border) return;
   prev_border = paletteRGB[borderIndex];
   // TODO: consider doing away with this code and draw the border manually
@@ -149,15 +150,15 @@ export function vdp_readstatus() {
 }
 
 function findSprites(line) {
-  var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
-  var active = [];
-  var spriteHeight = 8;
-  var i;
+  const spriteInfo = (vdp_regs[5] & 0x7e) << 7;
+  const active = [];
+  let spriteHeight = 8;
+  let i;
   if (vdp_regs[1] & 2) {
     spriteHeight = 16;
   }
   for (i = 0; i < 64; i++) {
-    var y = vram[spriteInfo + i];
+    let y = vram[spriteInfo + i];
     if (y === 208) {
       break;
     }
@@ -180,27 +181,29 @@ function findSprites(line) {
 
 // eslint-disable-next-line no-unused-vars
 function dumpSprites() {
-  var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
+  const spriteInfo = (vdp_regs[5] & 0x7e) << 7;
   for (let i = 0; i < 64; i++) {
-    var y = vram[spriteInfo + i];
-    var x = vram[spriteInfo + 128 + i * 2];
-    var t = vram[spriteInfo + 128 + i * 2 + 1];
+    const y = vram[spriteInfo + i];
+    const x = vram[spriteInfo + 128 + i * 2];
+    const t = vram[spriteInfo + 128 + i * 2 + 1];
     console.log(i + " x: " + x + " y: " + y + " t: " + t);
   }
 }
 
 // eslint-disable-next-line no-unused-vars
 function dumpBackground() {
-  for (var y = 0; y < 224; y += 8) {
-    var effectiveLine = y + vdp_regs[9];
+  for (let y = 0; y < 224; y += 8) {
+    let effectiveLine = y + vdp_regs[9];
     if (effectiveLine >= 224) {
       effectiveLine -= 224;
     }
-    var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
-    var dumpage = "";
-    for (var i = 0; i < 32; i++) {
-      var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
-      var tileNum = tileData & 511;
+    const nameAddr =
+      ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
+    let dumpage = "";
+    for (let i = 0; i < 32; i++) {
+      const tileData =
+        vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
+      const tileNum = tileData & 511;
       dumpage += hexword(tileNum);
     }
     console.log(dumpage);
@@ -209,25 +212,26 @@ function dumpBackground() {
 
 // eslint-disable-next-line no-unused-vars
 function showAllTiles() {
-  var tile = 0;
-  for (var y = 0; y < 224; y += 8) {
-    var effectiveLine = y + vdp_regs[9];
+  let tile = 0;
+  for (let y = 0; y < 224; y += 8) {
+    let effectiveLine = y + vdp_regs[9];
     if (effectiveLine >= 224) {
       effectiveLine -= 224;
     }
-    var nameAddr = ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
-    for (var i = 0; i < 32; i++) {
+    const nameAddr =
+      ((vdp_regs[2] << 10) & 0x3800) + (effectiveLine >>> 3) * 64;
+    for (let i = 0; i < 32; i++) {
       vram[nameAddr + i * 2] = tile & 0xff;
       vram[nameAddr + i * 2 + 1] = (tile >>> 8) & 1;
       tile++;
     }
   }
-  var temp = findSprites;
+  const temp = findSprites;
   // eslint-disable-next-line no-func-assign
   findSprites = function () {
     return [];
   };
-  for (y = 0; y < 192; ++y) rasterize_line(y);
+  for (let y = 0; y < 192; ++y) rasterize_line(y);
   paintScreen();
   // eslint-disable-next-line no-func-assign
   findSprites = temp;
@@ -236,10 +240,10 @@ function showAllTiles() {
 
 // eslint-disable-next-line no-unused-vars
 function dumpTile(tileNum) {
-  var tileDef = tileNum * 32;
-  for (var y = 0; y < 8; ++y) {
-    var dumpage = "";
-    for (var x = 0; x < 4; ++x) {
+  const tileDef = tileNum * 32;
+  for (let y = 0; y < 8; ++y) {
+    let dumpage = "";
+    for (let x = 0; x < 4; ++x) {
       dumpage += hexbyte(vram[tileDef + y * 4 + x]);
     }
     console.log(dumpage);
@@ -257,7 +261,7 @@ function rasterize_background(
   pixelOffset = pixelOffset | 0;
   tileData = tileData | 0;
   tileDef = (tileDef | 0) * 2;
-  var i, tileDefInc;
+  let i, tileDefInc;
   if (tileData & (1 << 9)) {
     tileDefInc = -1;
     tileDef += 7;
@@ -265,7 +269,7 @@ function rasterize_background(
     tileDefInc = 1;
   }
   const paletteOffset = tileData & (1 << 11) ? 16 : 0;
-  var index;
+  let index;
   if (transparent && paletteOffset === 0) {
     for (i = 0; i < 8; i++) {
       index = vramUntwiddled[tileDef];
@@ -318,7 +322,7 @@ function rasterize_background(
 function clear_background(lineAddr, pixelOffset) {
   lineAddr = lineAddr | 0;
   pixelOffset = pixelOffset | 0;
-  var i;
+  let i;
   const rgb = paletteRGB[0];
   for (i = 0; i < 8; ++i) {
     fb32[lineAddr + pixelOffset] = rgb;
@@ -331,11 +335,11 @@ function rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod) {
   pixelOffset = pixelOffset | 0;
   nameAddr = nameAddr | 0;
   const yOffset = (yMod | 0) * 4;
-  for (var i = 0; i < 32; i++) {
+  for (let i = 0; i < 32; i++) {
     // TODO: static left-hand rows.
-    var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
-    var tileNum = tileData & 511;
-    var tileDef = 32 * tileNum;
+    const tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
+    const tileNum = tileData & 511;
+    let tileDef = 32 * tileNum;
     if (tileData & (1 << 10)) {
       tileDef += 28 - yOffset;
     } else {
@@ -355,12 +359,12 @@ function rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod) {
   pixelOffset = pixelOffset | 0;
   nameAddr = nameAddr | 0;
   const yOffset = (yMod | 0) * 4;
-  for (var i = 0; i < 32; i++) {
+  for (let i = 0; i < 32; i++) {
     // TODO: static left-hand rows.
-    var tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
+    const tileData = vram[nameAddr + i * 2] | (vram[nameAddr + i * 2 + 1] << 8);
     if ((tileData & (1 << 12)) === 0) continue;
-    var tileNum = tileData & 511;
-    var tileDef = 32 * tileNum;
+    const tileNum = tileData & 511;
+    let tileDef = 32 * tileNum;
     if (tileData & (1 << 10)) {
       tileDef += 28 - yOffset;
     } else {
@@ -382,28 +386,28 @@ function rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
   const spriteBase = vdp_regs[6] & 4 ? 0x2000 : 0;
   // TODO: sprite X-8 shift
   // TODO: sprite double size
-  for (var i = 0; i < 256; ++i) {
-    var xPos = i; //(i + vdp_regs[8]) & 0xff;
-    var spriteFoundThisX = false;
-    var writtenTo = false;
-    var minDistToNext = 256;
-    for (var k = 0; k < sprites.length; k++) {
-      var sprite = sprites[k];
-      var offset = xPos - sprite[0];
+  for (let i = 0; i < 256; ++i) {
+    const xPos = i; //(i + vdp_regs[8]) & 0xff;
+    let spriteFoundThisX = false;
+    let writtenTo = false;
+    let minDistToNext = 256;
+    for (let k = 0; k < sprites.length; k++) {
+      const sprite = sprites[k];
+      const offset = xPos - sprite[0];
       // Sprite to the right of the current X?
       if (offset < 0) {
         // Find out how far it would be to skip to this sprite
-        var distToSprite = -offset;
+        const distToSprite = -offset;
         // Keep the minimum distance to the next sprite to the right.
         if (distToSprite < minDistToNext) minDistToNext = distToSprite;
         continue;
       }
       if (offset >= 8) continue;
       spriteFoundThisX = true;
-      var spriteLine = line - sprite[2];
-      var spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
-      var untwiddledAddr = spriteAddr * 2 + offset;
-      var index = vramUntwiddled[untwiddledAddr];
+      const spriteLine = line - sprite[2];
+      const spriteAddr = spriteBase + sprite[1] * 32 + spriteLine * 4;
+      const untwiddledAddr = spriteAddr * 2 + offset;
+      const index = vramUntwiddled[untwiddledAddr];
       if (index === 0) {
         continue;
       }
@@ -429,7 +433,7 @@ function border_clear(lineAddr, count) {
   count = count | 0;
   const borderIndex = 16 + (vdp_regs[7] & 0xf);
   const borderRGB = paletteRGB[borderIndex];
-  for (var i = 0; i < count; i++) fb32[lineAddr + i] = borderRGB;
+  for (let i = 0; i < count; i++) fb32[lineAddr + i] = borderRGB;
 }
 
 function rasterize_line(line) {
@@ -440,7 +444,7 @@ function rasterize_line(line) {
     return;
   }
 
-  var effectiveLine = line + vdp_regs[9];
+  let effectiveLine = line + vdp_regs[9];
   if (effectiveLine >= 224) {
     effectiveLine -= 224;
   }
@@ -461,7 +465,7 @@ function rasterize_line(line) {
 
 function vdp_frame_hook() {}
 
-var currentFrame = 1;
+let currentFrame = 1;
 export function vdp_hblank() {
   const firstDisplayLine = 3 + 13 + 54;
   const pastEndDisplayLine = firstDisplayLine + 192;
@@ -478,7 +482,7 @@ export function vdp_hblank() {
     }
   }
   vdp_current_line++;
-  var needIrq = 0;
+  let needIrq = 0;
   if (vdp_current_line === endOfFrame) {
     vdp_current_line = 0;
     vdp_status |= 128;
@@ -513,16 +517,16 @@ export function vdp_init() {
 }
 
 export function vdp_reset() {
-  for (var i = 0x0000; i < 0x4000; i++) {
+  for (let i = 0x0000; i < 0x4000; i++) {
     vram[i] = 0;
   }
-  for (i = 0; i < 32; i++) {
+  for (let i = 0; i < 32; i++) {
     paletteR[i] = paletteG[i] = paletteB[i] = paletteRGB[i] = palette[i] = 0;
   }
-  for (i = 0; i < 16; i++) {
+  for (let i = 0; i < 16; i++) {
     vdp_regs[i] = 0;
   }
-  for (i = 2; i <= 5; i++) {
+  for (let i = 2; i <= 5; i++) {
     vdp_regs[i] = 0xff;
   }
   vdp_regs[6] = 0xfb;
