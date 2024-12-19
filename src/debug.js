@@ -1,3 +1,4 @@
+import $ from "jquery";
 import {
   clearBreakpoint,
   romBanks,
@@ -8,6 +9,7 @@ import {
   audio_enable,
   cycleCallback,
   start,
+  pages,
 } from "./miracle";
 import { z80 } from "./z80/z80_full";
 import { z80_do_opcodes } from "./z80/z80_ops_full";
@@ -33,19 +35,19 @@ export function debug_init(romName) {
   );
 }
 
-function persistAnnotations() {
-  localStorage[debugSerial] = JSON.stringify(annotations);
-}
+// function persistAnnotations() {
+//   localStorage[debugSerial] = JSON.stringify(annotations);
+// }
 
-function setLabel(virtual, name) {
-  if (!name || name.match(/^[0-9]/)) {
-    delete annotations.labels[virtual];
-  } else {
-    annotations.labels[virtual] = name;
-  }
-  persistAnnotations();
-  updateDebug();
-}
+// function setLabel(virtual, name) {
+//   if (!name || name.match(/^[0-9]/)) {
+//     delete annotations.labels[virtual];
+//   } else {
+//     annotations.labels[virtual] = name;
+//   }
+//   persistAnnotations();
+//   updateDebug();
+// }
 
 function addressName(addr) {
   var virtual = virtualAddress(addr);
@@ -79,11 +81,12 @@ function labelHtml(addr) {
   }
 }
 
-function endLabelEdit(content) {
-  var addr = $(this).attr("title") || content.previous;
-  var virtual = virtualAddress(parseInt(addr, 16));
-  setLabel(virtual, content.current);
-}
+// TODO(#18) reinstate
+// function endLabelEdit(content) {
+//   var addr = $(this).attr("title") || content.previous;
+//   var virtual = virtualAddress(parseInt(addr, 16));
+//   setLabel(virtual, content.current);
+// }
 
 var disassPc = 0;
 
