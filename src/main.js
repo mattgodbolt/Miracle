@@ -1,7 +1,10 @@
-var tstates = 0;
-var running;
-var event_next_event;
-var breakpointHit = false;
+import jQuery from "jquery";
+import { RomList } from "./roms";
+import { z80_init } from "./z80/z80_full";
+import { miracle_init, miracle_reset, loadRom, start, stop } from "./miracle";
+import {step, stepOver, stepOut } from "./debug";
+
+window.$ = window.jQuery = jQuery; // <- todo not this
 
 function loadRomData(name) {
     "use strict";
@@ -83,10 +86,14 @@ function go() {
         vdp.find('.template').clone().removeClass('template').appendTo(vdp).find('.register').text('v' + i);
     }
     disass.find('.template').remove();
-    $('#menu button').each(function () {
-        var f = window[$(this).attr('class').match(/menu_(.*)/)[1]];
-        $(this).click(f);
-    });
+    $(".menu_start").on("click", () => start());
+    $(".menu_stop").on("click", () => stop());
+    $(".menu_step").on("click", () => step());
+    $(".menu_stepOver").on("click", () => stepOver());
+    $(".menu_stepOut").on("click", () => stepOut());
+    $(".menu_reset").on("click", () => miracle_reset());
+    $(".menu_showRomChooser").on("click", () => showRomChooser());
+    $(".menu_showAbout").on("click", () => showAbout());
     z80_init();
     miracle_init();
     miracle_reset();

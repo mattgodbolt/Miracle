@@ -1,6 +1,9 @@
+import { canvas, fb32, hexbyte } from "./miracle";
+import { z80_set_irq } from "./z80/z80_full";
+
 var vram = [];
 var vramUntwiddled = [];
-var vdp_regs = [];
+export var vdp_regs = [];
 var palette = [];
 var paletteR = [];
 var paletteG = [];
@@ -16,7 +19,7 @@ var vdp_status = 0;
 var vdp_pending_hblank = false;
 var vdp_hblank_counter = 0;
 
-function vdp_writeaddr(val) {
+export function vdp_writeaddr(val) {
     if (vdp_addr_state === 0) {
         vdp_addr_state = 1;
         vdp_addr_latch = val;
@@ -45,7 +48,7 @@ function vdp_writeaddr(val) {
     }
 }
 
-function vdp_writepalette(val) {
+export function vdp_writepalette(val) {
     function expandBits(val) {
         var v = val & 3;
         v |= v << 2;
@@ -66,7 +69,7 @@ function vdp_writepalette(val) {
     update_border();
 }
 
-function vdp_writeram(val) {
+export function vdp_writeram(val) {
     vram[vdp_addr] = val;
     var planarBase = vdp_addr & 0x3ffc;
     var twiddledBase = planarBase * 2;
@@ -85,7 +88,7 @@ function vdp_writeram(val) {
     vdp_addr = (vdp_addr + 1) & 0x3fff;
 }
 
-function vdp_writebyte(val) {
+export function vdp_writebyte(val) {
     vdp_addr_state = 0;
     if (vdp_mode_select === 0) {
         vdp_writeram(val);
@@ -94,19 +97,19 @@ function vdp_writebyte(val) {
     }
 }
 
-function vdp_readram() {
-    res = vram[vdp_addr];
+export function vdp_readram() {
+    const res = vram[vdp_addr];
     vdp_addr = (vdp_addr + 1) & 0x3fff;
     return res;
 }
 
-function vdp_readpalette() {
-    res = palette[vdp_addr & 0x1f];
+export function vdp_readpalette() {
+    const res = palette[vdp_addr & 0x1f];
     vdp_addr = (vdp_addr + 1) & 0x3fff;
     return res;
 }
 
-function vdp_readbyte() {
+export function vdp_readbyte() {
     vdp_addr_state = 0;
     if (vdp_mode_select === 0) {
         return vdp_readram();
@@ -125,8 +128,8 @@ function update_border() {
     borderColourCss = 'rgb(' + paletteR[borderIndex] + ',' + paletteG[borderIndex] + ',' + paletteB[borderIndex] + ')';
 }
 
-function vdp_readstatus() {
-    res = vdp_status;
+export function vdp_readstatus() {
+    const res = vdp_status;
     // Rich's doc says only top two bits are cleared, but all other docs clear top three.
     // Clear top three here.
     vdp_status &= 0x1f;
@@ -445,7 +448,7 @@ function vdp_frame_hook() {
 }
 
 var currentFrame = 1;
-function vdp_hblank() {
+export function vdp_hblank() {
     const firstDisplayLine = 3 + 13 + 54;
     const pastEndDisplayLine = firstDisplayLine + 192;
     const endOfFrame = pastEndDisplayLine + 48 + 3;
@@ -480,7 +483,7 @@ function vdp_hblank() {
     return needIrq;
 }
 
-function vdp_init() {
+export function vdp_init() {
     vram = new Uint8Array(0x4000);
     vramUntwiddled = new Uint8Array(0x8000);
     palette = new Uint8Array(32);
@@ -492,7 +495,7 @@ function vdp_init() {
     vdp_reset();
 }
 
-function vdp_reset() {
+export function vdp_reset() {
     for (var i = 0x0000; i < 0x4000; i++) {
         vram[i] = 0;
     }
@@ -511,10 +514,10 @@ function vdp_reset() {
     vdp_mode_select = 0;
 }
 
-function vdp_get_line() {
+export function vdp_get_line() {
     return (vdp_current_line - 64) & 0xff;
 }
 
-function vdp_get_x() {
+export function vdp_get_x() {
     return 0;  // TODO more accurate here
 }

@@ -19,10 +19,29 @@
     Contact details: <matthew@west.co.tt>
     Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
 */
+import { 
+    z80, 
+    z80_instruction_hook, 
+    z80_set_irq,
+    halfcarry_add_table, 
+    halfcarry_sub_table, 
+    overflow_add_table, 
+    overflow_sub_table,
+    sz53_table,
+    parity_table,
+    sz53p_table,
+    z80_interrupt
+} from "./z80_full";
+import { readbyte, readport, writebyte, writeport } from "../miracle";
 
+export var tstates = 0;
+var event_next_event = 0;
+export function setTstates(ts) { tstates = ts; }
+export function addTstates(ts) { tstates += ts; }
+export function setEventNextEvent(e) { event_next_event = e; }
 #include "z80_macros.jscpp"
 
-function sign_extend(v) {
+export function sign_extend(v) {
   return v < 128 ? v : v-256;
 }
 
@@ -96,7 +115,7 @@ var z80_ddfdcb_ops = function z80_setup_ddfdcb_ops() {
 function z80_ddfdcbxx(opcode,tempaddr) { z80_ddfdcb_ops[opcode](tempaddr); }
 
 /* Execute Z80 opcodes until the next event */
-function z80_do_opcodes(cycleCallback) {
+export function z80_do_opcodes(cycleCallback) {
 
   while (tstates < event_next_event) {
     if (z80.irq_pending && IFF1) {
@@ -112,7 +131,7 @@ function z80_do_opcodes(cycleCallback) {
     /* Do the instruction fetch; readbyte_internal used here to avoid
        triggering read breakpoints */
        var oldTstates = tstates;
-    tstates+=4; R = (R+1) & 0x7f;
+    addTstates(4); R = (R+1) & 0x7f;
     var opcode = readbyte_internal(PC);
     z80_instruction_hook(PC, opcode);
     PC = (PC + 1) & 0xffff;
