@@ -20,12 +20,13 @@
 .PHONY: all z80 clean dist
 all: z80 src/roms.js
 dist: all
+	npm run build
 
-ROMS := $(shell find roms -type f | sort)
+ROMS := $(shell find public/roms -type f | sort)
 
 src/roms.js: $(ROMS) Makefile
 	echo 'export const RomList = [' > src/roms.js
-	for rom in $(ROMS); do echo \"$$rom\", | sed 's/roms\///g' >> src/roms.js; done
+	for rom in $(ROMS); do echo \"$$rom\", | sed 's|public/roms/||g' >> src/roms.js; done
 	echo '];' >> src/roms.js
 
 z80:
