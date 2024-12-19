@@ -22,13 +22,13 @@
 all: z80_ops_full.js z80_full.js z80_dis.js
 
 z80_ops_full.js: z80_ops.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp
-	cpp -P z80_ops.jscpp z80_ops_full.js
+	cpp -CC -P z80_ops.jscpp z80_ops_full.js
 
 z80_full.js: z80.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp
-	cpp -P z80.jscpp z80_full.js
+	cpp -CC -P z80.jscpp z80_full.js
 
 z80_dis.js: z80_dis.jscpp opcodes_base_dis.jscpp z80_cb_dis.jscpp z80_ddfd_dis.jscpp z80_ddfdcb_dis.jscpp z80_ed_dis.jscpp
-	cpp -P z80_dis.jscpp z80_dis.js
+	cpp -CC -P z80_dis.jscpp z80_dis.js
 
 opcodes_base.jscpp: z80.pl opcodes_base.dat
 	perl z80.pl opcodes_base.dat > opcodes_base.jscpp

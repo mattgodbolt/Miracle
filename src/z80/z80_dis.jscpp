@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { hexbyte, readbyte } from "../miracle";
 import { addressHtml } from "../debug";
 import { sign_extend } from "./z80_ops_full";

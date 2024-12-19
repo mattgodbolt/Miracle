@@ -1,10 +1,8 @@
-import jQuery from "jquery";
+import $ from "jquery";
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80_full";
 import { miracle_init, miracle_reset, loadRom, start, stop } from "./miracle";
 import { step, stepOver, stepOut } from "./debug";
-
-window.$ = window.jQuery = jQuery; // <- todo not this
 
 function loadRomData(name) {
   "use strict";
@@ -27,7 +25,7 @@ function resetLoadAndStart(filename, romdata) {
 
 function loadUploadFile(file) {
   var reader = new FileReader();
-  reader.onload = function (e) {
+  reader.onload = function () {
     resetLoadAndStart(file.name, reader.result);
   };
   reader.readAsBinaryString(file);

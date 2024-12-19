@@ -1,4 +1,5 @@
-import { canvas, fb32, hexbyte } from "./miracle";
+import { canvas, fb32, hexbyte, paintScreen, hexword } from "./miracle";
+import { breakpoint } from "./debug";
 import { z80_set_irq } from "./z80/z80_full";
 
 var vram = [];
@@ -177,9 +178,10 @@ function findSprites(line) {
   return active;
 }
 
+// eslint-disable-next-line no-unused-vars
 function dumpSprites() {
   var spriteInfo = (vdp_regs[5] & 0x7e) << 7;
-  for (i = 0; i < 64; i++) {
+  for (let i = 0; i < 64; i++) {
     var y = vram[spriteInfo + i];
     var x = vram[spriteInfo + 128 + i * 2];
     var t = vram[spriteInfo + 128 + i * 2 + 1];
@@ -187,6 +189,7 @@ function dumpSprites() {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function dumpBackground() {
   for (var y = 0; y < 224; y += 8) {
     var effectiveLine = y + vdp_regs[9];
@@ -204,6 +207,7 @@ function dumpBackground() {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function showAllTiles() {
   var tile = 0;
   for (var y = 0; y < 224; y += 8) {
@@ -219,15 +223,18 @@ function showAllTiles() {
     }
   }
   var temp = findSprites;
+  // eslint-disable-next-line no-func-assign
   findSprites = function () {
     return [];
   };
   for (y = 0; y < 192; ++y) rasterize_line(y);
   paintScreen();
+  // eslint-disable-next-line no-func-assign
   findSprites = temp;
   breakpoint();
 }
 
+// eslint-disable-next-line no-unused-vars
 function dumpTile(tileNum) {
   var tileDef = tileNum * 32;
   for (var y = 0; y < 8; ++y) {
@@ -238,21 +245,6 @@ function dumpTile(tileNum) {
     console.log(dumpage);
   }
 }
-
-const reverse_table = (function () {
-  var table = new Uint8Array(256);
-  for (var i = 0; i < 256; ++i) {
-    var j = i;
-    var reversed = 0;
-    for (var k = 0; k < 8; ++k) {
-      reversed <<= 1;
-      if (j & 1) reversed |= 1;
-      j >>>= 1;
-    }
-    table[i] = reversed;
-  }
-  return table;
-})();
 
 function rasterize_background(
   lineAddr,

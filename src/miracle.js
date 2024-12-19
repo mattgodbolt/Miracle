@@ -1,3 +1,4 @@
+import $ from "jquery";
 import {
   vdp_init,
   vdp_reset,
@@ -19,17 +20,10 @@ import {
 } from "./z80/z80_ops_full";
 import { debug_init, showDebug, debugKeyPress } from "./debug";
 
-// Work-around for people without Chrome/Firebug.
-if (typeof console === "undefined") {
-  console = {
-    log: function (msg) {},
-  };
-}
-
 var ram = [];
 var cartridgeRam = [];
 export const romBanks = [];
-var pages = [];
+export let pages;
 var ramSelectRegister = 0;
 var romPageMask = 0;
 var breakpointHit = false;
@@ -42,7 +36,6 @@ var fb8;
 export let fb32;
 
 var joystick = 0xffff;
-var inputMode = 0;
 
 var soundChip;
 
@@ -72,7 +65,7 @@ function line() {
     showDebug(z80.pc);
     return true;
   }
-  if (!!(vdp_status & 4)) {
+  if (vdp_status & 4) {
     paintScreen();
     return true;
   }
@@ -133,10 +126,6 @@ export function stop() {
   audio_enable(false);
 }
 
-function reset() {
-  miracle_reset();
-}
-
 function pumpAudio(event) {
   var outBuffer = event.outputBuffer;
   var chan = outBuffer.getChannelData(0);
@@ -152,7 +141,6 @@ function audio_init() {
     audioContext = new webkitAudioContext();
   } else {
     // Disable sound without the new APIs.
-    audioRun = function () {};
     soundChip = new SoundChip(10000, cpuHz);
     return;
   }
@@ -205,7 +193,7 @@ export function miracle_reset() {
     pages[i] = i;
   }
   ramSelectRegister = 0;
-  inputMode = 7;
+  //inputMode = 7;
   z80_reset();
   vdp_reset();
   audio_reset();
@@ -275,7 +263,7 @@ function keyPress(evt) {
   }
 }
 
-function paintScreen() {
+export function paintScreen() {
   ctx.putImageData(imageData, 0, 0);
 }
 
@@ -466,7 +454,7 @@ export function writeport(addr, val) {
       vdp_writebyte(val);
       break;
     case 0xde:
-      inputMode = val;
+      //inputMode = val;
       break;
     case 0xdf:
       break; // Unknown use
