@@ -135,6 +135,7 @@ function hideRomChooser() {
   $("#rom_chooser").hide();
   clearFileUploadElement();
 }
+$("#hideRomChooser").on("click", hideRomChooser);
 
 function showAbout() {
   $("#about").show();
@@ -143,6 +144,7 @@ function showAbout() {
 function hideAbout() {
   $("#about").hide();
 }
+$("#hideAbout").on("click", hideAbout);
 
 $(function () {
   go();
