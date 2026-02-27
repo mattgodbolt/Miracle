@@ -18,6 +18,9 @@
 # Contact details: Matt Godbolt <matt@godbolt.org>
 # JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt>
 
+# Use PYTHON=python3 by default; override from the command line or parent Makefile.
+PYTHON ?= python3
+
 .PHONY: all
 all: z80_ops_full.js z80_full.js z80_dis.js
 
@@ -34,31 +37,31 @@ opcodes_base.jscpp: z80.pl opcodes_base.dat
 	perl z80.pl opcodes_base.dat > opcodes_base.jscpp
 
 opcodes_base_dis.jscpp: disass.py opcodes_base.dat
-	python disass.py opcodes_base.dat > opcodes_base_dis.jscpp
+	$(PYTHON) disass.py opcodes_base.dat > opcodes_base_dis.jscpp
 
 z80_cb.jscpp: z80.pl opcodes_cb.dat
 	perl z80.pl opcodes_cb.dat > z80_cb.jscpp
 
 z80_cb_dis.jscpp: disass.py opcodes_cb.dat
-	python disass.py opcodes_cb.dat > z80_cb_dis.jscpp
+	$(PYTHON) disass.py opcodes_cb.dat > z80_cb_dis.jscpp
 
 z80_ddfd.jscpp: z80.pl opcodes_ddfd.dat
 	perl z80.pl opcodes_ddfd.dat > z80_ddfd.jscpp
 
 z80_ddfd_dis.jscpp: disass.py opcodes_ddfd.dat
-	python disass.py opcodes_ddfd.dat > z80_ddfd_dis.jscpp
+	$(PYTHON) disass.py opcodes_ddfd.dat > z80_ddfd_dis.jscpp
 
 z80_ddfdcb.jscpp: z80.pl opcodes_ddfd.dat
 	perl z80.pl opcodes_ddfdcb.dat > z80_ddfdcb.jscpp
 
 z80_ddfdcb_dis.jscpp: disass.py opcodes_ddfd.dat
-	python disass.py opcodes_ddfdcb.dat > z80_ddfdcb_dis.jscpp
+	$(PYTHON) disass.py opcodes_ddfdcb.dat > z80_ddfdcb_dis.jscpp
 
 z80_ed.jscpp: z80.pl opcodes_ed.dat
 	perl z80.pl opcodes_ed.dat > z80_ed.jscpp
 
 z80_ed_dis.jscpp: disass.py opcodes_ed.dat
-	python disass.py opcodes_ed.dat > z80_ed_dis.jscpp
+	$(PYTHON) disass.py opcodes_ed.dat > z80_ed_dis.jscpp
 
 .PHONY: clean
 clean:
