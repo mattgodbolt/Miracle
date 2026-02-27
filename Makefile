@@ -1,38 +1,72 @@
-# Miracle, a JS SMS emulator.
+# Miracle: a JavaScript Sega Master System emulator.
+#
+# Run 'make' to build everything from scratch.
+# Run 'make dev' to start the development server.
+#
+# All generated files are listed in .gitignore and src/z80/.gitignore.
 
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+.PHONY: all dev preview clean distclean
 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# Python 3 binary; override with e.g. 'make PYTHON=python3.12' if needed.
+PYTHON ?= python3
 
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+## Primary targets
+##
 
-# Z80 Support borrowed from JSSpeccy, details:
-# Contact details: <matthew@west.co.tt>
-# Matthew Westcott, 14 Daisy Hill Drive, Adlington, Chorley, Lancs PR6 9NE UNITED KINGDOM
+# Default: full production build.
+all: dist/index.html
 
-.PHONY: all z80 clean dist
-all: z80 src/roms.js
-dist: all
-	npm install
-	npm run build
+# Start the Vite dev server (installs deps and builds the z80/roms prereqs first).
+dev: node_modules/.package-lock.json src/roms.js \
+		src/z80/z80_full.js src/z80/z80_dis.js
+	npx vite
 
-ROMS := $(shell find public/roms -type f | sort)
+# Serve the production build for final checks.
+preview: dist/index.html
+	npx vite preview
 
-src/roms.js: $(ROMS) Makefile
-	echo 'export const RomList = [' > src/roms.js
-	for rom in $(ROMS); do echo \"$$rom\", | sed 's|public/roms/||g' >> src/roms.js; done
-	echo '];' >> src/roms.js
-
-z80:
-	$(MAKE) -C src/z80
-
+# Remove build artefacts; keeps node_modules.
 clean:
 	$(MAKE) -C src/z80 clean
 	rm -f src/roms.js
+	rm -rf dist/
+
+# Full reset including node_modules.
+distclean: clean
+	rm -rf node_modules/
+
+##
+## Internal rules
+##
+
+# npm install — .package-lock.json is the sentinel npm creates on each install.
+node_modules/.package-lock.json: package-lock.json
+	npm install
+	@touch $@   # ensure timestamp is always updated, even when npm is a no-op
+
+# ROM list module — regenerated whenever the contents of public/roms/ change.
+ROMS := $(sort $(wildcard public/roms/*))
+src/roms.js: $(ROMS) Makefile
+	@mkdir -p public/roms
+	@{ \
+		printf 'export const RomList = [\n'; \
+		for rom in $(ROMS); do printf '  "%s",\n' "$$(basename $$rom)"; done; \
+		printf '];\n'; \
+	} > $@
+
+# Z80 code generation is delegated to src/z80/Makefile which tracks its own fine-
+# grained deps.  FORCE: causes the recipe to always run, but the actual file
+# timestamps (unchanged if sources are already up to date) control whether the
+# production build is re-triggered.
+FORCE:
+src/z80/z80_full.js src/z80/z80_ops_full.js src/z80/z80_dis.js: FORCE
+	$(MAKE) -C src/z80 PYTHON=$(PYTHON)
+
+# Production build — depends on all source inputs.
+SRC_JS := $(filter-out src/roms.js src/z80/z80_full.js src/z80/z80_ops_full.js \
+	src/z80/z80_dis.js, $(wildcard src/*.js src/*/*.js))
+dist/index.html: node_modules/.package-lock.json src/roms.js \
+		src/z80/z80_full.js src/z80/z80_dis.js \
+		$(SRC_JS) index.html
+	npm run build

@@ -1,1 +1,7 @@
 dist
+# Generated z80 code
+src/z80/z80_full.js
+src/z80/z80_ops_full.js
+src/z80/z80_dis.js
+# Generated rom list
+src/roms.js
