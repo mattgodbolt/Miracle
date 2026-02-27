@@ -67,9 +67,9 @@ function processLine(line) {
 
   // 2. Replace literal register-pair and single-letter register names with
   //    styled spans.  Word-boundary assertions prevent false matches inside
-  //    longer identifiers.
+  //    longer identifiers (applies to both multi-letter pairs and single letters).
   args = args.replace(
-    /(AF|BC|DE|HL|SP|PC|IX|IY|(\b[AFBCDEHL]\b))/g,
+    /(\b(?:AF|BC|DE|HL|SP|PC|IX|IY|[AFBCDEHL])\b)/g,
     "<span class=register>$1</span>",
   );
 
@@ -97,8 +97,8 @@ function processLine(line) {
     console.log(
       `res += " ${pre}" + addressHtml(reladdr) + "${post}"; address += 1;`,
     );
-  } else if (args.includes("dd")) {
-    // '+dd' is an indexed displacement (signed byte).  The 'dd' check
+  } else if (args.includes("+dd")) {
+    // '+dd' is an indexed displacement (signed byte).  The '+dd' check
     // must follow 'nn' so that 'LD (REGISTER+dd),nn' takes the nn branch.
     const idx = args.indexOf("+dd");
     const pre = args.slice(0, idx);
