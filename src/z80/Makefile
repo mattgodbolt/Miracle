@@ -48,10 +48,10 @@ z80_ddfd.jscpp: z80.pl opcodes_ddfd.dat
 z80_ddfd_dis.jscpp: disass.mjs opcodes_ddfd.dat
 	node disass.mjs opcodes_ddfd.dat > z80_ddfd_dis.jscpp
 
-z80_ddfdcb.jscpp: z80.pl opcodes_ddfd.dat
+z80_ddfdcb.jscpp: z80.pl opcodes_ddfdcb.dat
 	perl z80.pl opcodes_ddfdcb.dat > z80_ddfdcb.jscpp
 
-z80_ddfdcb_dis.jscpp: disass.mjs opcodes_ddfd.dat
+z80_ddfdcb_dis.jscpp: disass.mjs opcodes_ddfdcb.dat
 	node disass.mjs opcodes_ddfdcb.dat > z80_ddfdcb_dis.jscpp
 
 z80_ed.jscpp: z80.pl opcodes_ed.dat
