@@ -7,9 +7,6 @@
 
 .PHONY: all dev preview clean distclean
 
-# Python 3 binary; override with e.g. 'make PYTHON=python3.12' if needed.
-PYTHON ?= python3
-
 ##
 ## Primary targets
 ##
@@ -61,7 +58,7 @@ src/roms.js: $(ROMS) Makefile
 # production build is re-triggered.
 FORCE:
 src/z80/z80_full.js src/z80/z80_ops_full.js src/z80/z80_dis.js: FORCE
-	$(MAKE) -C src/z80 PYTHON=$(PYTHON)
+	$(MAKE) -C src/z80
 
 # Production build — depends on all source inputs.
 SRC_JS := $(filter-out src/roms.js src/z80/z80_full.js src/z80/z80_ops_full.js \

@@ -4,7 +4,7 @@ Miracle can be taken for a spin at https://miracle.xania.org/
 
 ### Building
 
-Requires `make`, `perl`, `python3`, and a C preprocessor (`cpp`).
+Requires `make`, `perl`, `node`, and a C preprocessor (`cpp`).
 
 Place any SMS ROM files in `public/roms/` as `romname.sms`, then:
 
@@ -15,11 +15,7 @@ make clean  # remove build artefacts (keeps node_modules)
 make distclean  # full reset including node_modules
 ```
 
-`make` handles `npm install` automatically via a sentinel file, so you don't need to run it by hand. If you have Python 3 under a different name, pass it explicitly:
-
-```sh
-make PYTHON=python3.12
-```
+`make` handles `npm install` automatically via a sentinel file, so you don't need to run it by hand.
 
 ### Development
 
