@@ -30,32 +30,32 @@ z80_full.js: z80.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd
 z80_dis.js: z80_dis.jscpp opcodes_base_dis.jscpp z80_cb_dis.jscpp z80_ddfd_dis.jscpp z80_ddfdcb_dis.jscpp z80_ed_dis.jscpp
 	cpp -CC -P z80_dis.jscpp z80_dis.js
 
-opcodes_base.jscpp: z80.pl opcodes_base.dat
-	perl z80.pl opcodes_base.dat > opcodes_base.jscpp
+opcodes_base.jscpp: z80.mjs opcodes_base.dat
+	node z80.mjs opcodes_base.dat > opcodes_base.jscpp
 
 opcodes_base_dis.jscpp: disass.mjs opcodes_base.dat
 	node disass.mjs opcodes_base.dat > opcodes_base_dis.jscpp
 
-z80_cb.jscpp: z80.pl opcodes_cb.dat
-	perl z80.pl opcodes_cb.dat > z80_cb.jscpp
+z80_cb.jscpp: z80.mjs opcodes_cb.dat
+	node z80.mjs opcodes_cb.dat > z80_cb.jscpp
 
 z80_cb_dis.jscpp: disass.mjs opcodes_cb.dat
 	node disass.mjs opcodes_cb.dat > z80_cb_dis.jscpp
 
-z80_ddfd.jscpp: z80.pl opcodes_ddfd.dat
-	perl z80.pl opcodes_ddfd.dat > z80_ddfd.jscpp
+z80_ddfd.jscpp: z80.mjs opcodes_ddfd.dat
+	node z80.mjs opcodes_ddfd.dat > z80_ddfd.jscpp
 
 z80_ddfd_dis.jscpp: disass.mjs opcodes_ddfd.dat
 	node disass.mjs opcodes_ddfd.dat > z80_ddfd_dis.jscpp
 
-z80_ddfdcb.jscpp: z80.pl opcodes_ddfdcb.dat
-	perl z80.pl opcodes_ddfdcb.dat > z80_ddfdcb.jscpp
+z80_ddfdcb.jscpp: z80.mjs opcodes_ddfdcb.dat
+	node z80.mjs opcodes_ddfdcb.dat > z80_ddfdcb.jscpp
 
 z80_ddfdcb_dis.jscpp: disass.mjs opcodes_ddfdcb.dat
 	node disass.mjs opcodes_ddfdcb.dat > z80_ddfdcb_dis.jscpp
 
-z80_ed.jscpp: z80.pl opcodes_ed.dat
-	perl z80.pl opcodes_ed.dat > z80_ed.jscpp
+z80_ed.jscpp: z80.mjs opcodes_ed.dat
+	node z80.mjs opcodes_ed.dat > z80_ed.jscpp
 
 z80_ed_dis.jscpp: disass.mjs opcodes_ed.dat
 	node disass.mjs opcodes_ed.dat > z80_ed_dis.jscpp
