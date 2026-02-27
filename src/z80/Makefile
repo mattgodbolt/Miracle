@@ -21,14 +21,16 @@
 .PHONY: all
 all: z80_ops_full.js z80_full.js z80_dis.js
 
-z80_ops_full.js: z80_ops.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp
-	cpp -CC -P z80_ops.jscpp z80_ops_full.js
+PREPROCESS = node preprocess.mjs
 
-z80_full.js: z80.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp
-	cpp -CC -P z80.jscpp z80_full.js
+z80_ops_full.js: z80_ops.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp preprocess.mjs
+	$(PREPROCESS) z80_ops.jscpp > z80_ops_full.js
 
-z80_dis.js: z80_dis.jscpp opcodes_base_dis.jscpp z80_cb_dis.jscpp z80_ddfd_dis.jscpp z80_ddfdcb_dis.jscpp z80_ed_dis.jscpp
-	cpp -CC -P z80_dis.jscpp z80_dis.js
+z80_full.js: z80.jscpp z80_macros.jscpp opcodes_base.jscpp z80_cb.jscpp z80_ddfd.jscpp z80_ddfdcb.jscpp z80_ed.jscpp preprocess.mjs
+	$(PREPROCESS) z80.jscpp > z80_full.js
+
+z80_dis.js: z80_dis.jscpp opcodes_base_dis.jscpp z80_cb_dis.jscpp z80_ddfd_dis.jscpp z80_ddfdcb_dis.jscpp z80_ed_dis.jscpp preprocess.mjs
+	$(PREPROCESS) z80_dis.jscpp > z80_dis.js
 
 opcodes_base.jscpp: z80.mjs opcodes_base.dat
 	node z80.mjs opcodes_base.dat > opcodes_base.jscpp
