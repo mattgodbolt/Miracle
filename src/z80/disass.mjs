@@ -7,10 +7,9 @@
 // Usage: node disass.mjs <opcodes-file.dat>
 //
 // Based on JSSpeccy by Matthew Westcott <matthew@west.co.tt>
-// Original Python version by Matt Godbolt <matt@godbolt.org>
 
 import { readFileSync } from "fs";
-import { argv } from "process";
+import { argv, exit } from "process";
 
 /**
  * Process a single line from a .dat opcode definition file and emit the
@@ -125,4 +124,9 @@ function processFile(filename) {
   }
 }
 
-processFile(argv[2]);
+if (argv.length < 3) {
+  console.error("Usage: node disass.mjs <opcodes-file.dat>");
+  exit(1);
+} else {
+  processFile(argv[2]);
+}
