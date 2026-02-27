@@ -4,7 +4,7 @@ Miracle can be taken for a spin at https://miracle.xania.org/
 
 ### Building
 
-Requires `make`, `node`, and a C preprocessor (`cpp`).
+Requires `make` and `node`.
 
 Place any SMS ROM files in `public/roms/` as `romname.sms`, then:
 
