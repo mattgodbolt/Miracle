@@ -8,67 +8,37 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const z80Dir = path.join(__dirname, "src/z80");
 
 // ---------------------------------------------------------------------------
-// Mapping: dat file → generated intermediate jscpp filenames
-// ---------------------------------------------------------------------------
-
-const Z80_OUTPUTS = [
-  ["opcodes_base.dat", "opcodes_base.jscpp"],
-  ["opcodes_cb.dat", "z80_cb.jscpp"],
-  ["opcodes_ddfd.dat", "z80_ddfd.jscpp"],
-  ["opcodes_ddfdcb.dat", "z80_ddfdcb.jscpp"],
-  ["opcodes_ed.dat", "z80_ed.jscpp"],
-];
-
-const DIS_OUTPUTS = [
-  ["opcodes_base.dat", "opcodes_base_dis.jscpp"],
-  ["opcodes_cb.dat", "z80_cb_dis.jscpp"],
-  ["opcodes_ddfd.dat", "z80_ddfd_dis.jscpp"],
-  ["opcodes_ddfdcb.dat", "z80_ddfdcb_dis.jscpp"],
-  ["opcodes_ed.dat", "z80_ed_dis.jscpp"],
-];
-
-// Templates still preprocessed to disk (disassembler only — z80_ops.js is
-// handled inline via the transform hook).
-const TEMPLATES = [["z80_dis.jscpp", "z80_dis.js"]];
-
-// ---------------------------------------------------------------------------
-// Opcode snippets: the expanded bodies for each /* @z80-generate */ marker.
+// Opcode generation config
 //
-// Each entry is [markerKey, wrapperContent].
-// markerKey matches the text inside the @z80-generate comment in z80_ops.js.
-// wrapperContent is a jscpp snippet that includes z80_macros.jscpp and the
-// generated intermediate, with any needed REGISTER substitution macros.
+// Each entry maps a transform marker key to [datFile, register] where
+// register is 'ix', 'iy', or null (for non-DDFD opcode sets).
 // ---------------------------------------------------------------------------
 
-const OPCODE_SNIPPETS = [
-  [
-    "opcodes_base.dat",
-    `#include "z80_macros.jscpp"\n#include "opcodes_base.jscpp"\n`,
-  ],
-  ["opcodes_ed.dat", `#include "z80_macros.jscpp"\n#include "z80_ed.jscpp"\n`],
-  ["opcodes_cb.dat", `#include "z80_macros.jscpp"\n#include "z80_cb.jscpp"\n`],
-  [
-    "opcodes_ddfd.dat ix",
-    `#include "z80_macros.jscpp"\n#define REGISTER IX\n#define REGISTERR IX\n#define REGISTERH IXH\n#define REGISTERL IXL\n#include "z80_ddfd.jscpp"\n`,
-  ],
-  [
-    "opcodes_ddfd.dat iy",
-    `#include "z80_macros.jscpp"\n#define REGISTER IY\n#define REGISTERR IY\n#define REGISTERH IYH\n#define REGISTERL IYL\n#include "z80_ddfd.jscpp"\n`,
-  ],
-  [
-    "opcodes_ddfdcb.dat",
-    `#include "z80_macros.jscpp"\n#include "z80_ddfdcb.jscpp"\n`,
-  ],
+const OPCODE_CONFIGS = [
+  ["opcodes_base.dat", "opcodes_base.dat", null],
+  ["opcodes_ed.dat", "opcodes_ed.dat", null],
+  ["opcodes_cb.dat", "opcodes_cb.dat", null],
+  ["opcodes_ddfd.dat ix", "opcodes_ddfd.dat", "ix"],
+  ["opcodes_ddfd.dat iy", "opcodes_ddfd.dat", "iy"],
+  ["opcodes_ddfdcb.dat", "opcodes_ddfdcb.dat", null],
 ];
 
-// Files to watch in dev mode (any change triggers full regeneration).
-// Note: the generator modules themselves (*.mjs) are NOT listed here — Node's
-// ESM cache means they can't be hot-reloaded without a process restart.
+// Disassembler: maps marker key to dat filename.
+const DIS_CONFIGS = [
+  ["opcodes_base.dat", "opcodes_base.dat"],
+  ["opcodes_cb.dat", "opcodes_cb.dat"],
+  ["opcodes_ed.dat", "opcodes_ed.dat"],
+  ["opcodes_ddfd.dat", "opcodes_ddfd.dat"],
+  ["opcodes_ddfdcb.dat", "opcodes_ddfdcb.dat"],
+];
+
+// Files to watch in dev mode.
 const Z80_WATCH = [
-  ...Z80_OUTPUTS.map(([dat]) => path.join(z80Dir, dat)),
-  "z80_dis.jscpp",
-  "z80_macros.jscpp",
-].map((f) => (path.isAbsolute(f) ? f : path.join(z80Dir, f)));
+  ...OPCODE_CONFIGS.map(([, dat]) => path.join(z80Dir, dat)),
+  ...DIS_CONFIGS.map(([, dat]) => path.join(z80Dir, dat)),
+  // Generator modules themselves are NOT listed — ESM cache means they
+  // can't be hot-reloaded without a full process restart.
+].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
 // ---------------------------------------------------------------------------
 // Lazy-load the generators (avoids import-time side effects)
@@ -77,16 +47,11 @@ const Z80_WATCH = [
 let _generators = null;
 async function getGenerators() {
   if (!_generators) {
-    const [z80mod, dismod, premod] = await Promise.all([
-      import("./src/z80/z80.mjs"),
+    const [z80mod, dismod] = await Promise.all([
+      import("./src/z80/z80_generator.mjs"),
       import("./src/z80/disass.mjs"),
-      import("./src/z80/preprocess.mjs"),
     ]);
-    _generators = {
-      z80gen: z80mod.generate,
-      disgen: dismod.generate,
-      preprocess: premod.preprocess,
-    };
+    _generators = { z80gen: z80mod.generate, disgen: dismod.generate };
   }
   return _generators;
 }
@@ -95,44 +60,30 @@ async function getGenerators() {
 // Z80 code generation
 // ---------------------------------------------------------------------------
 
-// Expanded opcode table bodies, keyed by marker text (e.g. "opcodes_base.dat").
-// Populated in buildStart, consumed by the transform hook.
-const generatedSnippets = new Map();
+// Generated snippets, keyed by marker text.  Populated in buildStart,
+// consumed by the transform hook.
+const generatedSnippets = new Map(); // opcode snippets
+const generatedDisSnippets = new Map(); // disassembler snippets
 
 async function generateZ80() {
-  const { z80gen, disgen, preprocess } = await getGenerators();
+  const { z80gen, disgen } = await getGenerators();
 
-  // Stage 1: intermediate .jscpp files into a virtualFiles map (no disk writes)
-  const virtualFiles = new Map();
-  for (const [dat, out] of Z80_OUTPUTS) {
-    virtualFiles.set(path.join(z80Dir, out), z80gen(path.join(z80Dir, dat)));
-  }
-  for (const [dat, out] of DIS_OUTPUTS) {
-    virtualFiles.set(path.join(z80Dir, out), disgen(path.join(z80Dir, dat)));
-  }
-
-  // Stage 2a: expand each opcode snippet for the transform hook
+  // Opcode snippets: z80gen now returns pure JS directly.
   generatedSnippets.clear();
-  for (const [markerKey, wrapperContent] of OPCODE_SNIPPETS) {
-    const virtualPath = path.join(
-      z80Dir,
-      `__snippet_${markerKey.replace(/\W/g, "_")}.jscpp`,
-    );
-    virtualFiles.set(virtualPath, wrapperContent);
-    generatedSnippets.set(markerKey, preprocess(virtualPath, virtualFiles));
+  for (const [markerKey, dat, register] of OPCODE_CONFIGS) {
+    generatedSnippets.set(markerKey, z80gen(path.join(z80Dir, dat), register));
   }
 
-  // Stage 2b: preprocess remaining templates → write to disk
-  for (const [tmpl, out] of TEMPLATES) {
-    writeFileSync(
-      path.join(z80Dir, out),
-      preprocess(path.join(z80Dir, tmpl), virtualFiles),
-    );
+  // Disassembler snippets: disgen returns pure JS switch cases.
+  generatedDisSnippets.clear();
+  for (const [markerKey, dat] of DIS_CONFIGS) {
+    generatedDisSnippets.set(markerKey, disgen(path.join(z80Dir, dat)));
   }
 }
 
 function z80CodegenPlugin() {
   const z80OpsId = path.join(__dirname, "src/z80/z80_ops.js");
+  const z80DisId = path.join(__dirname, "src/z80/z80_dis.js");
 
   return {
     name: "z80-codegen",
@@ -145,27 +96,38 @@ function z80CodegenPlugin() {
     async handleHotUpdate({ file, server }) {
       if (!Z80_WATCH.includes(file)) return;
       await generateZ80();
-      // Invalidate z80_ops.js so the transform re-runs, and return it so
-      // Vite pushes the HMR update to the browser.
-      const mod = server.moduleGraph.getModuleById(z80OpsId);
-      if (mod) {
-        server.moduleGraph.invalidateModule(mod);
-        return [mod];
-      }
+      // Invalidate both generated modules so Vite pushes HMR updates.
+      const mods = [z80OpsId, z80DisId]
+        .map((id) => server.moduleGraph.getModuleById(id))
+        .filter(Boolean);
+      for (const mod of mods) server.moduleGraph.invalidateModule(mod);
+      return mods.length > 0 ? mods : undefined;
     },
 
     transform(code, id) {
-      if (id !== z80OpsId) return null;
-      if (generatedSnippets.size === 0) return null; // not yet generated
-
-      let result = code;
-      for (const [markerKey, snippet] of generatedSnippets) {
-        const marker = `/* @z80-generate ${markerKey} */`;
-        if (result.includes(marker)) {
-          result = result.replace(marker, snippet);
+      // Replace /* @z80-generate <key> */ markers in z80_ops.js.
+      if (id === z80OpsId && generatedSnippets.size > 0) {
+        let result = code;
+        for (const [markerKey, snippet] of generatedSnippets) {
+          const marker = `/* @z80-generate ${markerKey} */`;
+          if (result.includes(marker))
+            result = result.replaceAll(marker, snippet);
         }
+        return result !== code ? { code: result, map: null } : null;
       }
-      return result === code ? null : { code: result, map: null };
+
+      // Replace /* @z80-dis-generate <key> */ markers in z80_dis.js.
+      if (id === z80DisId && generatedDisSnippets.size > 0) {
+        let result = code;
+        for (const [markerKey, snippet] of generatedDisSnippets) {
+          const marker = `/* @z80-dis-generate ${markerKey} */`;
+          if (result.includes(marker))
+            result = result.replaceAll(marker, snippet);
+        }
+        return result !== code ? { code: result, map: null } : null;
+      }
+
+      return null;
     },
   };
 }

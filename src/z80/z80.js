@@ -314,6 +314,83 @@ class Z80 {
   res(bit, value) {
     return value & ~(0x01 << bit);
   }
+
+  // -------------------------------------------------------------------------
+  // 16-bit register-pair reads — non-lvalue expressions, always reads
+  // -------------------------------------------------------------------------
+
+  bc() {
+    return this.c | (this.b << 8);
+  }
+
+  de() {
+    return this.e | (this.d << 8);
+  }
+
+  hl() {
+    return this.l | (this.h << 8);
+  }
+
+  af() {
+    return this.f | (this.a << 8);
+  }
+
+  ix() {
+    return this.ixl | (this.ixh << 8);
+  }
+
+  iy() {
+    return this.iyl | (this.iyh << 8);
+  }
+
+  // SP/PC high and low byte reads
+  sph() {
+    return this.sp >> 8;
+  }
+
+  spl() {
+    return this.sp & 0xff;
+  }
+
+  pch() {
+    return this.pc >> 8;
+  }
+
+  pcl() {
+    return this.pc & 0xff;
+  }
+
+  // -------------------------------------------------------------------------
+  // Byte/word fetch from PC — reads and advances the program counter
+  // -------------------------------------------------------------------------
+
+  /** Read a byte from the address in PC, then increment and wrap PC. */
+  fetchByte() {
+    const b = readbyte(this.pc++);
+    this.pc &= 0xffff;
+    return b;
+  }
+
+  // -------------------------------------------------------------------------
+  // Stack — push/pop without timing (callers add the tstates)
+  // -------------------------------------------------------------------------
+
+  /** Push a 16-bit value onto the stack. No timing side-effects. */
+  push16(val) {
+    this.sp = (this.sp - 1) & 0xffff;
+    writebyte(this.sp, val >> 8);
+    this.sp = (this.sp - 1) & 0xffff;
+    writebyte(this.sp, val & 0xff);
+  }
+
+  /** Pop a 16-bit value from the stack. No timing side-effects. */
+  pop16() {
+    const lo = readbyte(this.sp++);
+    this.sp &= 0xffff;
+    const hi = readbyte(this.sp++);
+    this.sp &= 0xffff;
+    return lo | (hi << 8);
+  }
 }
 
 export const z80 = new Z80();

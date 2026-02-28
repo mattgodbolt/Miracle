@@ -3,13 +3,16 @@ import { hexbyte, readbyte } from "../miracle";
 import { addressHtml } from "../debug";
 import { sign_extend } from "./z80_ops.js";
 
-#define STRINGIZE(AA) #AA
+// Runtime register-name variable for DD/FD disassembly.
+// Set to "IX" or "IY" before entering the relevant switch.
+var dis_REGISTER;
+
 export function disassemble(address) {
   const opcode = readbyte(address);
   address++;
   var res = "??";
   switch (opcode) {
-#include "opcodes_base_dis.jscpp"
+    /* @z80-dis-generate opcodes_base.dat */
   }
   return [res, address];
 }
@@ -19,7 +22,7 @@ function disassemble_CB(address) {
   address++;
   var res = "??";
   switch (opcode) {
-#include "z80_cb_dis.jscpp"
+    /* @z80-dis-generate opcodes_cb.dat */
   }
   return [res, address];
 }
@@ -29,16 +32,10 @@ function disassemble_ED(address) {
   address++;
   var res = "??";
   switch (opcode) {
-#include "z80_ed_dis.jscpp"
+    /* @z80-dis-generate opcodes_ed.dat */
   }
   return [res, address];
 }
-
-var dis_REGISTER;
-#define REGISTER dis_REGISTER
-#define REGISTERR dis_REGISTER
-#define REGISTERL dis_REGISTER + "L"
-#define REGISTERH dis_REGISTER + "H"
 
 function disassemble_DD(address) {
   const opcode = readbyte(address);
@@ -46,7 +43,7 @@ function disassemble_DD(address) {
   var res = "??";
   dis_REGISTER = "IX";
   switch (opcode) {
-#include "z80_ddfd_dis.jscpp"
+    /* @z80-dis-generate opcodes_ddfd.dat */
   }
   return [res, address];
 }
@@ -57,7 +54,7 @@ function disassemble_FD(address) {
   var res = "??";
   dis_REGISTER = "IY";
   switch (opcode) {
-#include "z80_ddfd_dis.jscpp"
+    /* @z80-dis-generate opcodes_ddfd.dat */
   }
   return [res, address];
 }
@@ -67,7 +64,7 @@ function disassemble_DDFDCB(address) {
   address++;
   var res = "??";
   switch (opcode) {
-#include "z80_ddfdcb_dis.jscpp"
+    /* @z80-dis-generate opcodes_ddfdcb.dat */
   }
   return [res, address];
 }

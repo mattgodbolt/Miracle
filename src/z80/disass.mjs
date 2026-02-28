@@ -58,11 +58,12 @@ function processLine(line) {
   // --- Argument substitutions ---
 
   // 1. Replace REGISTER/REGISTERH/REGISTERL with JS string-concatenation
-  //    expressions (these are runtime variables set to "IX" or "IY").
-  args = args.replace(
-    /(REGISTER[HL]?)/g,
-    '<span class=register>" + $1 + "</span>',
-  );
+  //    expressions. The runtime variable dis_REGISTER is set to "IX" or "IY"
+  //    by the caller, so REGISTERH becomes dis_REGISTER + "H", etc.
+  args = args.replace(/(REGISTER)(H|L)?/g, (_, _base, suffix) => {
+    const varExpr = suffix ? `dis_REGISTER + "${suffix}"` : `dis_REGISTER`;
+    return `<span class=register>" + ${varExpr} + "</span>`;
+  });
 
   // 2. Replace literal register-pair and single-letter register names with
   //    styled spans.  Word-boundary assertions prevent false matches inside
