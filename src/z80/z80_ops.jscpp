@@ -89,7 +89,12 @@ var z80_dd_ops = function z80_setup_dd_ops() {
     z80_defaults(ops);
     return ops;
 }();
-function z80_ddxx(opcode) { z80_dd_ops[opcode](); }
+function z80_ddxx(opcode) {
+    // If this opcode has no DD-specific override, fall through to the base
+    // opcode (M1 fetch overhead was already applied in op_0xdd).
+    if (z80_dd_ops[opcode] !== z80_dd_ops[256]) { z80_dd_ops[opcode](); }
+    else { z80_base_ops[opcode](); }
+}
 
 var z80_fd_ops = function z80_setup_fd_ops() {
     var ops = [];
@@ -105,7 +110,11 @@ var z80_fd_ops = function z80_setup_fd_ops() {
     z80_defaults(ops);
     return ops;
 }();
-function z80_fdxx(opcode) { z80_fd_ops[opcode](); }
+function z80_fdxx(opcode) {
+    // Same fallthrough logic as z80_ddxx.
+    if (z80_fd_ops[opcode] !== z80_fd_ops[256]) { z80_fd_ops[opcode](); }
+    else { z80_base_ops[opcode](); }
+}
 
 var z80_ddfdcb_ops = function z80_setup_ddfdcb_ops() {
     var ops = [];
