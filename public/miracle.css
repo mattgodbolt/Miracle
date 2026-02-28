@@ -21,6 +21,8 @@ JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt
 */
 
 body {
+  margin: 0;
+  padding: 0;
   background-color: #000000;
   color: #ffffff;
   font-family: arial, tahoma;
@@ -31,6 +33,7 @@ div.container {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
 }
 
 div.main {
