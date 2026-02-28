@@ -102,18 +102,24 @@ function arithmetic_logical(opcode, arg1, arg2) {
         `      addTstates(11);\n` +
           `      {\n` +
           `    var bytetemp =\n` +
-          `        readbyte( (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff );\n` +
-          `        z80.pc &= 0xffff;\n` +
+          `        readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
+          `    ${opcode}(bytetemp);\n` +
+          `      }\n`,
+      );
+    } else if (arg2 === "(HL)") {
+      print(
+        `      addTstates(3);\n` +
+          `      {\n` +
+          `    var bytetemp = readbyte( z80.hl() );\n` +
           `    ${opcode}(bytetemp);\n` +
           `      }\n`,
       );
     } else {
-      // "(HL)" reads the HL-pointed byte; anything else is an immediate (from PC)
-      const regRef = arg2 === "(HL)" ? "z80.hl()" : "z80.pc++";
+      // Immediate byte (nn)
       print(
         `      addTstates(3);\n` +
           `      {\n` +
-          `    var bytetemp = readbyte( ${regRef} );\n` +
+          `    var bytetemp = z80.fetchByte();\n` +
           `    ${opcode}(bytetemp);\n` +
           `      }\n`,
       );
@@ -223,9 +229,7 @@ function inc_dec(opcode, arg) {
     print(
       `      addTstates(15);\n` +
         `      {\n` +
-        `    var wordtemp =\n` +
-        `        (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff;\n` +
-        `    z80.pc &= 0xffff;\n` +
+        `    var wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
         `    var bytetemp = readbyte( wordtemp );\n` +
         `    ${opcode}(bytetemp);\n` +
         `    writebyte(wordtemp,bytetemp);\n` +
@@ -542,8 +546,7 @@ const opcodes = {
         `      {\n` +
           `    var intemp;\n` +
           `    addTstates(4);\n` +
-          `    intemp = readbyte( z80.pc++ ) + ( z80.a << 8 );\n` +
-          `    z80.pc &= 0xffff;\n` +
+          `    intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
           `    addTstates(3);\n` +
           `    z80.a=readport( intemp );\n` +
           `      }\n`,
@@ -619,9 +622,7 @@ const opcodes = {
           }
         }
       } else if (src === "nn") {
-        print(
-          `      addTstates(3);\n      ${regJS(dest)}=readbyte(z80.pc++); z80.pc &= 0xffff;\n`,
-        );
+        print(`      addTstates(3);\n      ${regJS(dest)}=z80.fetchByte();\n`);
       } else if (/^\(..\)$/.test(src)) {
         const pairName = src.slice(1, 3);
         print(
@@ -632,18 +633,15 @@ const opcodes = {
           `      {\n` +
             `    var wordtemp;\n` +
             `    addTstates(9);\n` +
-            `    wordtemp = readbyte(z80.pc++);\n` +
-            `    z80.pc &= 0xffff;\n` +
-            `    wordtemp|= ( readbyte(z80.pc++) << 8 );\n` +
-            `    z80.pc &= 0xffff;\n` +
+            `    wordtemp = z80.fetchByte();\n` +
+            `    wordtemp|= ( z80.fetchByte() << 8 );\n` +
             `    z80.a=readbyte(wordtemp);\n` +
             `      }\n`,
         );
       } else if (src === "(REGISTER+dd)") {
         print(
           `      addTstates(11);\n` +
-            `      ${regJS(dest)} = readbyte( (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff );\n` +
-            `      z80.pc &= 0xffff;\n`,
+            `      ${regJS(dest)} = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n`,
         );
       }
     } else if (dest.length === 2 || dest === "REGISTER") {
@@ -652,21 +650,17 @@ const opcodes = {
         if (dest === "SP") {
           print(
             `      addTstates(6);\n` +
-              `      var splow = readbyte(z80.pc++);\n` +
-              `      z80.pc &= 0xffff;\n` +
-              `      var sphigh=readbyte(z80.pc++);\n` +
-              `      z80.sp = splow | (sphigh << 8);\n` +
-              `      z80.pc &= 0xffff;\n`,
+              `      var splow = z80.fetchByte();\n` +
+              `      var sphigh = z80.fetchByte();\n` +
+              `      z80.sp = splow | (sphigh << 8);\n`,
           );
         } else {
           const hi = pairHi(dest);
           const lo = pairLo(dest);
           print(
             `      addTstates(6);\n` +
-              `      ${lo}=readbyte(z80.pc++);\n` +
-              `      z80.pc &= 0xffff;\n` +
-              `      ${hi}=readbyte(z80.pc++);\n` +
-              `      z80.pc &= 0xffff;\n`,
+              `      ${lo}=z80.fetchByte();\n` +
+              `      ${hi}=z80.fetchByte();\n`,
           );
         }
       } else if (src === "HL") {
@@ -690,20 +684,16 @@ const opcodes = {
       } else if (src === "nn") {
         print(
           `      addTstates(6);\n` +
-            `      writebyte(${pairRead(pairName)},readbyte(z80.pc++));\n` +
-            `      z80.pc &= 0xffff;\n`,
+            `      writebyte(${pairRead(pairName)},z80.fetchByte());\n`,
         );
       }
     } else if (dest === "(nnnn)") {
       if (src === "A") {
         print(
-          `      addTstates(3);\n` +
+          `      addTstates(9);\n` +
             `      {\n` +
-            `    var wordtemp = readbyte( z80.pc++ );\n` +
-            `    z80.pc &= 0xffff;\n` +
-            `    addTstates(6);\n` +
-            `    wordtemp|=readbyte(z80.pc++) << 8;\n` +
-            `    z80.pc &= 0xffff;\n` +
+            `    var wordtemp = z80.fetchByte();\n` +
+            `    wordtemp|=z80.fetchByte() << 8;\n` +
             `    writebyte(wordtemp,z80.a);\n` +
             `      }\n`,
         );
@@ -720,18 +710,14 @@ const opcodes = {
       if (src.length === 1) {
         print(
           `      addTstates(11);\n` +
-            `      writebyte( (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff, ${regJS(src)} );\n` +
-            `      z80.pc &= 0xffff;\n`,
+            `      writebyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff, ${regJS(src)} );\n`,
         );
       } else if (src === "nn") {
         print(
           `      addTstates(11);\n` +
             `      {\n` +
-            `    var wordtemp =\n` +
-            `        (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff;\n` +
-            `    z80.pc &= 0xffff;\n` +
-            `    writebyte(wordtemp,readbyte(z80.pc++));\n` +
-            `    z80.pc &= 0xffff;\n` +
+            `    var wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
+            `    writebyte(wordtemp,z80.fetchByte());\n` +
             `      }\n`,
         );
       }
@@ -765,8 +751,7 @@ const opcodes = {
         `      {\n` +
           `    var outtemp;\n` +
           `    addTstates(4);\n` +
-          `    outtemp = readbyte( z80.pc++ ) + ( z80.a << 8 );\n` +
-          `    z80.pc &= 0xffff;\n` +
+          `    outtemp = z80.fetchByte() + ( z80.a << 8 );\n` +
           `    OUT( outtemp , z80.a );\n` +
           `      }\n`,
       );
@@ -904,11 +889,8 @@ const opcodes = {
         `      {\n` +
           `    var opcode3;\n` +
           `    addTstates(7);\n` +
-          `    tempaddr =\n` +
-          `        (${r16()} + sign_extend(readbyte( z80.pc++ ))) & 0xffff;\n` +
-          `    z80.pc &= 0xffff;\n` +
-          `    opcode3 = readbyte( z80.pc++ );\n` +
-          `    z80.pc &= 0xffff;\n` +
+          `    tempaddr = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
+          `    opcode3 = z80.fetchByte();\n` +
           `    z80_ddfdcbxx(opcode3,tempaddr);\n` +
           `      }\n`,
       );
@@ -917,8 +899,7 @@ const opcodes = {
         `      {\n` +
           `    var opcode2;\n` +
           `    addTstates(4);\n` +
-          `    opcode2 = readbyte( z80.pc++ );\n` +
-          `    z80.pc &= 0xffff;\n` +
+          `    opcode2 = z80.fetchByte();\n` +
           `    z80.r = (z80.r+1) & 0x7f;\n` +
           `    z80_${lcOpcode}xx(opcode2);\n` +
           `      }\n`,
