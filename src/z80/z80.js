@@ -1,5 +1,4 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
-// Replaces the generated z80_full.js.
 
 import { readbyte, writebyte } from "../miracle";
 import { addTstates } from "./z80_ops_full";
@@ -16,7 +15,7 @@ import {
 } from "./flags";
 
 // ---------------------------------------------------------------------------
-// Lookup tables (filled in z80_init_tables, used by micro-op methods below)
+// Lookup tables (filled by z80_init_tables, used by Z80 micro-op methods)
 // ---------------------------------------------------------------------------
 
 function byteTable(values) {
@@ -53,263 +52,274 @@ export const parity_table = new Uint8Array(256);
 export const sz53p_table = new Uint8Array(256);
 
 // ---------------------------------------------------------------------------
-// Z80 state
+// Z80 CPU — registers, state, and micro-op methods
 // ---------------------------------------------------------------------------
 
-export const z80 = {
-  a: 0,
-  f: 0,
-  b: 0,
-  c: 0,
-  d: 0,
-  e: 0,
-  h: 0,
-  l: 0,
-  a_: 0,
-  f_: 0,
-  b_: 0,
-  c_: 0,
-  d_: 0,
-  e_: 0,
-  h_: 0,
-  l_: 0,
-  ixh: 0,
-  ixl: 0,
-  iyh: 0,
-  iyl: 0,
-  i: 0,
-  r: 0, // Low 7 bits of R; also used as RZX instruction counter
-  r7: 0, // High bit of R
-  sp: 0,
-  pc: 0,
-  iff1: 0,
-  iff2: 0,
-  im: 0,
-  halted: false,
-  irq_pending: false,
-  irq_suppress: false,
-};
+class Z80 {
+  constructor() {
+    // Main register set
+    this.a = 0;
+    this.f = 0;
+    this.b = 0;
+    this.c = 0;
+    this.d = 0;
+    this.e = 0;
+    this.h = 0;
+    this.l = 0;
+    // Shadow register set
+    this.a_ = 0;
+    this.f_ = 0;
+    this.b_ = 0;
+    this.c_ = 0;
+    this.d_ = 0;
+    this.e_ = 0;
+    this.h_ = 0;
+    this.l_ = 0;
+    // Index registers, interrupt vector, refresh counter
+    this.ixh = 0;
+    this.ixl = 0;
+    this.iyh = 0;
+    this.iyl = 0;
+    this.i = 0;
+    this.r = 0; // Low 7 bits of R; also used as RZX instruction counter
+    this.r7 = 0; // High bit of R
+    // Stack pointer, program counter
+    this.sp = 0;
+    this.pc = 0;
+    // Interrupt state
+    this.iff1 = 0;
+    this.iff2 = 0;
+    this.im = 0;
+    this.halted = false;
+    this.irq_pending = false;
+    this.irq_suppress = false;
+  }
+
+  // -------------------------------------------------------------------------
+  // Arithmetic / logical — update this.a and/or this.f, return nothing
+  // -------------------------------------------------------------------------
+
+  and(value) {
+    this.a &= value;
+    this.f = FLAG_H | sz53p_table[this.a];
+  }
+
+  or(value) {
+    this.a |= value;
+    this.f = sz53p_table[this.a];
+  }
+
+  xor(value) {
+    this.a ^= value;
+    this.f = sz53p_table[this.a];
+  }
+
+  cp(value) {
+    const cptemp = this.a - value;
+    const lookup =
+      ((this.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((cptemp & 0x88) >> 1);
+    this.f =
+      (cptemp & 0x100 ? FLAG_C : cptemp ? 0 : FLAG_Z) |
+      FLAG_N |
+      halfcarry_sub_table[lookup & 0x07] |
+      overflow_sub_table[lookup >> 4] |
+      (value & (FLAG_3 | FLAG_5)) |
+      (cptemp & FLAG_S);
+  }
+
+  add(value) {
+    const addtemp = this.a + value;
+    const lookup =
+      ((this.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((addtemp & 0x88) >> 1);
+    this.a = addtemp & 0xff;
+    this.f =
+      (addtemp & 0x100 ? FLAG_C : 0) |
+      halfcarry_add_table[lookup & 0x07] |
+      overflow_add_table[lookup >> 4] |
+      sz53_table[this.a];
+  }
+
+  adc(value) {
+    const adctemp = this.a + value + (this.f & FLAG_C);
+    const lookup =
+      ((this.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((adctemp & 0x88) >> 1);
+    this.a = adctemp & 0xff;
+    this.f =
+      (adctemp & 0x100 ? FLAG_C : 0) |
+      halfcarry_add_table[lookup & 0x07] |
+      overflow_add_table[lookup >> 4] |
+      sz53_table[this.a];
+  }
+
+  sub(value) {
+    const subtemp = this.a - value;
+    const lookup =
+      ((this.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((subtemp & 0x88) >> 1);
+    this.a = subtemp & 0xff;
+    this.f =
+      (subtemp & 0x100 ? FLAG_C : 0) |
+      FLAG_N |
+      halfcarry_sub_table[lookup & 0x07] |
+      overflow_sub_table[lookup >> 4] |
+      sz53_table[this.a];
+  }
+
+  sbc(value) {
+    const sbctemp = this.a - value - (this.f & FLAG_C);
+    const lookup =
+      ((this.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((sbctemp & 0x88) >> 1);
+    this.a = sbctemp & 0xff;
+    this.f =
+      (sbctemp & 0x100 ? FLAG_C : 0) |
+      FLAG_N |
+      halfcarry_sub_table[lookup & 0x07] |
+      overflow_sub_table[lookup >> 4] |
+      sz53_table[this.a];
+  }
+
+  // 16-bit ADC/SBC operate on HL
+  adc16(value) {
+    const hl = this.l | (this.h << 8);
+    const add16temp = hl + value + (this.f & FLAG_C);
+    const lookup =
+      ((hl & 0x8800) >> 11) |
+      ((value & 0x8800) >> 10) |
+      ((add16temp & 0x8800) >> 9);
+    this.h = (add16temp >> 8) & 0xff;
+    this.l = add16temp & 0xff;
+    this.f =
+      (add16temp & 0x10000 ? FLAG_C : 0) |
+      overflow_add_table[lookup >> 4] |
+      (this.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
+      halfcarry_add_table[lookup & 0x07] |
+      (this.l | (this.h << 8) ? 0 : FLAG_Z);
+  }
+
+  sbc16(value) {
+    const hl = this.l | (this.h << 8);
+    const sub16temp = hl - value - (this.f & FLAG_C);
+    const lookup =
+      ((hl & 0x8800) >> 11) |
+      ((value & 0x8800) >> 10) |
+      ((sub16temp & 0x8800) >> 9);
+    this.h = (sub16temp >> 8) & 0xff;
+    this.l = sub16temp & 0xff;
+    this.f =
+      (sub16temp & 0x10000 ? FLAG_C : 0) |
+      FLAG_N |
+      overflow_sub_table[lookup >> 4] |
+      (this.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
+      halfcarry_sub_table[lookup & 0x07] |
+      (this.l | (this.h << 8) ? 0 : FLAG_Z);
+  }
+
+  // -------------------------------------------------------------------------
+  // Value-in / value-out — return the new register value, update this.f
+  // The generator emits: z80.b = z80.inc(z80.b)
+  // -------------------------------------------------------------------------
+
+  inc(value) {
+    value = (value + 1) & 0xff;
+    this.f =
+      (this.f & FLAG_C) |
+      (value === 0x80 ? FLAG_V : 0) |
+      (value & 0x0f ? 0 : FLAG_H) |
+      sz53_table[value];
+    return value;
+  }
+
+  dec(value) {
+    this.f = (this.f & FLAG_C) | (value & 0x0f ? 0 : FLAG_H) | FLAG_N;
+    value = (value - 1) & 0xff;
+    this.f |= (value === 0x7f ? FLAG_V : 0) | sz53_table[value];
+    return value;
+  }
+
+  rl(value) {
+    const old = value;
+    value = ((value & 0x7f) << 1) | (this.f & FLAG_C);
+    this.f = (old >> 7) | sz53p_table[value];
+    return value;
+  }
+
+  rlc(value) {
+    value = ((value & 0x7f) << 1) | (value >> 7);
+    this.f = (value & FLAG_C) | sz53p_table[value];
+    return value;
+  }
+
+  rr(value) {
+    const old = value;
+    value = (value >> 1) | ((this.f & FLAG_C) << 7);
+    this.f = (old & FLAG_C) | sz53p_table[value];
+    return value;
+  }
+
+  rrc(value) {
+    this.f = value & FLAG_C;
+    value = (value >> 1) | ((value & 0x01) << 7);
+    this.f |= sz53p_table[value];
+    return value;
+  }
+
+  sla(value) {
+    this.f = value >> 7;
+    value = (value << 1) & 0xff;
+    this.f |= sz53p_table[value];
+    return value;
+  }
+
+  sll(value) {
+    this.f = value >> 7;
+    value = ((value << 1) | 0x01) & 0xff;
+    this.f |= sz53p_table[value];
+    return value;
+  }
+
+  sra(value) {
+    this.f = value & FLAG_C;
+    value = (value & 0x80) | (value >> 1);
+    this.f |= sz53p_table[value];
+    return value;
+  }
+
+  srl(value) {
+    this.f = value & FLAG_C;
+    value >>= 1;
+    this.f |= sz53p_table[value];
+    return value;
+  }
+
+  // -------------------------------------------------------------------------
+  // Bit operations — non-mutating, only update this.f
+  // -------------------------------------------------------------------------
+
+  bit(bit, value) {
+    this.f = (this.f & FLAG_C) | FLAG_H | (value & (FLAG_3 | FLAG_5));
+    if (!(value & (0x01 << bit))) this.f |= FLAG_P | FLAG_Z;
+    if (bit === 7 && value & 0x80) this.f |= FLAG_S;
+  }
+
+  // Indexed variant — uses address bits 8–15 for the undocumented 3/5 flags
+  bit_i(bit, value, address) {
+    this.f = (this.f & FLAG_C) | FLAG_H | ((address >> 8) & (FLAG_3 | FLAG_5));
+    if (!(value & (0x01 << bit))) this.f |= FLAG_P | FLAG_Z;
+    if (bit === 7 && value & 0x80) this.f |= FLAG_S;
+  }
+
+  set(bit, value) {
+    return value | (0x01 << bit);
+  }
+
+  res(bit, value) {
+    return value & ~(0x01 << bit);
+  }
+}
+
+export const z80 = new Z80();
 
 // ---------------------------------------------------------------------------
-// Micro-op methods
-//
-// Value-mutating ops (INC, DEC, rotate/shift, SET, RES) take the current
-// register value and return the new value. The generator emits:
-//   z80.b = z80.inc(z80.b);   // INC B
-// This avoids string-key property lookup at runtime.
-//
-// Non-mutating ops (AND, OR, XOR, CP, ADC, ADD, SBC, SUB, BIT) update
-// z80.a and/or z80.f directly and return nothing.
-// ---------------------------------------------------------------------------
-
-// --- Arithmetic/logical (update z80.a and/or z80.f) ---
-
-z80.and = (value) => {
-  z80.a &= value;
-  z80.f = FLAG_H | sz53p_table[z80.a];
-};
-
-z80.or = (value) => {
-  z80.a |= value;
-  z80.f = sz53p_table[z80.a];
-};
-
-z80.xor = (value) => {
-  z80.a ^= value;
-  z80.f = sz53p_table[z80.a];
-};
-
-z80.cp = (value) => {
-  const cptemp = z80.a - value;
-  const lookup =
-    ((z80.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((cptemp & 0x88) >> 1);
-  z80.f =
-    (cptemp & 0x100 ? FLAG_C : cptemp ? 0 : FLAG_Z) |
-    FLAG_N |
-    halfcarry_sub_table[lookup & 0x07] |
-    overflow_sub_table[lookup >> 4] |
-    (value & (FLAG_3 | FLAG_5)) |
-    (cptemp & FLAG_S);
-};
-
-z80.add = (value) => {
-  const addtemp = z80.a + value;
-  const lookup =
-    ((z80.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((addtemp & 0x88) >> 1);
-  z80.a = addtemp & 0xff;
-  z80.f =
-    (addtemp & 0x100 ? FLAG_C : 0) |
-    halfcarry_add_table[lookup & 0x07] |
-    overflow_add_table[lookup >> 4] |
-    sz53_table[z80.a];
-};
-
-z80.adc = (value) => {
-  const adctemp = z80.a + value + (z80.f & FLAG_C);
-  const lookup =
-    ((z80.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((adctemp & 0x88) >> 1);
-  z80.a = adctemp & 0xff;
-  z80.f =
-    (adctemp & 0x100 ? FLAG_C : 0) |
-    halfcarry_add_table[lookup & 0x07] |
-    overflow_add_table[lookup >> 4] |
-    sz53_table[z80.a];
-};
-
-z80.sub = (value) => {
-  const subtemp = z80.a - value;
-  const lookup =
-    ((z80.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((subtemp & 0x88) >> 1);
-  z80.a = subtemp & 0xff;
-  z80.f =
-    (subtemp & 0x100 ? FLAG_C : 0) |
-    FLAG_N |
-    halfcarry_sub_table[lookup & 0x07] |
-    overflow_sub_table[lookup >> 4] |
-    sz53_table[z80.a];
-};
-
-z80.sbc = (value) => {
-  const sbctemp = z80.a - value - (z80.f & FLAG_C);
-  const lookup =
-    ((z80.a & 0x88) >> 3) | ((value & 0x88) >> 2) | ((sbctemp & 0x88) >> 1);
-  z80.a = sbctemp & 0xff;
-  z80.f =
-    (sbctemp & 0x100 ? FLAG_C : 0) |
-    FLAG_N |
-    halfcarry_sub_table[lookup & 0x07] |
-    overflow_sub_table[lookup >> 4] |
-    sz53_table[z80.a];
-};
-
-// 16-bit ADC/SBC operate on HL.
-z80.adc16 = (value) => {
-  const add16temp = (z80.l | (z80.h << 8)) + value + (z80.f & FLAG_C);
-  const lookup =
-    (((z80.l | (z80.h << 8)) & 0x8800) >> 11) |
-    ((value & 0x8800) >> 10) |
-    ((add16temp & 0x8800) >> 9);
-  z80.h = (add16temp >> 8) & 0xff;
-  z80.l = add16temp & 0xff;
-  z80.f =
-    (add16temp & 0x10000 ? FLAG_C : 0) |
-    overflow_add_table[lookup >> 4] |
-    (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
-    halfcarry_add_table[lookup & 0x07] |
-    (z80.l | (z80.h << 8) ? 0 : FLAG_Z);
-};
-
-z80.sbc16 = (value) => {
-  const sub16temp = (z80.l | (z80.h << 8)) - value - (z80.f & FLAG_C);
-  const lookup =
-    (((z80.l | (z80.h << 8)) & 0x8800) >> 11) |
-    ((value & 0x8800) >> 10) |
-    ((sub16temp & 0x8800) >> 9);
-  z80.h = (sub16temp >> 8) & 0xff;
-  z80.l = sub16temp & 0xff;
-  z80.f =
-    (sub16temp & 0x10000 ? FLAG_C : 0) |
-    FLAG_N |
-    overflow_sub_table[lookup >> 4] |
-    (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
-    halfcarry_sub_table[lookup & 0x07] |
-    (z80.l | (z80.h << 8) ? 0 : FLAG_Z);
-};
-
-// --- Value-in / value-out (return new register value, update z80.f) ---
-
-z80.inc = (value) => {
-  value = (value + 1) & 0xff;
-  z80.f =
-    (z80.f & FLAG_C) |
-    (value === 0x80 ? FLAG_V : 0) |
-    (value & 0x0f ? 0 : FLAG_H) |
-    sz53_table[value];
-  return value;
-};
-
-z80.dec = (value) => {
-  z80.f = (z80.f & FLAG_C) | (value & 0x0f ? 0 : FLAG_H) | FLAG_N;
-  value = (value - 1) & 0xff;
-  z80.f |= (value === 0x7f ? FLAG_V : 0) | sz53_table[value];
-  return value;
-};
-
-z80.rl = (value) => {
-  const old = value;
-  value = ((value & 0x7f) << 1) | (z80.f & FLAG_C);
-  z80.f = (old >> 7) | sz53p_table[value];
-  return value;
-};
-
-z80.rlc = (value) => {
-  value = ((value & 0x7f) << 1) | (value >> 7);
-  z80.f = (value & FLAG_C) | sz53p_table[value];
-  return value;
-};
-
-z80.rr = (value) => {
-  const old = value;
-  value = (value >> 1) | ((z80.f & FLAG_C) << 7);
-  z80.f = (old & FLAG_C) | sz53p_table[value];
-  return value;
-};
-
-z80.rrc = (value) => {
-  z80.f = value & FLAG_C;
-  value = (value >> 1) | ((value & 0x01) << 7);
-  z80.f |= sz53p_table[value];
-  return value;
-};
-
-z80.sla = (value) => {
-  z80.f = value >> 7;
-  value = (value << 1) & 0xff;
-  z80.f |= sz53p_table[value];
-  return value;
-};
-
-z80.sll = (value) => {
-  z80.f = value >> 7;
-  value = ((value << 1) | 0x01) & 0xff;
-  z80.f |= sz53p_table[value];
-  return value;
-};
-
-z80.sra = (value) => {
-  z80.f = value & FLAG_C;
-  value = (value & 0x80) | (value >> 1);
-  z80.f |= sz53p_table[value];
-  return value;
-};
-
-z80.srl = (value) => {
-  z80.f = value & FLAG_C;
-  value >>= 1;
-  z80.f |= sz53p_table[value];
-  return value;
-};
-
-// BIT: non-mutating, only updates flags.
-z80.bit = (bit, value) => {
-  z80.f = (z80.f & FLAG_C) | FLAG_H | (value & (FLAG_3 | FLAG_5));
-  if (!(value & (0x01 << bit))) z80.f |= FLAG_P | FLAG_Z;
-  if (bit === 7 && value & 0x80) z80.f |= FLAG_S;
-};
-
-// BIT_I: indexed variant — uses address bits 8-15 for undocumented flags.
-z80.bit_i = (bit, value, address) => {
-  z80.f = (z80.f & FLAG_C) | FLAG_H | ((address >> 8) & (FLAG_3 | FLAG_5));
-  if (!(value & (0x01 << bit))) z80.f |= FLAG_P | FLAG_Z;
-  if (bit === 7 && value & 0x80) z80.f |= FLAG_S;
-};
-
-z80.set = (bit, value) => value | (0x01 << bit);
-
-z80.res = (bit, value) => value & ~(0x01 << bit);
-
-// ---------------------------------------------------------------------------
-// Lifecycle
+// Lifecycle functions (standalone exports; external API unchanged)
 // ---------------------------------------------------------------------------
 
 export function z80_init() {
