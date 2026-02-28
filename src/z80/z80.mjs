@@ -1150,7 +1150,7 @@ export function expandOpcodes(code, register = null) {
   code = code.replace(/\bwritebyte_internal\b/g, "writebyte");
 
   // contend_io(port, time) — port unused (no memory contention emulated).
-  code = applyMacro(code, "contend_io", ([, time]) => `tstates += (${time});`);
+  code = applyMacro(code, "contend_io", ([, time]) => `addTstates(${time});`);
 
   // Expand parameterised macros. Longer names (ADC16, ADD16, SBC16, BIT_I,
   // LD16_*) are expanded before their shorter prefix-siblings.
@@ -1159,8 +1159,11 @@ export function expandOpcodes(code, register = null) {
     code,
     "ADC16",
     ([v]) =>
-      `{ var hlv = z80.hl(), add16temp = hlv + (${v}) + (z80.f & FLAG_C);` +
-      ` var lookup = ((hlv & 0x8800) >> 11) | (((${v}) & 0x8800) >> 10) | ((add16temp & 0x8800) >> 9);` +
+      // Capture v in addv to avoid calling the method twice (once for the sum,
+      // once for the lookup).  hlv snapshots HL before we overwrite h/l.
+      `{ const addv = (${v}), hlv = z80.hl();` +
+      ` const add16temp = hlv + addv + (z80.f & FLAG_C);` +
+      ` const lookup = ((hlv & 0x8800) >> 11) | ((addv & 0x8800) >> 10) | ((add16temp & 0x8800) >> 9);` +
       ` z80.h = (add16temp >> 8) & 0xff; z80.l = add16temp & 0xff;` +
       ` z80.f = (add16temp & 0x10000 ? FLAG_C : 0) | overflow_add_table[lookup >> 4] |` +
       ` (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) | halfcarry_add_table[lookup & 0x07] | (z80.hl() ? 0 : FLAG_Z); }`,
@@ -1170,8 +1173,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "ADC",
     ([v]) =>
-      `{ var adctemp = z80.a + (${v}) + (z80.f & FLAG_C);` +
-      ` var lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((adctemp & 0x88) >> 1);` +
+      `{ const adctemp = z80.a + (${v}) + (z80.f & FLAG_C);` +
+      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((adctemp & 0x88) >> 1);` +
       ` z80.a = adctemp & 0xff;` +
       ` z80.f = (adctemp & 0x100 ? FLAG_C : 0) | halfcarry_add_table[lookup & 0x07] | overflow_add_table[lookup >> 4] | sz53_table[z80.a]; }`,
   );
@@ -1180,8 +1183,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "ADD16",
     ([v1, v2, v1h, v1l]) =>
-      `{ var a16v1 = (${v1}), a16v2 = (${v2}), add16temp = a16v1 + a16v2;` +
-      ` var lookup = ((a16v1 & 0x0800) >> 11) | ((a16v2 & 0x0800) >> 10) | ((add16temp & 0x0800) >> 9);` +
+      `{ const a16v1 = (${v1}), a16v2 = (${v2}), add16temp = a16v1 + a16v2;` +
+      ` const lookup = ((a16v1 & 0x0800) >> 11) | ((a16v2 & 0x0800) >> 10) | ((add16temp & 0x0800) >> 9);` +
       ` addTstates(7); (${v1h}) = (add16temp >> 8) & 0xff; (${v1l}) = add16temp & 0xff;` +
       ` z80.f = (z80.f & (FLAG_V | FLAG_Z | FLAG_S)) | (add16temp & 0x10000 ? FLAG_C : 0) | ((add16temp >> 8) & (FLAG_3 | FLAG_5)) | halfcarry_add_table[lookup]; }`,
   );
@@ -1190,8 +1193,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "ADD",
     ([v]) =>
-      `{ var addtemp = z80.a + (${v});` +
-      ` var lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((addtemp & 0x88) >> 1);` +
+      `{ const addtemp = z80.a + (${v});` +
+      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((addtemp & 0x88) >> 1);` +
       ` z80.a = addtemp & 0xff;` +
       ` z80.f = (addtemp & 0x100 ? FLAG_C : 0) | halfcarry_add_table[lookup & 0x07] | overflow_add_table[lookup >> 4] | sz53_table[z80.a]; }`,
   );
@@ -1224,7 +1227,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "CALL",
     () =>
-      `{ var calltempl = z80.fetchByte(); addTstates(1); var calltemph = z80.fetchByte();` +
+      `{ const calltempl = z80.fetchByte(); addTstates(1); const calltemph = z80.fetchByte();` +
       ` addTstates(6); z80.push16(z80.pc); z80.pc = calltempl | (calltemph << 8); }`,
   );
 
@@ -1232,8 +1235,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "CP",
     ([v]) =>
-      `{ var cptemp = z80.a - ${v};` +
-      ` var lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((cptemp & 0x88) >> 1);` +
+      `{ const cptemp = z80.a - ${v};` +
+      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((cptemp & 0x88) >> 1);` +
       ` z80.f = (cptemp & 0x100 ? FLAG_C : (cptemp ? 0 : FLAG_Z)) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | ((${v}) & (FLAG_3 | FLAG_5)) | (cptemp & FLAG_S); }`,
   );
 
@@ -1258,14 +1261,14 @@ export function expandOpcodes(code, register = null) {
     code,
     "IN",
     ([reg, port]) =>
-      `{ tstates += 3; (${reg}) = readport((${port})); z80.f = (z80.f & FLAG_C) | sz53p_table[(${reg})]; }`,
+      `{ addTstates(3); (${reg}) = readport((${port})); z80.f = (z80.f & FLAG_C) | sz53p_table[(${reg})]; }`,
   );
 
   code = applyMacro(
     code,
     "JP",
     () =>
-      `{ var jptemp = z80.pc; z80.pc = readbyte(jptemp) | (readbyte((jptemp + 1) & 0xffff) << 8); }`,
+      `{ const jptemp = z80.pc; z80.pc = readbyte(jptemp) | (readbyte((jptemp + 1) & 0xffff) << 8); }`,
   );
 
   code = applyMacro(
@@ -1279,7 +1282,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "LD16_NNRR",
     ([regl, regh]) =>
-      `{ addTstates(12); var ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
       ` writebyte(ldtemp, (${regl})); writebyte((ldtemp + 1) & 0xffff, (${regh})); }`,
   );
 
@@ -1287,7 +1290,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "LD16_RRNN",
     ([regl, regh]) =>
-      `{ addTstates(12); var ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
       ` (${regl}) = readbyte(ldtemp); (${regh}) = readbyte((ldtemp + 1) & 0xffff); }`,
   );
 
@@ -1295,7 +1298,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "LD16_RRNNW",
     ([reg]) =>
-      `{ addTstates(12); var ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
       ` ${reg} = readbyte(ldtemp) | (readbyte((ldtemp + 1) & 0xffff) << 8); }`,
   );
 
@@ -1308,14 +1311,14 @@ export function expandOpcodes(code, register = null) {
   code = applyMacro(
     code,
     "OUT",
-    ([port, reg]) => `{ tstates += 3; writeport((${port}), ${reg}); }`,
+    ([port, reg]) => `{ addTstates(3); writeport((${port}), ${reg}); }`,
   );
 
   code = applyMacro(
     code,
     "POP16",
     ([regl, regh]) =>
-      `{ addTstates(6); var popv = z80.pop16(); (${regl}) = popv & 0xff; (${regh}) = popv >> 8; }`,
+      `{ addTstates(6); const popv = z80.pop16(); (${regl}) = popv & 0xff; (${regh}) = popv >> 8; }`,
   );
 
   code = applyMacro(
@@ -1335,7 +1338,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "RL",
     ([v]) =>
-      `{ var rltemp = (${v}); (${v}) = (((${v}) & 0x7f) << 1) | (z80.f & FLAG_C); z80.f = (rltemp >> 7) | sz53p_table[(${v})]; }`,
+      `{ const rltemp = (${v}); (${v}) = (((${v}) & 0x7f) << 1) | (z80.f & FLAG_C); z80.f = (rltemp >> 7) | sz53p_table[(${v})]; }`,
   );
 
   code = applyMacro(
@@ -1349,7 +1352,7 @@ export function expandOpcodes(code, register = null) {
     code,
     "RR",
     ([v]) =>
-      `{ var rrtemp = (${v}); (${v}) = ((${v}) >> 1) | ((z80.f & 0x01) << 7); z80.f = (rrtemp & FLAG_C) | sz53p_table[(${v})]; }`,
+      `{ const rrtemp = (${v}); (${v}) = ((${v}) >> 1) | ((z80.f & 0x01) << 7); z80.f = (rrtemp & FLAG_C) | sz53p_table[(${v})]; }`,
   );
 
   code = applyMacro(
@@ -1369,8 +1372,11 @@ export function expandOpcodes(code, register = null) {
     code,
     "SBC16",
     ([v]) =>
-      `{ var hlv = z80.hl(), sub16temp = hlv - (${v}) - (z80.f & FLAG_C);` +
-      ` var lookup = ((hlv & 0x8800) >> 11) | (((${v}) & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);` +
+      // Capture v in subv to avoid calling the method twice.
+      // hlv snapshots HL before we overwrite h/l.
+      `{ const subv = (${v}), hlv = z80.hl();` +
+      ` const sub16temp = hlv - subv - (z80.f & FLAG_C);` +
+      ` const lookup = ((hlv & 0x8800) >> 11) | ((subv & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);` +
       ` z80.h = (sub16temp >> 8) & 0xff; z80.l = sub16temp & 0xff;` +
       ` z80.f = (sub16temp & 0x10000 ? FLAG_C : 0) | FLAG_N | overflow_sub_table[lookup >> 4] |` +
       ` (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) | halfcarry_sub_table[lookup & 0x07] | (z80.hl() ? 0 : FLAG_Z); }`,
@@ -1380,8 +1386,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "SBC",
     ([v]) =>
-      `{ var sbctemp = z80.a - (${v}) - (z80.f & FLAG_C);` +
-      ` var lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((sbctemp & 0x88) >> 1);` +
+      `{ const sbctemp = z80.a - (${v}) - (z80.f & FLAG_C);` +
+      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((sbctemp & 0x88) >> 1);` +
       ` z80.a = sbctemp & 0xff;` +
       ` z80.f = (sbctemp & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | sz53_table[z80.a]; }`,
   );
@@ -1418,8 +1424,8 @@ export function expandOpcodes(code, register = null) {
     code,
     "SUB",
     ([v]) =>
-      `{ var subtemp = z80.a - (${v});` +
-      ` var lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((subtemp & 0x88) >> 1);` +
+      `{ const subtemp = z80.a - (${v});` +
+      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((subtemp & 0x88) >> 1);` +
       ` z80.a = subtemp & 0xff;` +
       ` z80.f = (subtemp & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | sz53_table[z80.a]; }`,
   );
