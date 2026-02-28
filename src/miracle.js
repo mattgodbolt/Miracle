@@ -58,18 +58,13 @@ function line() {
   setTstates(tstates - tstatesPerHblank);
   z80_do_opcodes(cycleCallback);
   const vdp_status = vdp_hblank();
-  const irq = !!(vdp_status & 3);
-  z80_set_irq(irq);
+  z80_set_irq(!!(vdp_status & 3));
   if (breakpointHit) {
     running = false;
     showDebug(z80.pc);
-    return true;
-  }
-  if (vdp_status & 4) {
+  } else if (vdp_status & 4) {
     paintScreen();
-    return true;
   }
-  return false;
 }
 
 export function start() {
@@ -85,7 +80,6 @@ export function start() {
 const targetTimeout = 1000 / framesPerSecond;
 let adjustedTimeout = targetTimeout;
 let lastFrame = null;
-const linesPerYield = 20;
 
 function run() {
   if (!running) {
@@ -100,28 +94,25 @@ function run() {
       // Ignore huge delays (e.g. trips in and out of the debugger)
       const diff = timeSinceLast - targetTimeout;
       adjustedTimeout -= 0.1 * diff;
+      // Clamp to a sane range so adjustedTimeout can't drift negative (causing
+      // run() to fire as fast as possible) or become uselessly large.
+      adjustedTimeout = Math.max(
+        1,
+        Math.min(targetTimeout * 2, adjustedTimeout),
+      );
     }
   }
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
 
-  const runner = function () {
-    if (!running) return;
-    try {
-      for (let i = 0; i < linesPerYield; ++i) {
-        if (line()) {
-          audio_push_frame();
-          return;
-        }
-      }
-    } catch (e) {
-      running = false;
-      audio_enable(true);
-      throw e;
-    }
-    if (running) setTimeout(runner, 0);
-  };
-  runner();
+  try {
+    for (let i = 0; i < scanLinesPerFrame && running; i++) line();
+  } catch (e) {
+    running = false;
+    audio_enable(true);
+    throw e;
+  }
+  if (running) audio_push_frame();
 }
 
 export function stop() {
