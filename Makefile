@@ -5,7 +5,7 @@
 #
 # All generated files are listed in .gitignore and src/z80/.gitignore.
 
-.PHONY: all dev preview clean distclean
+.PHONY: all dist dev preview clean distclean
 
 ##
 ## Primary targets
@@ -13,6 +13,9 @@
 
 # Default: full production build.
 all: dist/index.html
+
+# Alias used by the deploy workflow (and consistent with other projects).
+dist: all
 
 # Start the Vite dev server (installs deps and builds the z80/roms prereqs first).
 dev: node_modules/.package-lock.json src/roms.js \
