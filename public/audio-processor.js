@@ -10,8 +10,12 @@ class MiracleAudioProcessor extends AudioWorkletProcessor {
     this._queue = [];
     this._queueSamples = 0;
     this._lastSample = 0;
-    // Cap queue at ~250ms to prevent runaway buffering
-    this._maxQueueSamples = Math.ceil(sampleRate * 0.25);
+    // Cap queue at 3 SMS frames + 50% paranoia margin.
+    // samplesPerFrame is passed from the main thread via processorOptions so
+    // the cap is expressed in meaningful emulator units rather than wall-clock ms.
+    const samplesPerFrame =
+      options.processorOptions?.samplesPerFrame ?? Math.ceil(sampleRate / 50);
+    this._maxQueueSamples = Math.ceil(samplesPerFrame * 3 * 1.5);
 
     this.port.onmessage = (event) => {
       const buf = event.data.buffer;

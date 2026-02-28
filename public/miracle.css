@@ -260,8 +260,11 @@ a.close_button {
   color: #ffffff;
   padding: 12px 24px;
   border: 2px solid #ffffff;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
+  font-family: inherit;
+  appearance: none;
   z-index: 100;
   text-align: center;
   white-space: nowrap;

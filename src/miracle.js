@@ -180,6 +180,7 @@ function audio_init() {
     _showAudioBanner(
       "⚠️ Audio unavailable — serve over https or use localhost",
     );
+    audioContext.close();
     audioContext = null;
     return;
   }
@@ -188,22 +189,41 @@ function audio_init() {
   _checkAudioStatus();
 
   // Async worklet setup; soundChip is already usable above.
-  audioContext.audioWorklet.addModule("/audio-processor.js").then(() => {
-    _audioNode = new AudioWorkletNode(audioContext, "miracle-audio-processor");
-    _audioNode.connect(audioContext.destination);
-  });
+  audioContext.audioWorklet
+    .addModule("/audio-processor.js")
+    .then(() => {
+      _audioNode = new AudioWorkletNode(
+        audioContext,
+        "miracle-audio-processor",
+        {
+          numberOfOutputs: 1,
+          outputChannelCount: [1],
+          processorOptions: { samplesPerFrame: _samplesPerFrame },
+        },
+      );
+      _audioNode.connect(audioContext.destination);
+    })
+    .catch((err) => {
+      console.warn("Failed to load audio worklet:", err);
+      _showAudioBanner("⚠️ Audio failed to load — see console for details");
+      if (audioContext) audioContext.close();
+      audioContext = null;
+      _audioNode = null;
+    });
 }
 
 function audio_push_frame() {
-  if (!_audioNode || !_samplesPerFrame) return;
+  if (!_samplesPerFrame) return;
   const buf = new Float32Array(_samplesPerFrame);
+  // Always drain the soundchip's internal buffer every frame, regardless of
+  // whether the worklet is ready yet. Skipping render() allows pending cycles
+  // to accumulate and overflow the soundchip's internal cap, causing desynced
+  // audio once the worklet eventually initialises.
   soundChip.render(buf, 0, buf.length);
-  // Only push to the worklet while the context is actually running.
-  // While suspended (waiting for user gesture), we still drain the soundchip's
-  // internal buffer above to prevent it overflowing, but we discard the
-  // samples — otherwise they'd queue up and cause hundreds of ms of latency
-  // when the context eventually resumes.
-  if (audioContext && audioContext.state === "running") {
+  // Only push to the worklet while the context is actually running and the
+  // node is ready. While suspended or still initialising we drain (above) but
+  // discard the samples — otherwise they'd queue up and cause latency on resume.
+  if (_audioNode && audioContext && audioContext.state === "running") {
     // Transfer the underlying ArrayBuffer to avoid a copy.
     _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
   }
@@ -211,7 +231,9 @@ function audio_push_frame() {
 
 export function audio_enable(enable) {
   soundChip.enable(enable);
-  if (audioContext) audioContext.resume();
+  // Only resume the AudioContext when actually enabling audio; calling
+  // resume() while disabling would wrongly hide the suspended banner.
+  if (enable && audioContext) audioContext.resume();
 }
 
 function audio_reset() {
