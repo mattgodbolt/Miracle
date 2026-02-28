@@ -87,6 +87,29 @@ let adjustedTimeout = targetTimeout;
 let lastFrame = null;
 const linesPerYield = 20;
 
+// Use a MessageChannel to yield between scanline batches instead of
+// setTimeout(fn, 0). Browsers throttle deeply-nested setTimeout calls to a
+// minimum of ~1 second after 5 minutes without user interaction (Chrome's
+// "intensive wake-up throttling"), which makes the emulator grind to a halt.
+// MessageChannel tasks are not subject to that throttling policy.
+const _yieldChannel = new MessageChannel();
+_yieldChannel.port1.onmessage = function _runnerStep() {
+  if (!running) return;
+  try {
+    for (let i = 0; i < linesPerYield; ++i) {
+      if (line()) {
+        audio_push_frame();
+        return;
+      }
+    }
+  } catch (e) {
+    running = false;
+    audio_enable(true);
+    throw e;
+  }
+  if (running) _yieldChannel.port2.postMessage(null);
+};
+
 function run() {
   if (!running) {
     showDebug(z80.pc);
@@ -100,28 +123,17 @@ function run() {
       // Ignore huge delays (e.g. trips in and out of the debugger)
       const diff = timeSinceLast - targetTimeout;
       adjustedTimeout -= 0.1 * diff;
+      // Clamp to a sane range so adjustedTimeout can't drift negative (causing
+      // run() to fire as fast as possible) or become uselessly large.
+      adjustedTimeout = Math.max(
+        1,
+        Math.min(targetTimeout * 2, adjustedTimeout),
+      );
     }
   }
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
-
-  const runner = function () {
-    if (!running) return;
-    try {
-      for (let i = 0; i < linesPerYield; ++i) {
-        if (line()) {
-          audio_push_frame();
-          return;
-        }
-      }
-    } catch (e) {
-      running = false;
-      audio_enable(true);
-      throw e;
-    }
-    if (running) setTimeout(runner, 0);
-  };
-  runner();
+  _yieldChannel.port2.postMessage(null);
 }
 
 export function stop() {
