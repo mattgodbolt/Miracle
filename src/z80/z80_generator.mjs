@@ -140,7 +140,7 @@ function arithmetic_logical(opcode, arg1, arg2) {
       print(
         `      addTstates(11);\n` +
           `      {\n` +
-          `    var bytetemp = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
+          `    const bytetemp = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
           `    z80.${method}(bytetemp);\n` +
           `      }\n`,
       );
@@ -148,7 +148,7 @@ function arithmetic_logical(opcode, arg1, arg2) {
       print(
         `      addTstates(3);\n` +
           `      {\n` +
-          `    var bytetemp = readbyte( z80.hl() );\n` +
+          `    const bytetemp = readbyte( z80.hl() );\n` +
           `    z80.${method}(bytetemp);\n` +
           `      }\n`,
       );
@@ -188,13 +188,14 @@ function cpi_cpd(opcode) {
   const modifier = opcode === "CPI" ? "+" : "-";
   print(
     `      {\n` +
-      `    var value = readbyte( z80.hl() ), bytetemp = (z80.a - value) & 0xff,\n` +
-      `      lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
+      `    const value = readbyte( z80.hl() );\n` +
+      `    let bytetemp = (z80.a - value) & 0xff;\n` +
+      `    const lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
       `               ( (  (value) & 0x08 ) >> 2 ) |\n` +
       `               ( ( bytetemp & 0x08 ) >> 1 );\n` +
       `    addTstates(8);\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    var bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
       `    z80.f = ( z80.f & FLAG_C ) | ( z80.bc() ? ( FLAG_V | FLAG_N ) : FLAG_N ) |\n` +
       `      halfcarry_sub_table[lookup] | ( bytetemp ? 0 : FLAG_Z ) |\n` +
       `      ( bytetemp & FLAG_S );\n` +
@@ -208,13 +209,14 @@ function cpir_cpdr(opcode) {
   const modifier = opcode === "CPIR" ? "+" : "-";
   print(
     `      {\n` +
-      `    var value = readbyte( z80.hl() ), bytetemp = (z80.a - value) & 0xff,\n` +
-      `      lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
+      `    const value = readbyte( z80.hl() );\n` +
+      `    let bytetemp = (z80.a - value) & 0xff;\n` +
+      `    const lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
       `               ( (  (value) & 0x08 ) >> 2 ) |\n` +
       `               ( ( bytetemp & 0x08 ) >> 1 );\n` +
       `    addTstates(8);\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    var bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
       `    z80.f = ( z80.f & FLAG_C ) | ( z80.bc() ? ( FLAG_V | FLAG_N ) : FLAG_N ) |\n` +
       `      halfcarry_sub_table[lookup] | ( bytetemp ? 0 : FLAG_Z ) |\n` +
       `      ( bytetemp & FLAG_S );\n` +
@@ -246,7 +248,7 @@ function inc_dec(opcode, arg) {
       const rd = pairRead(arg);
       print(
         `      addTstates(2);\n` +
-          `      var wordtemp = (${rd} ${modifier} 1) & 0xffff;\n` +
+          `      const wordtemp = (${rd} ${modifier} 1) & 0xffff;\n` +
           `      ${hi} = wordtemp >> 8;\n` +
           `      ${lo} = wordtemp & 0xff;\n`,
       );
@@ -255,7 +257,7 @@ function inc_dec(opcode, arg) {
     print(
       `      addTstates(7);\n` +
         `      {\n` +
-        `    var bytetemp = readbyte( z80.hl() );\n` +
+        `    let bytetemp = readbyte( z80.hl() );\n` +
         `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(z80.hl(),bytetemp);\n` +
         `      }\n`,
@@ -264,8 +266,8 @@ function inc_dec(opcode, arg) {
     print(
       `      addTstates(15);\n` +
         `      {\n` +
-        `    var wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
-        `    var bytetemp = readbyte( wordtemp );\n` +
+        `    const wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
+        `    let bytetemp = readbyte( wordtemp );\n` +
         `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(wordtemp,bytetemp);\n` +
         `      }\n`,
@@ -277,11 +279,11 @@ function ini_ind(opcode) {
   const modifier = opcode === "INI" ? "+" : "-";
   print(
     `      {\n` +
-      `    var initemp = readport( z80.bc() );\n` +
+      `    const initemp = readport( z80.bc() );\n` +
       `    addTstates(8);\n` +
       `    writebyte(z80.hl(),initemp);\n` +
       `    z80.b = (z80.b-1)&0xff;\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
       `    z80.f = (initemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
       `    /* C,H and P/V flags not implemented */\n` +
       `      }\n`,
@@ -292,11 +294,11 @@ function inir_indr(opcode) {
   const modifier = opcode === "INIR" ? "+" : "-";
   print(
     `      {\n` +
-      `    var initemp=readport( z80.bc() );\n` +
+      `    const initemp = readport( z80.bc() );\n` +
       `    addTstates(8);\n` +
       `    writebyte(z80.hl(),initemp);\n` +
       `    z80.b = (z80.b-1)&0xff;\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
       `    z80.f = (initemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
       `    /* C,H and P/V flags not implemented */\n` +
       `    if(z80.b) {\n` +
@@ -311,12 +313,12 @@ function ldi_ldd(opcode) {
   const modifier = opcode === "LDI" ? "+" : "-";
   print(
     `      {\n` +
-      `    var bytetemp=readbyte( z80.hl() );\n` +
+      `    let bytetemp = readbyte( z80.hl() );\n` +
       `    addTstates(8);\n` +
-      `    var bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
+      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
       `    writebyte(z80.de(),bytetemp);\n` +
-      `    var detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
       `    bytetemp = (bytetemp + z80.a) & 0xff;\n` +
       `    z80.f = ( z80.f & ( FLAG_C | FLAG_Z | FLAG_S ) ) | ( z80.bc() ? FLAG_V : 0 ) |\n` +
       `      ( bytetemp & FLAG_3 ) | ( (bytetemp & 0x02) ? FLAG_5 : 0 );\n` +
@@ -328,12 +330,12 @@ function ldir_lddr(opcode) {
   const modifier = opcode === "LDIR" ? "+" : "-";
   print(
     `      {\n` +
-      `    var bytetemp=readbyte( z80.hl() );\n` +
+      `    let bytetemp = readbyte( z80.hl() );\n` +
       `    addTstates(8);\n` +
       `    writebyte(z80.de(),bytetemp);\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    var detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
-      `    var bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
+      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
       `    bytetemp = (bytetemp + z80.a) & 0xff;\n` +
       `    z80.f = ( z80.f & ( FLAG_C | FLAG_Z | FLAG_S ) ) | ( z80.bc() ? FLAG_V : 0 ) |\n` +
       `      ( bytetemp & FLAG_3 ) | ( (bytetemp & 0x02) ? FLAG_5 : 0 );\n` +
@@ -349,10 +351,10 @@ function otir_otdr(opcode) {
   const modifier = opcode === "OTIR" ? "+" : "-";
   print(
     `      {\n` +
-      `    var outitemp=readbyte( z80.hl() );\n` +
+      `    const outitemp = readbyte( z80.hl() );\n` +
       `    addTstates(5);\n` +
       `    z80.b = (z80.b-1)&0xff;\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
       `    /* This does happen first, despite what the specs say */\n` +
       `    writeport(z80.bc(),outitemp);\n` +
       `    z80.f = (outitemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
@@ -371,10 +373,10 @@ function outi_outd(opcode) {
   const modifier = opcode === "OUTI" ? "+" : "-";
   print(
     `      {\n` +
-      `    var outitemp=readbyte( z80.hl() );\n` +
+      `    const outitemp = readbyte( z80.hl() );\n` +
       `    z80.b = (z80.b-1)&0xff;    /* This does happen first, despite what the specs say */\n` +
       `    addTstates(8);\n` +
-      `    var hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
+      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
       `    writeport(z80.bc(),outitemp);\n` +
       `    z80.f = (outitemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
       `    /* C,H and P/V flags not implemented */\n` +
@@ -426,7 +428,7 @@ function rotate_shift(opcode, register) {
   } else if (register === "(HL)") {
     print(
       `      {\n` +
-        `    var bytetemp = readbyte(z80.hl());\n` +
+        `    let bytetemp = readbyte(z80.hl());\n` +
         `    addTstates(7);\n` +
         `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(z80.hl(),bytetemp);\n` +
@@ -436,7 +438,7 @@ function rotate_shift(opcode, register) {
     print(
       `      addTstates(8);\n` +
         `      {\n` +
-        `    var bytetemp = readbyte(tempaddr);\n` +
+        `    let bytetemp = readbyte(tempaddr);\n` +
         `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(tempaddr,bytetemp);\n` +
         `      }\n`,
@@ -460,14 +462,14 @@ const opcodes = {
       print(
         `      addTstates(5);\n` +
           `      {\n` +
-          `    var bytetemp = readbyte( tempaddr );\n` +
+          `    const bytetemp = readbyte( tempaddr );\n` +
           `    z80.bit_i( ${bit}, bytetemp, tempaddr );\n` +
           `      }\n`,
       );
     } else {
       print(
         `      {\n` +
-          `    var bytetemp = readbyte( z80.hl() );\n` +
+          `    const bytetemp = readbyte( z80.hl() );\n` +
           `    addTstates(4);\n` +
           `    z80.bit( ${bit}, bytetemp);\n` +
           `      }\n`,
@@ -501,7 +503,7 @@ const opcodes = {
   DAA() {
     print(
       `      {\n` +
-        `    var add = 0, carry = ( z80.f & FLAG_C );\n` +
+        `    let add = 0, carry = ( z80.f & FLAG_C );\n` +
         `    if( ( z80.f & FLAG_H ) || ( (z80.a & 0x0f)>9 ) ) add=6;\n` +
         `    if( carry || (z80.a > 0x99 ) ) add|=0x60;\n` +
         `    if( z80.a > 0x99 ) carry=FLAG_C;\n` +
@@ -534,7 +536,7 @@ const opcodes = {
     if (arg1 === "AF" && arg2 === "AF'") {
       print(
         `      {\n` +
-          `          var olda = z80.a; var oldf = z80.f;\n` +
+          `          const olda = z80.a, oldf = z80.f;\n` +
           `          z80.a = z80.a_; z80.f = z80.f_;\n` +
           `          z80.a_ = olda; z80.f_ = oldf;\n` +
           `      }\n`,
@@ -544,7 +546,7 @@ const opcodes = {
       const lo = arg2 === "HL" ? "z80.l" : r16l();
       print(
         `      {\n` +
-          `    var bytetempl = readbyte( z80.sp     ),\n` +
+          `    const bytetempl = readbyte( z80.sp     ),\n` +
           `                     bytetemph = readbyte( z80.sp + 1 );\n` +
           `    addTstates(15);\n` +
           `    writebyte(z80.sp+1,${hi}); writebyte(z80.sp,${lo});\n` +
@@ -554,7 +556,7 @@ const opcodes = {
     } else if (arg1 === "DE" && arg2 === "HL") {
       print(
         `      {\n` +
-          `    var bytetemp;\n` +
+          `    let bytetemp;\n` +
           `    bytetemp = z80.d; z80.d = z80.h; z80.h = bytetemp;\n` +
           `    bytetemp = z80.e; z80.e = z80.l; z80.l = bytetemp;\n` +
           `      }\n`,
@@ -565,7 +567,7 @@ const opcodes = {
   EXX() {
     print(
       `      {\n` +
-        `    var bytetemp;\n` +
+        `    let bytetemp;\n` +
         `    bytetemp = z80.b; z80.b = z80.b_; z80.b_ = bytetemp;\n` +
         `    bytetemp = z80.c; z80.c = z80.c_; z80.c_ = bytetemp;\n` +
         `    bytetemp = z80.d; z80.d = z80.d_; z80.d_ = bytetemp;\n` +
@@ -588,7 +590,7 @@ const opcodes = {
       print(
         `      {\n` +
           `    addTstates(4);\n` +
-          `    var intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
+          `    const intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
           `    addTstates(3);\n` +
           `    z80.a=readport( intemp );\n` +
           `      }\n`,
@@ -598,7 +600,7 @@ const opcodes = {
       print(
         `      addTstates(4);\n` +
           `      {\n` +
-          `    var bytetemp = readport( z80.bc() );\n` +
+          `    const bytetemp = readport( z80.bc() );\n` +
           `    z80.f = (z80.f & FLAG_C) | sz53p_table[bytetemp];\n` +
           `      }\n`,
       );
@@ -678,7 +680,7 @@ const opcodes = {
         print(
           `      {\n` +
             `    addTstates(9);\n` +
-            `    var wordtemp = z80.fetchByte();\n` +
+            `    let wordtemp = z80.fetchByte();\n` +
             `    wordtemp|= ( z80.fetchByte() << 8 );\n` +
             `    z80.a=readbyte(wordtemp);\n` +
             `      }\n`,
@@ -695,8 +697,8 @@ const opcodes = {
         if (dest === "SP") {
           print(
             `      addTstates(6);\n` +
-              `      var splow = z80.fetchByte();\n` +
-              `      var sphigh = z80.fetchByte();\n` +
+              `      const splow = z80.fetchByte();\n` +
+              `      const sphigh = z80.fetchByte();\n` +
               `      z80.sp = splow | (sphigh << 8);\n`,
           );
         } else {
@@ -737,7 +739,7 @@ const opcodes = {
         print(
           `      addTstates(9);\n` +
             `      {\n` +
-            `    var wordtemp = z80.fetchByte();\n` +
+            `    let wordtemp = z80.fetchByte();\n` +
             `    wordtemp|=z80.fetchByte() << 8;\n` +
             `    writebyte(wordtemp,z80.a);\n` +
             `      }\n`,
@@ -761,7 +763,7 @@ const opcodes = {
         print(
           `      addTstates(11);\n` +
             `      {\n` +
-            `    var wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
+            `    const wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
             `    writebyte(wordtemp,z80.fetchByte());\n` +
             `      }\n`,
         );
@@ -777,7 +779,7 @@ const opcodes = {
   NEG() {
     print(
       `      {\n` +
-        `    var bytetemp=z80.a;\n` +
+        `    const bytetemp=z80.a;\n` +
         `    z80.a=0;\n` +
         `    z80.sub(bytetemp);\n` +
         `      }\n`,
@@ -795,7 +797,7 @@ const opcodes = {
       print(
         `      {\n` +
           `    addTstates(4);\n` +
-          `    var outtemp = z80.fetchByte() + ( z80.a << 8 );\n` +
+          `    const outtemp = z80.fetchByte() + ( z80.a << 8 );\n` +
           `    addTstates(3);\n` +
           `    writeport( outtemp, z80.a );\n` +
           `      }\n`,
@@ -852,7 +854,7 @@ const opcodes = {
   RLA() {
     print(
       `      {\n` +
-        `    var bytetemp = z80.a;\n` +
+        `    const bytetemp = z80.a;\n` +
         `    z80.a = ( (z80.a & 0x7f) << 1 ) | ( z80.f & FLAG_C );\n` +
         `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
         `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp >> 7 );\n` +
@@ -863,7 +865,7 @@ const opcodes = {
   RLD() {
     print(
       `      {\n` +
-        `    var bytetemp = readbyte( z80.hl() );\n` +
+        `    const bytetemp = readbyte( z80.hl() );\n` +
         `    addTstates(10);\n` +
         `    writebyte(z80.hl(), ((bytetemp & 0x0f) << 4 ) | ( z80.a & 0x0f ) );\n` +
         `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp >> 4 );\n` +
@@ -877,7 +879,7 @@ const opcodes = {
   RRA() {
     print(
       `      {\n` +
-        `    var bytetemp = z80.a;\n` +
+        `    const bytetemp = z80.a;\n` +
         `    z80.a = ( z80.a >> 1 ) | ( (z80.f & 0x01) << 7 );\n` +
         `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
         `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp & FLAG_C ) ;\n` +
@@ -898,7 +900,7 @@ const opcodes = {
   RRD() {
     print(
       `      {\n` +
-        `    var bytetemp = readbyte( z80.hl() );\n` +
+        `    const bytetemp = readbyte( z80.hl() );\n` +
         `    addTstates(10);\n` +
         `    writebyte(z80.hl(),  ( (z80.a & 0x0f) << 4 ) | ( bytetemp >> 4 ) );\n` +
         `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp & 0x0f );\n` +
@@ -935,19 +937,17 @@ const opcodes = {
     if (opcode === "DDFDCB") {
       print(
         `      {\n` +
-          `    var opcode3;\n` +
           `    addTstates(7);\n` +
           `    tempaddr = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
-          `    opcode3 = z80.fetchByte();\n` +
+          `    const opcode3 = z80.fetchByte();\n` +
           `    z80_ddfdcbxx(opcode3,tempaddr);\n` +
           `      }\n`,
       );
     } else {
       print(
         `      {\n` +
-          `    var opcode2;\n` +
           `    addTstates(4);\n` +
-          `    opcode2 = z80.fetchByte();\n` +
+          `    const opcode2 = z80.fetchByte();\n` +
           `    z80.r = (z80.r+1) & 0x7f;\n` +
           `    z80_${lcOpcode}xx(opcode2);\n` +
           `      }\n`,
@@ -996,7 +996,7 @@ function _run(dataFile) {
 
     // Handle the DDFDCB combined register-store opcodes specially
     if (extra !== undefined) {
-      const [register, innerOpcode] = argsList; // e.g. ['B', 'RLC'] from 'B,RLC'
+      const [register, innerOpcode] = argsList;
       const regJSVar =
         register.length === 1 ? `z80.${register.toLowerCase()}` : register;
 
