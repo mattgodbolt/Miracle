@@ -110,10 +110,6 @@ function run() {
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
 
-  // Run a full SMS frame synchronously. The original code yielded mid-frame
-  // via setTimeout(fn, 0) to give the ScriptProcessor audio callback room to
-  // fire on the main thread. AudioWorklet runs on its own dedicated audio
-  // thread, so there is no longer any need to yield mid-frame.
   try {
     while (running) {
       if (line()) {
