@@ -58,18 +58,13 @@ function line() {
   setTstates(tstates - tstatesPerHblank);
   z80_do_opcodes(cycleCallback);
   const vdp_status = vdp_hblank();
-  const irq = !!(vdp_status & 3);
-  z80_set_irq(irq);
+  z80_set_irq(!!(vdp_status & 3));
   if (breakpointHit) {
     running = false;
     showDebug(z80.pc);
-    return true;
-  }
-  if (vdp_status & 4) {
+  } else if (vdp_status & 4) {
     paintScreen();
-    return true;
   }
-  return false;
 }
 
 export function start() {
@@ -111,17 +106,13 @@ function run() {
   setTimeout(run, adjustedTimeout);
 
   try {
-    while (running) {
-      if (line()) {
-        audio_push_frame();
-        break;
-      }
-    }
+    for (let i = 0; i < scanLinesPerFrame && running; i++) line();
   } catch (e) {
     running = false;
     audio_enable(true);
     throw e;
   }
+  if (running) audio_push_frame();
 }
 
 export function stop() {
