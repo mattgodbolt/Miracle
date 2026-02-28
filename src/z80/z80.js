@@ -177,7 +177,8 @@ class Z80 {
       sz53_table[this.a];
   }
 
-  // 16-bit ADC/SBC operate on HL
+  // 16-bit ADC/SBC operate on HL.
+  // Timing (addTstates(7)) is emitted by the generator, not here.
   adc16(value) {
     const hl = this.l | (this.h << 8);
     const add16temp = hl + value + (this.f & FLAG_C);
