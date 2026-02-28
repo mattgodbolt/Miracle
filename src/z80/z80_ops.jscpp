@@ -32,7 +32,7 @@ import {
     parity_table,
     sz53p_table,
     z80_interrupt
-} from "./z80_full";
+} from "./z80.js";
 import { readbyte, readport, writebyte, writeport } from "../miracle";
 
 export var tstates = 0;

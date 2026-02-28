@@ -11,7 +11,7 @@ import {
   vdp_readstatus,
 } from "./vdp";
 import { SoundChip } from "./soundchip";
-import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80_full";
+import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80";
 import {
   tstates,
   setEventNextEvent,

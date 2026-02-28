@@ -34,8 +34,8 @@ const DIS_OUTPUTS = [
 ];
 
 // preprocess.mjs: template → output JS file
+// z80.jscpp / z80_full.js removed: replaced by src/z80/z80.js (Phase 2).
 const TEMPLATES = [
-  ["z80.jscpp", "z80_full.js"],
   ["z80_ops.jscpp", "z80_ops_full.js"],
   ["z80_dis.jscpp", "z80_dis.js"],
 ];
@@ -44,9 +44,9 @@ const TEMPLATES = [
 // Note: the generator modules themselves (*.mjs) are NOT listed here — Node's
 // ESM cache means they can't be hot-reloaded without a process restart. If you
 // edit z80.mjs, disass.mjs, or preprocess.mjs, restart the dev server.
+// z80.jscpp and z80_macros.jscpp removed from watch: replaced by src/z80/z80.js.
 const Z80_WATCH = [
   ...Z80_OUTPUTS.map(([dat]) => path.join(z80Dir, dat)),
-  "z80.jscpp",
   "z80_ops.jscpp",
   "z80_dis.jscpp",
   "z80_macros.jscpp",

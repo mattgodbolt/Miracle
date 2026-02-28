@@ -1,6 +1,6 @@
 import { canvas, fb32, hexbyte, paintScreen, hexword } from "./miracle";
 import { breakpoint } from "./miracle";
-import { z80_set_irq } from "./z80/z80_full";
+import { z80_set_irq } from "./z80/z80";
 
 let vram = [];
 let vramUntwiddled = [];
