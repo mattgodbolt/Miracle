@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // z80.mjs: generate Javascript code for Z80 opcodes
 // Ported from z80.pl to Node.js
 //
@@ -18,12 +17,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import { readFileSync } from "fs";
-import { exit } from "process";
-import { fileURLToPath } from "url";
 
 // `print` is module-level so all helper functions below can call it.
-// It is reassigned by generate() to capture output, or set to stdout for CLI.
-let print = (s) => process.stdout.write(s);
+// Reassigned by generate() to capture output into a string.
+let print = () => {};
 
 // ---------------------------------------------------------------------------
 // Lookup tables
@@ -127,8 +124,7 @@ function arithmetic_logical(opcode, arg1, arg2) {
       arg1h = "REGISTERH";
       arg1l = "REGISTERL";
     } else {
-      process.stderr.write(`Unsupported argument to ADD16: ${arg1}\n`);
-      exit(1);
+      throw new Error(`Unsupported argument to ADD16: ${arg1}`);
     }
     print(`      ${opcode}16(${arg1}R,${arg2}R,${arg1h},${arg1l});\n`);
   } else if (arg1 === "HL" && arg2.length === 2) {
@@ -1058,7 +1054,7 @@ function _run(dataFile) {
 } // end _run()
 
 // ---------------------------------------------------------------------------
-// Library export + CLI entry point
+// Library export
 // ---------------------------------------------------------------------------
 
 /** Generate opcode JavaScript for the given .dat file; returns a string. */
@@ -1067,15 +1063,4 @@ export function generate(datFilePath) {
   print = (s) => chunks.push(s);
   _run(datFilePath);
   return chunks.join("");
-}
-
-const isMain =
-  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  if (process.argv.length < 3) {
-    process.stderr.write(`Usage: ${process.argv[1]} <dat-file>\n`);
-    exit(1);
-  }
-  print = (s) => process.stdout.write(s);
-  _run(process.argv[2]);
 }

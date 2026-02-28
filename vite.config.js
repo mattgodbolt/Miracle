@@ -107,6 +107,9 @@ function z80CodegenPlugin() {
     },
     async handleHotUpdate({ file }) {
       if (Z80_WATCH.includes(file)) {
+        // If a generator script itself changed, drop the cached imports so the
+        // updated module is re-imported before regenerating.
+        if (file.endsWith(".mjs")) _generators = null;
         await generateZ80();
       }
     },

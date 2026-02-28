@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // preprocess.mjs: minimal C preprocessor for z80 jscpp files
 //
 // Handles the subset of cpp features used in this project:
@@ -19,13 +18,6 @@
 
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
-import { exit } from "process";
-import { fileURLToPath } from "url";
-
-if (process.argv.length < 3) {
-  process.stderr.write(`Usage: ${process.argv[1]} <input.jscpp>\n`);
-  exit(1);
-}
 
 // ---------------------------------------------------------------------------
 // Global mutable state
@@ -405,7 +397,7 @@ function processFile(filePath, emit, virtualFiles = new Map()) {
 }
 
 // ---------------------------------------------------------------------------
-// Library export + CLI entry point
+// Library export
 // ---------------------------------------------------------------------------
 
 /**
@@ -429,16 +421,4 @@ export function preprocess(inputFilePath, virtualFiles = new Map()) {
     virtualFiles,
   );
   return chunks.join("");
-}
-
-const isMain =
-  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  if (process.argv.length < 3) {
-    process.stderr.write(`Usage: ${process.argv[1]} <input.jscpp>\n`);
-    exit(1);
-  }
-  const chunks = [];
-  processFile(resolve(process.argv[2]), (chunk) => chunks.push(chunk));
-  process.stdout.write(chunks.join(""));
 }

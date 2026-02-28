@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // disass.mjs — Z80 disassembler code generator
 //
 // Reads a Z80 opcode definition file and writes JavaScript switch-case
@@ -9,11 +8,8 @@
 // Based on JSSpeccy by Matthew Westcott <matthew@west.co.tt>
 
 import { readFileSync } from "fs";
-import { argv, exit } from "process";
-import { fileURLToPath } from "url";
-
 // Module-level emitter — reassigned by generate() to capture output.
-let emit = (s) => process.stdout.write(s + "\n");
+let emit = () => {};
 
 /**
  * Process a single line from a .dat opcode definition file and emit the
@@ -127,7 +123,7 @@ function processFile(filename) {
 }
 
 // ---------------------------------------------------------------------------
-// Library export + CLI entry point
+// Library export
 // ---------------------------------------------------------------------------
 
 /** Generate disassembler JavaScript for the given .dat file; returns a string. */
@@ -136,15 +132,4 @@ export function generate(datFilePath) {
   emit = (s) => chunks.push(s + "\n");
   processFile(datFilePath);
   return chunks.join("");
-}
-
-const isMain =
-  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
-if (isMain) {
-  if (argv.length < 3) {
-    process.stderr.write("Usage: node disass.mjs <opcodes-file.dat>\n");
-    exit(1);
-  }
-  emit = (s) => process.stdout.write(s + "\n");
-  processFile(argv[2]);
 }
