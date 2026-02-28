@@ -8,16 +8,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
       - name: Unpack existing ROMs
         run: |
           cd public
           curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
       - name: Build distribution
         run: |
-          make dist
+          npm ci
+          npm run build
           rm -rf .git
       - uses: jakejarvis/s3-sync-action@master
         with:

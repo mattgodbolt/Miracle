@@ -20,6 +20,7 @@
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { exit } from "process";
+import { fileURLToPath } from "url";
 
 if (process.argv.length < 3) {
   process.stderr.write(`Usage: ${process.argv[1]} <input.jscpp>\n`);
@@ -300,9 +301,11 @@ function parseDefine(rest) {
 // Main recursive file processor
 // ---------------------------------------------------------------------------
 
-function processFile(filePath, emit) {
+function processFile(filePath, emit, virtualFiles = new Map()) {
   const dir = dirname(filePath);
-  const content = readFileSync(filePath, "utf8");
+  const content = virtualFiles.has(filePath)
+    ? virtualFiles.get(filePath)
+    : readFileSync(filePath, "utf8");
 
   // ── Step 1: join backslash-continuation lines ─────────────────────────────
   const rawLines = content.split("\n");
@@ -341,7 +344,7 @@ function processFile(filePath, emit) {
         case "include": {
           if (!outputting()) break;
           const m = rest.match(/^"([^"]+)"/);
-          if (m) processFile(resolve(dir, m[1]), emit);
+          if (m) processFile(resolve(dir, m[1]), emit, virtualFiles);
           break;
         }
 
@@ -402,10 +405,40 @@ function processFile(filePath, emit) {
 }
 
 // ---------------------------------------------------------------------------
-// Entry point
+// Library export + CLI entry point
 // ---------------------------------------------------------------------------
 
-const inputFile = resolve(process.argv[2]);
-const chunks = [];
-processFile(inputFile, (chunk) => chunks.push(chunk));
-process.stdout.write(chunks.join(""));
+/**
+ * Preprocess a .jscpp file and return the result as a string.
+ * @param {string} inputFilePath  Absolute or relative path to the top-level .jscpp
+ * @param {Map<string,string>} [virtualFiles]  In-memory file overrides: absolute
+ *   path → content.  Used so that #include can resolve generated .jscpp files
+ *   without them needing to exist on disk.
+ */
+export function preprocess(inputFilePath, virtualFiles = new Map()) {
+  // Reset all module-level state so this function is safe to call multiple times.
+  macros.clear();
+  condStack.length = 0;
+  condStack.push(true);
+  inBlockComment = false;
+
+  const chunks = [];
+  processFile(
+    resolve(inputFilePath),
+    (chunk) => chunks.push(chunk),
+    virtualFiles,
+  );
+  return chunks.join("");
+}
+
+const isMain =
+  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  if (process.argv.length < 3) {
+    process.stderr.write(`Usage: ${process.argv[1]} <input.jscpp>\n`);
+    exit(1);
+  }
+  const chunks = [];
+  processFile(resolve(process.argv[2]), (chunk) => chunks.push(chunk));
+  process.stdout.write(chunks.join(""));
+}

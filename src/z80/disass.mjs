@@ -10,6 +10,10 @@
 
 import { readFileSync } from "fs";
 import { argv, exit } from "process";
+import { fileURLToPath } from "url";
+
+// Module-level emitter — reassigned by generate() to capture output.
+let emit = (s) => process.stdout.write(s + "\n");
 
 /**
  * Process a single line from a .dat opcode definition file and emit the
@@ -38,7 +42,7 @@ function processLine(line) {
 
   if (firstSpace === -1) {
     // Bare number: fallthrough case label (e.g. multiple opcodes → same handler)
-    console.log(`case ${line}:`);
+    emit(`case ${line}:`);
     return;
   }
 
@@ -49,11 +53,11 @@ function processLine(line) {
   let args = secondSpace === -1 ? "" : rest.slice(secondSpace + 1);
 
   if (opcode === "shift") {
-    console.log(`case ${number}: return disassemble_${args}(address);`);
+    emit(`case ${number}: return disassemble_${args}(address);`);
     return;
   }
 
-  console.log(`case ${number}: res="<span class=opcode>${opcode}</span>";`);
+  emit(`case ${number}: res="<span class=opcode>${opcode}</span>";`);
 
   // --- Argument substitutions ---
 
@@ -78,43 +82,41 @@ function processLine(line) {
     const idx = args.indexOf("nnnn");
     const pre = args.slice(0, idx);
     const post = args.slice(idx + 4);
-    console.log(
+    emit(
       `res += " ${pre}" + addressHtml((readbyte(address + 1) << 8) | readbyte(address)) + "${post}"; address += 2;`,
     );
   } else if (args.includes("nn")) {
     const idx = args.indexOf("nn");
     const pre = args.slice(0, idx);
     const post = args.slice(idx + 2);
-    console.log(
+    emit(
       `res += " ${pre}0x" + hexbyte(readbyte(address)) + "${post}"; address += 1;`,
     );
   } else if (args.includes("offset")) {
     const idx = args.indexOf("offset");
     const pre = args.slice(0, idx);
     const post = args.slice(idx + 6);
-    console.log(`var reladdr = address + 1 + sign_extend(readbyte(address));`);
-    console.log(
-      `res += " ${pre}" + addressHtml(reladdr) + "${post}"; address += 1;`,
-    );
+    emit(`var reladdr = address + 1 + sign_extend(readbyte(address));`);
+    emit(`res += " ${pre}" + addressHtml(reladdr) + "${post}"; address += 1;`);
   } else if (args.includes("+dd")) {
     // '+dd' is an indexed displacement (signed byte).  The '+dd' check
     // must follow 'nn' so that 'LD (REGISTER+dd),nn' takes the nn branch.
     const idx = args.indexOf("+dd");
     const pre = args.slice(0, idx);
     const post = args.slice(idx + 3);
-    console.log(`var offset = sign_extend(readbyte(address));`);
-    console.log(`var sign = offset > 0 ? "+" : "-";`);
-    console.log(
+    emit(`var offset = sign_extend(readbyte(address));`);
+    emit(`var sign = offset > 0 ? "+" : "-";`);
+    emit(
       `res += " ${pre}" + sign + "0x" + hexbyte(offset) + "${post}"; address += 1;`,
     );
   } else if (opcode === "RST") {
     // args is a hex value (e.g. "00", "8", "38"); no substitutions affect it.
-    console.log(`res += " " + addressHtml(0x${args});`);
+    emit(`res += " " + addressHtml(0x${args});`);
   } else if (args) {
-    console.log(`res += " ${args}";`);
+    emit(`res += " ${args}";`);
   }
 
-  console.log("break;");
+  emit("break;");
 }
 
 function processFile(filename) {
@@ -124,9 +126,25 @@ function processFile(filename) {
   }
 }
 
-if (argv.length < 3) {
-  console.error("Usage: node disass.mjs <opcodes-file.dat>");
-  exit(1);
-} else {
+// ---------------------------------------------------------------------------
+// Library export + CLI entry point
+// ---------------------------------------------------------------------------
+
+/** Generate disassembler JavaScript for the given .dat file; returns a string. */
+export function generate(datFilePath) {
+  const chunks = [];
+  emit = (s) => chunks.push(s + "\n");
+  processFile(datFilePath);
+  return chunks.join("");
+}
+
+const isMain =
+  process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain) {
+  if (argv.length < 3) {
+    process.stderr.write("Usage: node disass.mjs <opcodes-file.dat>\n");
+    exit(1);
+  }
+  emit = (s) => process.stdout.write(s + "\n");
   processFile(argv[2]);
 }
