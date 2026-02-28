@@ -255,6 +255,25 @@ export function miracle_init() {
     alert("Unsupported browser...");
     // Unsupported....
   }
+
+  // Scale the canvas to fill its container while maintaining the native aspect ratio.
+  // ResizeObserver fires whenever the container's size changes (initial layout,
+  // window resize, panel show/hide, etc.) — more reliable than a one-shot setTimeout.
+  function resizeCanvas() {
+    const border = parseInt(window.getComputedStyle(canvas).borderWidth) || 0;
+    const container = canvas.parentElement;
+    const scale = Math.min(
+      (container.clientWidth - border * 2) / canvas.width,
+      (container.clientHeight - border * 2) / canvas.height,
+    );
+    if (scale > 0) {
+      canvas.style.width = `${Math.floor(canvas.width * scale)}px`;
+      canvas.style.height = `${Math.floor(canvas.height * scale)}px`;
+    }
+  }
+  new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+  resizeCanvas();
+
   document.onkeydown = keyDown;
   document.onkeyup = keyUp;
   document.onkeypress = keyPress;

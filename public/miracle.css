@@ -21,6 +21,8 @@ JSSpeccy contact details: Matthew Westcott <matthew@west.co.tt
 */
 
 body {
+  margin: 0;
+  padding: 0;
   background-color: #000000;
   color: #ffffff;
   font-family: arial, tahoma;
@@ -31,19 +33,22 @@ div.container {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overflow: hidden;
 }
 
 div.main {
   flex-grow: 1;
+  min-height: 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #screen {
-  height: 50%;
   border: 64px solid black;
-  margin-left: auto;
-  margin-right: auto;
   display: block;
+  image-rendering: pixelated;
 }
 
 #menu {
