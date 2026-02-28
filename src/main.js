@@ -1,6 +1,6 @@
 import $ from "jquery";
 import { RomList } from "./roms";
-import { z80_init } from "./z80/z80";
+import { z80_init } from "./z80/z80.js";
 import { miracle_init, miracle_reset, loadRom, start, stop } from "./miracle";
 import { step, stepOver, stepOut } from "./debug";
 
