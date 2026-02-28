@@ -174,52 +174,6 @@ function call_jp(opcode, condition, offset) {
   }
 }
 
-function cpi_cpd(opcode) {
-  const modifier = opcode === "CPI" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const value = readbyte( z80.hl() );\n` +
-      `    let bytetemp = (z80.a - value) & 0xff;\n` +
-      `    const lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
-      `               ( (  (value) & 0x08 ) >> 2 ) |\n` +
-      `               ( ( bytetemp & 0x08 ) >> 1 );\n` +
-      `    addTstates(8);\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
-      `    z80.f = ( z80.f & FLAG_C ) | ( z80.bc() ? ( FLAG_V | FLAG_N ) : FLAG_N ) |\n` +
-      `      halfcarry_sub_table[lookup] | ( bytetemp ? 0 : FLAG_Z ) |\n` +
-      `      ( bytetemp & FLAG_S );\n` +
-      `    if(z80.f & FLAG_H) bytetemp--;\n` +
-      `    z80.f |= ( bytetemp & FLAG_3 ) | ( (bytetemp&0x02) ? FLAG_5 : 0 );\n` +
-      `      }\n`,
-  );
-}
-
-function cpir_cpdr(opcode) {
-  const modifier = opcode === "CPIR" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const value = readbyte( z80.hl() );\n` +
-      `    let bytetemp = (z80.a - value) & 0xff;\n` +
-      `    const lookup = ( (          z80.a & 0x08 ) >> 3 ) |\n` +
-      `               ( (  (value) & 0x08 ) >> 2 ) |\n` +
-      `               ( ( bytetemp & 0x08 ) >> 1 );\n` +
-      `    addTstates(8);\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
-      `    z80.f = ( z80.f & FLAG_C ) | ( z80.bc() ? ( FLAG_V | FLAG_N ) : FLAG_N ) |\n` +
-      `      halfcarry_sub_table[lookup] | ( bytetemp ? 0 : FLAG_Z ) |\n` +
-      `      ( bytetemp & FLAG_S );\n` +
-      `    if(z80.f & FLAG_H) bytetemp--;\n` +
-      `    z80.f |= ( bytetemp & FLAG_3 ) | ( (bytetemp&0x02) ? FLAG_5 : 0 );\n` +
-      `    if( ( z80.f & ( FLAG_V | FLAG_Z ) ) == FLAG_V ) {\n` +
-      `      addTstates(5);\n` +
-      `      z80.pc-=2;\n` +
-      `    }\n` +
-      `      }\n`,
-  );
-}
-
 /**
  * 8-bit INC/DEC — only handles single registers, (HL), and (REGISTER+dd).
  * 16-bit pair variants use INC16/DEC16 handlers.
@@ -249,115 +203,6 @@ function inc_dec8(opcode, arg) {
         `      }\n`,
     );
   }
-}
-
-function ini_ind(opcode) {
-  const modifier = opcode === "INI" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const initemp = readport( z80.bc() );\n` +
-      `    addTstates(8);\n` +
-      `    writebyte(z80.hl(),initemp);\n` +
-      `    z80.b = (z80.b-1)&0xff;\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    z80.f = (initemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
-      `    /* C,H and P/V flags not implemented */\n` +
-      `      }\n`,
-  );
-}
-
-function inir_indr(opcode) {
-  const modifier = opcode === "INIR" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const initemp = readport( z80.bc() );\n` +
-      `    addTstates(8);\n` +
-      `    writebyte(z80.hl(),initemp);\n` +
-      `    z80.b = (z80.b-1)&0xff;\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    z80.f = (initemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
-      `    /* C,H and P/V flags not implemented */\n` +
-      `    if(z80.b) {\n` +
-      `      addTstates(5);\n` +
-      `      z80.pc-=2;\n` +
-      `    }\n` +
-      `      }\n`,
-  );
-}
-
-function ldi_ldd(opcode) {
-  const modifier = opcode === "LDI" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    let bytetemp = readbyte( z80.hl() );\n` +
-      `    addTstates(8);\n` +
-      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
-      `    writebyte(z80.de(),bytetemp);\n` +
-      `    const detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    bytetemp = (bytetemp + z80.a) & 0xff;\n` +
-      `    z80.f = ( z80.f & ( FLAG_C | FLAG_Z | FLAG_S ) ) | ( z80.bc() ? FLAG_V : 0 ) |\n` +
-      `      ( bytetemp & FLAG_3 ) | ( (bytetemp & 0x02) ? FLAG_5 : 0 );\n` +
-      `      }\n`,
-  );
-}
-
-function ldir_lddr(opcode) {
-  const modifier = opcode === "LDIR" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    let bytetemp = readbyte( z80.hl() );\n` +
-      `    addTstates(8);\n` +
-      `    writebyte(z80.de(),bytetemp);\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    const detemp = (z80.de() ${modifier} 1) & 0xffff; z80.d = detemp >> 8; z80.e = detemp & 0xff;\n` +
-      `    const bctemp = (z80.bc() - 1) & 0xffff; z80.b = bctemp >> 8; z80.c = bctemp & 0xff;\n` +
-      `    bytetemp = (bytetemp + z80.a) & 0xff;\n` +
-      `    z80.f = ( z80.f & ( FLAG_C | FLAG_Z | FLAG_S ) ) | ( z80.bc() ? FLAG_V : 0 ) |\n` +
-      `      ( bytetemp & FLAG_3 ) | ( (bytetemp & 0x02) ? FLAG_5 : 0 );\n` +
-      `    if(z80.bc()) {\n` +
-      `      addTstates(5);\n` +
-      `      z80.pc-=2;\n` +
-      `    }\n` +
-      `      }\n`,
-  );
-}
-
-function otir_otdr(opcode) {
-  const modifier = opcode === "OTIR" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const outitemp = readbyte( z80.hl() );\n` +
-      `    addTstates(5);\n` +
-      `    z80.b = (z80.b-1)&0xff;\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    /* This does happen first, despite what the specs say */\n` +
-      `    writeport(z80.bc(),outitemp);\n` +
-      `    z80.f = (outitemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
-      `    /* C,H and P/V flags not implemented */\n` +
-      `    if(z80.b) {\n` +
-      `      addTstates(8);\n` +
-      `      z80.pc-=2;\n` +
-      `    } else {\n` +
-      `      addTstates(3);\n` +
-      `    }\n` +
-      `      }\n`,
-  );
-}
-
-function outi_outd(opcode) {
-  const modifier = opcode === "OUTI" ? "+" : "-";
-  print(
-    `      {\n` +
-      `    const outitemp = readbyte( z80.hl() );\n` +
-      `    z80.b = (z80.b-1)&0xff;    /* This does happen first, despite what the specs say */\n` +
-      `    addTstates(8);\n` +
-      `    const hltemp = (z80.hl() ${modifier} 1) & 0xffff; z80.h = hltemp >> 8; z80.l = hltemp & 0xff;\n` +
-      `    writeport(z80.bc(),outitemp);\n` +
-      `    z80.f = (outitemp & 0x80 ? FLAG_N : 0 ) | sz53_table[z80.b];\n` +
-      `    /* C,H and P/V flags not implemented */\n` +
-      `      }\n`,
-  );
 }
 
 function push_pop(opcode, pair) {
@@ -795,11 +640,6 @@ const opcodes = {
     }
   },
 
-  LDD: () => ldi_ldd("LDD"),
-  LDDR: () => ldir_lddr("LDDR"),
-  LDI: () => ldi_ldd("LDI"),
-  LDIR: () => ldir_lddr("LDIR"),
-
   // ---------------------------------------------------------------------------
   // Stack
   // ---------------------------------------------------------------------------
@@ -821,11 +661,6 @@ const opcodes = {
         `    ( ( z80.f & FLAG_C ) ? FLAG_H : FLAG_C ) | ( z80.a & ( FLAG_3 | FLAG_5 ) );\n`,
     );
   },
-
-  CPD: () => cpi_cpd("CPD"),
-  CPDR: () => cpir_cpdr("CPDR"),
-  CPI: () => cpi_cpd("CPI"),
-  CPIR: () => cpir_cpdr("CPIR"),
 
   CPL() {
     print(
@@ -890,11 +725,6 @@ const opcodes = {
     }
   },
 
-  IND: () => ini_ind("IND"),
-  INDR: () => inir_indr("INDR"),
-  INI: () => ini_ind("INI"),
-  INIR: () => inir_indr("INIR"),
-
   NEG() {
     print(
       `      {\n` +
@@ -906,9 +736,6 @@ const opcodes = {
   },
 
   NOP: () => {},
-
-  OTDR: () => otir_otdr("OTDR"),
-  OTIR: () => otir_otdr("OTIR"),
 
   OUT(port, register) {
     if (port === "(nn)" && register === "A") {
@@ -927,9 +754,6 @@ const opcodes = {
       );
     }
   },
-
-  OUTD: () => outi_outd("OUTD"),
-  OUTI: () => outi_outd("OUTI"),
 
   SCF() {
     print(
@@ -1019,25 +843,28 @@ function _run(dataFile) {
   const lines = readFileSync(dataFile, "utf8").split("\n");
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    // Remove comments
+    // Remove comments and skip blank lines (outside blocks)
     let line = lines[lineIdx].replace(/#.*/, "");
-
-    // Skip blank lines
     if (/^\s*$/.test(line)) continue;
 
     const fields = line.trim().split(/\s+/);
     const number = fields[0];
     const opcode = fields[1];
-    const argsStr = fields[2];
-    const extra = fields[3];
+
+    // Detect inline JS block: opcode line ends with `{`
+    const hasBlock = fields[fields.length - 1] === "{";
 
     if (opcode === undefined) {
       print(`    ops[${number}] = \n`);
       continue;
     }
 
-    const argsRaw = argsStr !== undefined ? argsStr : "";
-    const argsList = argsRaw ? argsRaw.split(",") : [];
+    // For inline-block ops, strip the trailing `{` from the args field list
+    const argsFields = hasBlock ? fields.slice(2, -1) : fields.slice(2);
+    const argsStr = argsFields[0];
+    const extra = argsFields[1]; // only used by DDFDCB store-to-register opcodes
+
+    const argsList = argsStr ? argsStr.split(",") : [];
 
     // Print function header
     print(
@@ -1046,6 +873,23 @@ function _run(dataFile) {
     if (argsList.length) print(` ${argsList.join(",")}`);
     if (extra !== undefined) print(` ${extra}`);
     print(` */\n`);
+
+    if (hasBlock) {
+      // Inline JS block — slurp lines with brace-depth counting until depth=0
+      let depth = 1; // opened by the `{` on the opcode line
+      while (lineIdx + 1 < lines.length && depth > 0) {
+        lineIdx++;
+        const bodyLine = lines[lineIdx];
+        for (const ch of bodyLine) {
+          if (ch === "{") depth++;
+          else if (ch === "}") depth--;
+        }
+        if (depth > 0) print(bodyLine + "\n");
+        // depth === 0: we consumed the closing `}` — stop without emitting it
+      }
+      print(`    };\n`);
+      continue;
+    }
 
     // Handle the DDFDCB combined register-store opcodes specially
     if (extra !== undefined) {
