@@ -65,6 +65,30 @@ function regJS(token) {
   return `z80.${token.toLowerCase()}`; // A→z80.a, B→z80.b, etc.
 }
 
+/** Emit a 16-bit store-to-absolute-address sequence using fetchByte. */
+function emitLD16_NNRR(lo, hi) {
+  print(
+    `      { addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      ` writebyte(ldtemp, ${lo}); writebyte((ldtemp + 1) & 0xffff, ${hi}); }\n`,
+  );
+}
+
+/** Emit a 16-bit load-from-absolute-address sequence using fetchByte. */
+function emitLD16_RRNN(lo, hi) {
+  print(
+    `      { addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      ` ${lo} = readbyte(ldtemp); ${hi} = readbyte((ldtemp + 1) & 0xffff); }\n`,
+  );
+}
+
+/** Emit a 16-bit load-from-absolute-address sequence into a wide register. */
+function emitLD16_RRNNW(reg) {
+  print(
+    `      { addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
+      ` ${reg} = readbyte(ldtemp) | (readbyte((ldtemp + 1) & 0xffff) << 8); }\n`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Lookup tables
 // ---------------------------------------------------------------------------
@@ -83,6 +107,19 @@ const flag = {
   NZ: "Z",
 };
 
+// Emitted inline for branch instructions.
+const CALL_BODY =
+  `{ const calltempl = z80.fetchByte(); addTstates(1); const calltemph = z80.fetchByte();` +
+  ` addTstates(6); z80.push16(z80.pc); z80.pc = calltempl | (calltemph << 8); }`;
+
+const JP_BODY =
+  `{ const jptemp = z80.pc;` +
+  ` z80.pc = readbyte(jptemp) | (readbyte((jptemp + 1) & 0xffff) << 8); }`;
+
+const JR_BODY = `{ addTstates(5); z80.pc += sign_extend(readbyte(z80.pc)); z80.pc &= 0xffff; }`;
+
+const RET_BODY = `{ addTstates(6); z80.pc = z80.pop16(); }`;
+
 // ---------------------------------------------------------------------------
 // Generalised opcode routines
 // ---------------------------------------------------------------------------
@@ -93,17 +130,18 @@ function arithmetic_logical(opcode, arg1, arg2) {
     arg1 = "A";
   }
 
+  const method = opcode.toLowerCase(); // and, or, xor, cp, add, adc, sub, sbc
+
   if (arg1.length === 1) {
-    // 8-bit arithmetic
+    // 8-bit arithmetic — delegate to the matching z80 method
     if (arg2.length === 1 || /^REGISTER[HL]$/.test(arg2)) {
-      print(`      ${opcode}(${regJS(arg2)});\n`);
+      print(`      z80.${method}(${regJS(arg2)});\n`);
     } else if (arg2 === "(REGISTER+dd)") {
       print(
         `      addTstates(11);\n` +
           `      {\n` +
-          `    var bytetemp =\n` +
-          `        readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
-          `    ${opcode}(bytetemp);\n` +
+          `    var bytetemp = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
+          `    z80.${method}(bytetemp);\n` +
           `      }\n`,
       );
     } else if (arg2 === "(HL)") {
@@ -111,41 +149,36 @@ function arithmetic_logical(opcode, arg1, arg2) {
         `      addTstates(3);\n` +
           `      {\n` +
           `    var bytetemp = readbyte( z80.hl() );\n` +
-          `    ${opcode}(bytetemp);\n` +
+          `    z80.${method}(bytetemp);\n` +
           `      }\n`,
       );
     } else {
       // Immediate byte (nn)
       print(
-        `      addTstates(3);\n` +
-          `      {\n` +
-          `    var bytetemp = z80.fetchByte();\n` +
-          `    ${opcode}(bytetemp);\n` +
-          `      }\n`,
+        `      addTstates(3);\n` + `      z80.${method}(z80.fetchByte());\n`,
       );
     }
   } else if (opcode === "ADD") {
-    // 16-bit ADD: ADD HL,rr or ADD REGISTER,rr
-    print(
-      `      ${opcode}16(${pairRead(arg1)},${pairRead(arg2)},${pairHi(arg1)},${pairLo(arg1)});\n`,
-    );
-  } else if (arg1 === "HL" && arg2.length === 2) {
+    // 16-bit ADD HL/IX/IY,rr — dedicated z80 methods include flag update
+    const addMethod =
+      arg1 === "HL" ? "addHL" : `add${currentRegister.toUpperCase()}`; // addIX or addIY
+    print(`      addTstates(7); z80.${addMethod}(${pairRead(arg2)});\n`);
+  } else {
     // ADC HL,rr or SBC HL,rr
-    print(`      addTstates(7);\n      ${opcode}16(${pairRead(arg2)});\n`);
+    print(`      addTstates(7);\n      z80.${method}16(${pairRead(arg2)});\n`);
   }
 }
 
 function call_jp(opcode, condition, offset) {
+  const body = opcode === "CALL" ? CALL_BODY : JP_BODY;
   print(`      addTstates(6);\n`);
   if (offset === undefined) {
-    print(`      ${opcode}();\n`);
+    print(`      ${body}\n`);
   } else {
     if (not_.has(condition)) {
-      print(
-        `      if( ! ( z80.f & FLAG_${flag[condition]} ) ) { ${opcode}(); }\n`,
-      );
+      print(`      if( ! ( z80.f & FLAG_${flag[condition]} ) ) ${body}\n`);
     } else {
-      print(`      if( z80.f & FLAG_${flag[condition]} ) { ${opcode}(); }\n`);
+      print(`      if( z80.f & FLAG_${flag[condition]} ) ${body}\n`);
     }
     print(`      else z80.pc+=2;\n`);
   }
@@ -197,8 +230,10 @@ function cpir_cpdr(opcode) {
 
 function inc_dec(opcode, arg) {
   const modifier = opcode === "INC" ? "+" : "-";
+  const method = opcode.toLowerCase(); // inc or dec
   if (arg.length === 1 || /^REGISTER[HL]$/.test(arg)) {
-    print(`      ${opcode}(${regJS(arg)});\n`);
+    const r = regJS(arg);
+    print(`      ${r} = z80.${method}(${r});\n`);
   } else if (arg.length === 2 || arg === "REGISTER") {
     if (arg === "SP") {
       print(
@@ -221,7 +256,7 @@ function inc_dec(opcode, arg) {
       `      addTstates(7);\n` +
         `      {\n` +
         `    var bytetemp = readbyte( z80.hl() );\n` +
-        `    ${opcode}(bytetemp);\n` +
+        `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(z80.hl(),bytetemp);\n` +
         `      }\n`,
     );
@@ -231,7 +266,7 @@ function inc_dec(opcode, arg) {
         `      {\n` +
         `    var wordtemp = (${r16()} + sign_extend(z80.fetchByte())) & 0xffff;\n` +
         `    var bytetemp = readbyte( wordtemp );\n` +
-        `    ${opcode}(bytetemp);\n` +
+        `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(wordtemp,bytetemp);\n` +
         `      }\n`,
     );
@@ -347,10 +382,16 @@ function outi_outd(opcode) {
   );
 }
 
-function push_pop(opcode, regpair) {
-  const hi = pairHi(regpair); // z80.a, z80.b, z80.ixh, etc.
-  const lo = pairLo(regpair); // z80.f, z80.c, z80.ixl, etc.
-  print(`      ${opcode}16(${lo},${hi});\n`);
+function push_pop(opcode, pair) {
+  if (opcode === "PUSH") {
+    print(`      { addTstates(6); z80.push16(${pairRead(pair)}); }\n`);
+  } else {
+    // POP
+    print(
+      `      { addTstates(6); const popv = z80.pop16();` +
+        ` ${pairLo(pair)} = popv & 0xff; ${pairHi(pair)} = popv >> 8; }\n`,
+    );
+  }
 }
 
 function res_set_hexmask(opcode, bit) {
@@ -378,14 +419,16 @@ function res_set(opcode, bit, register) {
 }
 
 function rotate_shift(opcode, register) {
+  const method = opcode.toLowerCase(); // rl, rlc, rr, rrc, sla, sll, sra, srl
   if (register.length === 1) {
-    print(`      ${opcode}(${regJS(register)});\n`);
+    const r = regJS(register);
+    print(`      ${r} = z80.${method}(${r});\n`);
   } else if (register === "(HL)") {
     print(
       `      {\n` +
         `    var bytetemp = readbyte(z80.hl());\n` +
         `    addTstates(7);\n` +
-        `    ${opcode}(bytetemp);\n` +
+        `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(z80.hl(),bytetemp);\n` +
         `      }\n`,
     );
@@ -394,7 +437,7 @@ function rotate_shift(opcode, register) {
       `      addTstates(8);\n` +
         `      {\n` +
         `    var bytetemp = readbyte(tempaddr);\n` +
-        `    ${opcode}(bytetemp);\n` +
+        `    bytetemp = z80.${method}(bytetemp);\n` +
         `    writebyte(tempaddr,bytetemp);\n` +
         `      }\n`,
     );
@@ -412,13 +455,13 @@ const opcodes = {
 
   BIT(bit, register) {
     if (register.length === 1) {
-      print(`      BIT( ${bit}, ${regJS(register)} );\n`);
+      print(`      z80.bit( ${bit}, ${regJS(register)} );\n`);
     } else if (register === "(REGISTER+dd)") {
       print(
         `      addTstates(5);\n` +
           `      {\n` +
           `    var bytetemp = readbyte( tempaddr );\n` +
-          `    BIT_I( ${bit}, bytetemp, tempaddr );\n` +
+          `    z80.bit_i( ${bit}, bytetemp, tempaddr );\n` +
           `      }\n`,
       );
     } else {
@@ -426,7 +469,7 @@ const opcodes = {
         `      {\n` +
           `    var bytetemp = readbyte( z80.hl() );\n` +
           `    addTstates(4);\n` +
-          `    BIT( ${bit}, bytetemp);\n` +
+          `    z80.bit( ${bit}, bytetemp);\n` +
           `      }\n`,
       );
     }
@@ -463,9 +506,9 @@ const opcodes = {
         `    if( carry || (z80.a > 0x99 ) ) add|=0x60;\n` +
         `    if( z80.a > 0x99 ) carry=FLAG_C;\n` +
         `    if ( z80.f & FLAG_N ) {\n` +
-        `      SUB(add);\n` +
+        `      z80.sub(add);\n` +
         `    } else {\n` +
-        `      ADD(add);\n` +
+        `      z80.add(add);\n` +
         `    }\n` +
         `    z80.f = ( z80.f & ~( FLAG_C | FLAG_P) ) | carry | parity_table[z80.a];\n` +
         `      }\n`,
@@ -479,7 +522,7 @@ const opcodes = {
     print(
       `      addTstates(4);\n` +
         `      z80.b = (z80.b-1) & 0xff;\n` +
-        `      if(z80.b) { JR(); }\n` +
+        `      if(z80.b) ${JR_BODY}\n` +
         `      z80.pc++;\n` +
         `      z80.pc &= 0xffff;\n`,
     );
@@ -544,24 +587,27 @@ const opcodes = {
     if (register === "A" && port === "(nn)") {
       print(
         `      {\n` +
-          `    var intemp;\n` +
           `    addTstates(4);\n` +
-          `    intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
+          `    var intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
           `    addTstates(3);\n` +
           `    z80.a=readport( intemp );\n` +
           `      }\n`,
       );
     } else if (register === "F" && port === "(C)") {
+      // Undocumented: result discarded, flags still updated
       print(
-        `      addTstates(1);\n` +
+        `      addTstates(4);\n` +
           `      {\n` +
-          `    var bytetemp;\n` +
-          `    IN(bytetemp,z80.bc());\n` +
+          `    var bytetemp = readport( z80.bc() );\n` +
+          `    z80.f = (z80.f & FLAG_C) | sz53p_table[bytetemp];\n` +
           `      }\n`,
       );
     } else if (register.length === 1 && port === "(C)") {
+      const r = regJS(register);
       print(
-        `      addTstates(1);\n` + `      IN(${regJS(register)},z80.bc());\n`,
+        `      addTstates(4);\n` +
+          `      ${r} = readport( z80.bc() );\n` +
+          `      z80.f = (z80.f & FLAG_C) | sz53p_table[${r}];\n`,
       );
     }
   },
@@ -588,11 +634,11 @@ const opcodes = {
     }
     print(`      addTstates(3);\n`);
     if (!condition) {
-      print(`      JR();\n`);
+      print(`      ${JR_BODY}\n`);
     } else if (not_.has(condition)) {
-      print(`      if( ! ( z80.f & FLAG_${flag[condition]} ) ) { JR(); }\n`);
+      print(`      if( ! ( z80.f & FLAG_${flag[condition]} ) ) ${JR_BODY}\n`);
     } else {
-      print(`      if( z80.f & FLAG_${flag[condition]} ) { JR(); }\n`);
+      print(`      if( z80.f & FLAG_${flag[condition]} ) ${JR_BODY}\n`);
     }
     print(`      z80.pc++; z80.pc &= 0xffff;\n`);
   },
@@ -631,9 +677,8 @@ const opcodes = {
       } else if (src === "(nnnn)") {
         print(
           `      {\n` +
-            `    var wordtemp;\n` +
             `    addTstates(9);\n` +
-            `    wordtemp = z80.fetchByte();\n` +
+            `    var wordtemp = z80.fetchByte();\n` +
             `    wordtemp|= ( z80.fetchByte() << 8 );\n` +
             `    z80.a=readbyte(wordtemp);\n` +
             `      }\n`,
@@ -669,9 +714,9 @@ const opcodes = {
         print(`      addTstates(2);\n      z80.sp=${r16()};\n`);
       } else if (src === "(nnnn)") {
         if (dest === "SP") {
-          print(`      LD16_RRNNW(z80.sp);\n`);
+          emitLD16_RRNNW("z80.sp");
         } else {
-          print(`      LD16_RRNN(${pairLo(dest)},${pairHi(dest)});\n`);
+          emitLD16_RRNN(pairLo(dest), pairHi(dest));
         }
       }
     } else if (/^\(..\)$/.test(dest)) {
@@ -699,11 +744,11 @@ const opcodes = {
         );
       } else if (/^(.)(.)$/.test(src) || src === "REGISTER") {
         if (src === "SP") {
-          print(`      LD16_NNRR(z80.spl(),z80.sph());\n`);
+          emitLD16_NNRR("z80.spl()", "z80.sph()");
         } else if (src === "REGISTER") {
-          print(`      LD16_NNRR(${r16l()},${r16h()});\n`);
+          emitLD16_NNRR(r16l(), r16h());
         } else {
-          print(`      LD16_NNRR(${pairLo(src)},${pairHi(src)});\n`);
+          emitLD16_NNRR(pairLo(src), pairHi(src));
         }
       }
     } else if (dest === "(REGISTER+dd)") {
@@ -734,7 +779,7 @@ const opcodes = {
       `      {\n` +
         `    var bytetemp=z80.a;\n` +
         `    z80.a=0;\n` +
-        `    SUB(bytetemp);\n` +
+        `    z80.sub(bytetemp);\n` +
         `      }\n`,
     );
   },
@@ -749,15 +794,16 @@ const opcodes = {
     if (port === "(nn)" && register === "A") {
       print(
         `      {\n` +
-          `    var outtemp;\n` +
           `    addTstates(4);\n` +
-          `    outtemp = z80.fetchByte() + ( z80.a << 8 );\n` +
-          `    OUT( outtemp , z80.a );\n` +
+          `    var outtemp = z80.fetchByte() + ( z80.a << 8 );\n` +
+          `    addTstates(3);\n` +
+          `    writeport( outtemp, z80.a );\n` +
           `      }\n`,
       );
-    } else if (port === "(C)" && register.length === 1) {
+    } else if (port === "(C)") {
       print(
-        `      addTstates(1);\n` + `      OUT(z80.bc(),${regJS(register)});\n`,
+        `      addTstates(4);\n` +
+          `      writeport( z80.bc(), ${regJS(register)} );\n`,
       );
     }
   },
@@ -775,19 +821,21 @@ const opcodes = {
 
   RET(condition) {
     if (condition === undefined) {
-      print(`      RET();\n`);
+      print(`      ${RET_BODY}\n`);
     } else {
       print(`      addTstates(1);\n`);
       if (not_.has(condition)) {
-        print(`      if( ! ( z80.f & FLAG_${flag[condition]} ) ) { RET(); }\n`);
+        print(
+          `      if( ! ( z80.f & FLAG_${flag[condition]} ) ) ${RET_BODY}\n`,
+        );
       } else {
-        print(`      if( z80.f & FLAG_${flag[condition]} ) { RET(); }\n`);
+        print(`      if( z80.f & FLAG_${flag[condition]} ) ${RET_BODY}\n`);
       }
     }
   },
 
   RETN() {
-    print(`      z80.iff1=z80.iff2;\n      RET();\n`);
+    print(`      z80.iff1=z80.iff2;\n      ${RET_BODY}\n`);
   },
 
   RL: (a) => rotate_shift("RL", a),
@@ -861,7 +909,7 @@ const opcodes = {
 
   RST(value) {
     const hex = parseInt(value, 16).toString(16).padStart(2, "0");
-    print(`      addTstates(1);\n      RST(0x${hex});\n`);
+    print(`      addTstates(7); z80.push16(z80.pc); z80.pc = 0x${hex};\n`);
   },
 
   SBC: (a, b) => arithmetic_logical("SBC", a, b),
@@ -963,10 +1011,11 @@ function _run(dataFile) {
             `      };\n`,
         );
       } else {
+        // rotate/shift — method returns the new value
+        const method = innerOpcode.toLowerCase();
         print(
           `      addTstates(8);\n` +
-            `      ${regJSVar}=readbyte(tempaddr);\n` +
-            `      ${innerOpcode}(${regJSVar});\n` +
+            `      ${regJSVar} = z80.${method}(readbyte(tempaddr));\n` +
             `      writebyte(tempaddr, ${regJSVar});\n` +
             `      };\n`,
         );
@@ -1001,362 +1050,11 @@ function _run(dataFile) {
 } // end _run()
 
 // ---------------------------------------------------------------------------
-// Opcode expansion — expands parameterised macro calls to pure JavaScript
-// ---------------------------------------------------------------------------
-
-/**
- * Extract comma-separated macro arguments starting at `pos` (the index of
- * the opening '('). Returns [argArray, endIndex] where endIndex is after ')'.
- * Correctly handles nested parentheses inside argument expressions.
- */
-function extractArgs(code, pos) {
-  let depth = 0;
-  let current = "";
-  const args = [];
-  for (let i = pos; i < code.length; i++) {
-    const c = code[i];
-    if (c === "(") {
-      if (depth > 0) current += c;
-      depth++;
-    } else if (c === ")") {
-      depth--;
-      if (depth === 0) {
-        args.push(current.trim());
-        return [args, i + 1];
-      }
-      current += c;
-    } else if (c === "," && depth === 1) {
-      args.push(current.trim());
-      current = "";
-    } else {
-      current += c;
-    }
-  }
-  throw new Error(`Unmatched '(' in macro call at position ${pos}`);
-}
-
-/**
- * Replace all calls to `macroName(...)` in `code` with the string returned
- * by `expander(args)`. Handles nested parentheses in arguments correctly.
- */
-function applyMacro(code, macroName, expander) {
-  const pattern = new RegExp(`\\b${macroName}\\s*\\(`, "g");
-  let result = "";
-  let lastIndex = 0;
-  let match;
-  while ((match = pattern.exec(code)) !== null) {
-    const parenPos = match.index + match[0].length - 1;
-    const [args, end] = extractArgs(code, parenPos);
-    result += code.slice(lastIndex, match.index);
-    result += expander(args);
-    lastIndex = end;
-    pattern.lastIndex = lastIndex;
-  }
-  return result + code.slice(lastIndex);
-}
-
-/**
- * Expand all parameterised macro calls in intermediate output to pure JS.
- * The generator now emits z80.* names directly, so no register-alias
- * substitution pass is needed here.
- *
- * @param {string} code - Intermediate string produced by _run()
- * @returns {string}    - Pure JavaScript for injection into z80_ops.js
- */
-export function expandOpcodes(code) {
-  // Expand parameterised macros. Longer names (ADC16, ADD16, SBC16, BIT_I,
-  // LD16_*) are expanded before their shorter prefix-siblings.
-
-  code = applyMacro(
-    code,
-    "ADC16",
-    ([v]) =>
-      // Capture v in addv to avoid calling the method twice (once for the sum,
-      // once for the lookup).  hlv snapshots HL before we overwrite h/l.
-      `{ const addv = (${v}), hlv = z80.hl();` +
-      ` const add16temp = hlv + addv + (z80.f & FLAG_C);` +
-      ` const lookup = ((hlv & 0x8800) >> 11) | ((addv & 0x8800) >> 10) | ((add16temp & 0x8800) >> 9);` +
-      ` z80.h = (add16temp >> 8) & 0xff; z80.l = add16temp & 0xff;` +
-      ` z80.f = (add16temp & 0x10000 ? FLAG_C : 0) | overflow_add_table[lookup >> 4] |` +
-      ` (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) | halfcarry_add_table[lookup & 0x07] | (z80.hl() ? 0 : FLAG_Z); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "ADC",
-    ([v]) =>
-      `{ const adctemp = z80.a + (${v}) + (z80.f & FLAG_C);` +
-      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((adctemp & 0x88) >> 1);` +
-      ` z80.a = adctemp & 0xff;` +
-      ` z80.f = (adctemp & 0x100 ? FLAG_C : 0) | halfcarry_add_table[lookup & 0x07] | overflow_add_table[lookup >> 4] | sz53_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "ADD16",
-    ([v1, v2, v1h, v1l]) =>
-      `{ const a16v1 = (${v1}), a16v2 = (${v2}), add16temp = a16v1 + a16v2;` +
-      ` const lookup = ((a16v1 & 0x0800) >> 11) | ((a16v2 & 0x0800) >> 10) | ((add16temp & 0x0800) >> 9);` +
-      ` addTstates(7); (${v1h}) = (add16temp >> 8) & 0xff; (${v1l}) = add16temp & 0xff;` +
-      ` z80.f = (z80.f & (FLAG_V | FLAG_Z | FLAG_S)) | (add16temp & 0x10000 ? FLAG_C : 0) | ((add16temp >> 8) & (FLAG_3 | FLAG_5)) | halfcarry_add_table[lookup]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "ADD",
-    ([v]) =>
-      `{ const addtemp = z80.a + (${v});` +
-      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((addtemp & 0x88) >> 1);` +
-      ` z80.a = addtemp & 0xff;` +
-      ` z80.f = (addtemp & 0x100 ? FLAG_C : 0) | halfcarry_add_table[lookup & 0x07] | overflow_add_table[lookup >> 4] | sz53_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "AND",
-    ([v]) => `{ z80.a &= (${v}); z80.f = FLAG_H | sz53p_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "BIT_I",
-    ([bit, v, addr]) =>
-      `{ z80.f = (z80.f & FLAG_C) | FLAG_H | ((${addr} >> 8) & (FLAG_3 | FLAG_5));` +
-      ` if (!((${v}) & (0x01 << ${bit}))) z80.f |= FLAG_P | FLAG_Z;` +
-      ` if (${bit} === 7 && (${v}) & 0x80) z80.f |= FLAG_S; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "BIT",
-    ([bit, v]) =>
-      `{ z80.f = (z80.f & FLAG_C) | FLAG_H | ((${v}) & (FLAG_3 | FLAG_5));` +
-      ` if (!((${v}) & (0x01 << ${bit}))) z80.f |= FLAG_P | FLAG_Z;` +
-      ` if (${bit} === 7 && (${v}) & 0x80) z80.f |= FLAG_S; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "CALL",
-    () =>
-      `{ const calltempl = z80.fetchByte(); addTstates(1); const calltemph = z80.fetchByte();` +
-      ` addTstates(6); z80.push16(z80.pc); z80.pc = calltempl | (calltemph << 8); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "CP",
-    ([v]) =>
-      `{ const cptemp = z80.a - ${v};` +
-      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((cptemp & 0x88) >> 1);` +
-      ` z80.f = (cptemp & 0x100 ? FLAG_C : (cptemp ? 0 : FLAG_Z)) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | ((${v}) & (FLAG_3 | FLAG_5)) | (cptemp & FLAG_S); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "DEC",
-    ([v]) =>
-      `{ z80.f = (z80.f & FLAG_C) | ((${v}) & 0x0f ? 0 : FLAG_H) | FLAG_N;` +
-      ` (${v}) = ((${v}) - 1) & 0xff;` +
-      ` z80.f |= ((${v}) === 0x7f ? FLAG_V : 0) | sz53_table[${v}]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "INC",
-    ([v]) =>
-      `{ (${v}) = ((${v}) + 1) & 0xff;` +
-      ` z80.f = (z80.f & FLAG_C) | ((${v}) === 0x80 ? FLAG_V : 0) | ((${v}) & 0x0f ? 0 : FLAG_H) | sz53_table[${v}]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "IN",
-    ([reg, port]) =>
-      `{ addTstates(3); (${reg}) = readport((${port})); z80.f = (z80.f & FLAG_C) | sz53p_table[(${reg})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "JP",
-    () =>
-      `{ const jptemp = z80.pc; z80.pc = readbyte(jptemp) | (readbyte((jptemp + 1) & 0xffff) << 8); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "JR",
-    () =>
-      `{ addTstates(5); z80.pc += sign_extend(readbyte(z80.pc)); z80.pc &= 0xffff; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "LD16_NNRR",
-    ([regl, regh]) =>
-      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
-      ` writebyte(ldtemp, (${regl})); writebyte((ldtemp + 1) & 0xffff, (${regh})); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "LD16_RRNN",
-    ([regl, regh]) =>
-      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
-      ` (${regl}) = readbyte(ldtemp); (${regh}) = readbyte((ldtemp + 1) & 0xffff); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "LD16_RRNNW",
-    ([reg]) =>
-      `{ addTstates(12); const ldtemp = z80.fetchByte() | (z80.fetchByte() << 8);` +
-      ` ${reg} = readbyte(ldtemp) | (readbyte((ldtemp + 1) & 0xffff) << 8); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "OR",
-    ([v]) => `{ z80.a |= (${v}); z80.f = sz53p_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "OUT",
-    ([port, reg]) => `{ addTstates(3); writeport((${port}), ${reg}); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "POP16",
-    ([regl, regh]) =>
-      `{ addTstates(6); const popv = z80.pop16(); (${regl}) = popv & 0xff; (${regh}) = popv >> 8; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "PUSH16",
-    ([regl, regh]) =>
-      `{ addTstates(6); z80.push16(((${regh}) << 8) | (${regl})); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RET",
-    () => `{ addTstates(6); z80.pc = z80.pop16(); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RL",
-    ([v]) =>
-      `{ const rltemp = (${v}); (${v}) = (((${v}) & 0x7f) << 1) | (z80.f & FLAG_C); z80.f = (rltemp >> 7) | sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RLC",
-    ([v]) =>
-      `{ (${v}) = (((${v}) & 0x7f) << 1) | ((${v}) >> 7); z80.f = ((${v}) & FLAG_C) | sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RR",
-    ([v]) =>
-      `{ const rrtemp = (${v}); (${v}) = ((${v}) >> 1) | ((z80.f & 0x01) << 7); z80.f = (rrtemp & FLAG_C) | sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RRC",
-    ([v]) =>
-      `{ z80.f = (${v}) & FLAG_C; (${v}) = ((${v}) >> 1) | (((${v}) & 0x01) << 7); z80.f |= sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "RST",
-    ([v]) => `{ addTstates(6); z80.push16(z80.pc); z80.pc = (${v}); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SBC16",
-    ([v]) =>
-      // Capture v in subv to avoid calling the method twice.
-      // hlv snapshots HL before we overwrite h/l.
-      `{ const subv = (${v}), hlv = z80.hl();` +
-      ` const sub16temp = hlv - subv - (z80.f & FLAG_C);` +
-      ` const lookup = ((hlv & 0x8800) >> 11) | ((subv & 0x8800) >> 10) | ((sub16temp & 0x8800) >> 9);` +
-      ` z80.h = (sub16temp >> 8) & 0xff; z80.l = sub16temp & 0xff;` +
-      ` z80.f = (sub16temp & 0x10000 ? FLAG_C : 0) | FLAG_N | overflow_sub_table[lookup >> 4] |` +
-      ` (z80.h & (FLAG_3 | FLAG_5 | FLAG_S)) | halfcarry_sub_table[lookup & 0x07] | (z80.hl() ? 0 : FLAG_Z); }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SBC",
-    ([v]) =>
-      `{ const sbctemp = z80.a - (${v}) - (z80.f & FLAG_C);` +
-      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((sbctemp & 0x88) >> 1);` +
-      ` z80.a = sbctemp & 0xff;` +
-      ` z80.f = (sbctemp & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | sz53_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SLA",
-    ([v]) =>
-      `{ z80.f = (${v}) >> 7; (${v}) = ((${v}) << 1) & 0xff; z80.f |= sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SLL",
-    ([v]) =>
-      `{ z80.f = (${v}) >> 7; (${v}) = (((${v}) << 1) | 0x01) & 0xff; z80.f |= sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SRA",
-    ([v]) =>
-      `{ z80.f = (${v}) & FLAG_C; (${v}) = ((${v}) & 0x80) | ((${v}) >> 1); z80.f |= sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SRL",
-    ([v]) =>
-      `{ z80.f = (${v}) & FLAG_C; (${v}) >>= 1; z80.f |= sz53p_table[(${v})]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "SUB",
-    ([v]) =>
-      `{ const subtemp = z80.a - (${v});` +
-      ` const lookup = ((z80.a & 0x88) >> 3) | (((${v}) & 0x88) >> 2) | ((subtemp & 0x88) >> 1);` +
-      ` z80.a = subtemp & 0xff;` +
-      ` z80.f = (subtemp & 0x100 ? FLAG_C : 0) | FLAG_N | halfcarry_sub_table[lookup & 0x07] | overflow_sub_table[lookup >> 4] | sz53_table[z80.a]; }`,
-  );
-
-  code = applyMacro(
-    code,
-    "XOR",
-    ([v]) => `{ z80.a ^= (${v}); z80.f = sz53p_table[z80.a]; }`,
-  );
-
-  return code;
-}
-
-// ---------------------------------------------------------------------------
 // Library export
 // ---------------------------------------------------------------------------
 
 /**
- * Generate opcode JavaScript for the given .dat file; returns a pure-JS string.
+ * Generate pure-JavaScript opcode code for the given .dat file.
  * @param {string} datFilePath   - Path to the .dat opcode definition file.
  * @param {string|null} register - 'ix', 'iy', or null for non-DDFD opcodes.
  */
@@ -1365,5 +1063,5 @@ export function generate(datFilePath, register = null) {
   const chunks = [];
   print = (s) => chunks.push(s);
   _run(datFilePath);
-  return expandOpcodes(chunks.join(""));
+  return chunks.join("");
 }

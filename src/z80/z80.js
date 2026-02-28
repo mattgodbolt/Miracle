@@ -213,6 +213,51 @@ class Z80 {
       (this.l | (this.h << 8) ? 0 : FLAG_Z);
   }
 
+  // 16-bit ADD — three dedicated methods to keep property accesses on known
+  // names (avoids string-key access that could degrade V8 hidden-class shape).
+  // Timing (addTstates(7)) is emitted by the generator, not here.
+  addHL(v) {
+    const hl = this.hl();
+    const result = hl + v;
+    const lookup =
+      ((hl & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
+    this.h = (result >> 8) & 0xff;
+    this.l = result & 0xff;
+    this.f =
+      (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
+      (result & 0x10000 ? FLAG_C : 0) |
+      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      halfcarry_add_table[lookup];
+  }
+
+  addIX(v) {
+    const ix = this.ix();
+    const result = ix + v;
+    const lookup =
+      ((ix & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
+    this.ixh = (result >> 8) & 0xff;
+    this.ixl = result & 0xff;
+    this.f =
+      (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
+      (result & 0x10000 ? FLAG_C : 0) |
+      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      halfcarry_add_table[lookup];
+  }
+
+  addIY(v) {
+    const iy = this.iy();
+    const result = iy + v;
+    const lookup =
+      ((iy & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
+    this.iyh = (result >> 8) & 0xff;
+    this.iyl = result & 0xff;
+    this.f =
+      (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
+      (result & 0x10000 ? FLAG_C : 0) |
+      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      halfcarry_add_table[lookup];
+  }
+
   // -------------------------------------------------------------------------
   // Value-in / value-out — return the new register value, update this.f
   // The generator emits: z80.b = z80.inc(z80.b)
