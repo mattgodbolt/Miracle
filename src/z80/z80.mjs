@@ -17,6 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import { readFileSync } from "fs";
+import { basename } from "path";
 
 // `print` is module-level so all helper functions below can call it.
 // Reassigned by generate() to capture output into a string.
@@ -960,7 +961,7 @@ const opcodes = {
 // ---------------------------------------------------------------------------
 
 function _run(dataFile) {
-  const baseName = dataFile.replace(/.*\//, "");
+  const baseName = basename(dataFile);
 
   print(
     GPL(descriptions[baseName], "1999-2008 Philip Kendall, Matthew Westcott"),

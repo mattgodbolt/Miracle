@@ -5,7 +5,7 @@
 // `vite build`, `vite dev`, and `vitest`), so no pre-step is required.
 
 import path from "path";
-import { existsSync, readdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,16 +40,16 @@ const TEMPLATES = [
   ["z80_dis.jscpp", "z80_dis.js"],
 ];
 
-// Files to watch in dev mode (any change triggers full regeneration)
+// Files to watch in dev mode (any change triggers full regeneration).
+// Note: the generator modules themselves (*.mjs) are NOT listed here — Node's
+// ESM cache means they can't be hot-reloaded without a process restart. If you
+// edit z80.mjs, disass.mjs, or preprocess.mjs, restart the dev server.
 const Z80_WATCH = [
   ...Z80_OUTPUTS.map(([dat]) => path.join(z80Dir, dat)),
   "z80.jscpp",
   "z80_ops.jscpp",
   "z80_dis.jscpp",
   "z80_macros.jscpp",
-  "z80.mjs",
-  "disass.mjs",
-  "preprocess.mjs",
 ].map((f) => (path.isAbsolute(f) ? f : path.join(z80Dir, f)));
 
 // ---------------------------------------------------------------------------
@@ -107,9 +107,6 @@ function z80CodegenPlugin() {
     },
     async handleHotUpdate({ file }) {
       if (Z80_WATCH.includes(file)) {
-        // If a generator script itself changed, drop the cached imports so the
-        // updated module is re-imported before regenerating.
-        if (file.endsWith(".mjs")) _generators = null;
         await generateZ80();
       }
     },
@@ -139,6 +136,7 @@ function romsPlugin() {
   return {
     name: "roms-codegen",
     buildStart() {
+      mkdirSync(romsDir, { recursive: true });
       generateRoms();
       this.addWatchFile(romsDir);
     },
