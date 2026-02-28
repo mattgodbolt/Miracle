@@ -109,7 +109,10 @@ function run() {
     if (!running) return;
     try {
       for (let i = 0; i < linesPerYield; ++i) {
-        if (line()) return;
+        if (line()) {
+          audio_push_frame();
+          return;
+        }
       }
     } catch (e) {
       running = false;
@@ -126,28 +129,77 @@ export function stop() {
   audio_enable(false);
 }
 
-function pumpAudio(event) {
-  const outBuffer = event.outputBuffer;
-  const chan = outBuffer.getChannelData(0);
-  soundChip.render(chan, 0, chan.length);
+let audioContext = null;
+let _audioNode = null;
+let _samplesPerFrame = 0;
+
+function _showAudioBanner(msg) {
+  const banner = document.getElementById("audio-warning");
+  if (banner) {
+    banner.textContent = msg;
+    banner.style.display = "block";
+  }
 }
 
-let audioContext;
+function _hideAudioBanner() {
+  const banner = document.getElementById("audio-warning");
+  if (banner) banner.style.display = "none";
+}
+
+function _checkAudioStatus() {
+  if (!audioContext) return;
+  if (audioContext.state === "suspended") {
+    _showAudioBanner("🔈 Audio suspended — click here to enable sound");
+  } else if (audioContext.state === "running") {
+    _hideAudioBanner();
+  }
+}
 
 function audio_init() {
-  if (typeof AudioContext !== "undefined") {
-    audioContext = new AudioContext();
-  } else if (typeof webkitAudioContext !== "undefined") {
-    audioContext = new webkitAudioContext();
-  } else {
-    // Disable sound without the new APIs.
+  const AudioCtx =
+    typeof AudioContext !== "undefined"
+      ? AudioContext
+      : typeof webkitAudioContext !== "undefined"
+        ? webkitAudioContext
+        : null;
+
+  if (!AudioCtx) {
+    // No Web Audio API at all.
     soundChip = new SoundChip(10000, cpuHz);
     return;
   }
-  const jsAudioNode = audioContext.createScriptProcessor(1024, 0, 1);
-  jsAudioNode.onaudioprocess = pumpAudio;
-  jsAudioNode.connect(audioContext.destination, 0, 0);
+
+  audioContext = new AudioCtx();
+  // Create soundChip immediately so audio_reset() works synchronously.
   soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
+  _samplesPerFrame = Math.ceil(audioContext.sampleRate / framesPerSecond);
+
+  if (!audioContext.audioWorklet) {
+    // AudioWorklet unavailable (non-secure context, old browser, etc.)
+    console.log("AudioWorklet not available — no audio");
+    _showAudioBanner(
+      "⚠️ Audio unavailable — serve over https or use localhost",
+    );
+    audioContext = null;
+    return;
+  }
+
+  audioContext.onstatechange = () => _checkAudioStatus();
+  _checkAudioStatus();
+
+  // Async worklet setup; soundChip is already usable above.
+  audioContext.audioWorklet.addModule("/audio-processor.js").then(() => {
+    _audioNode = new AudioWorkletNode(audioContext, "miracle-audio-processor");
+    _audioNode.connect(audioContext.destination);
+  });
+}
+
+function audio_push_frame() {
+  if (!_audioNode || !_samplesPerFrame) return;
+  const buf = new Float32Array(_samplesPerFrame);
+  soundChip.render(buf, 0, buf.length);
+  // Transfer the underlying ArrayBuffer to avoid a copy.
+  _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
 }
 
 export function audio_enable(enable) {
@@ -180,6 +232,13 @@ export function miracle_init() {
   document.onkeydown = keyDown;
   document.onkeyup = keyUp;
   document.onkeypress = keyPress;
+
+  const audioBanner = document.getElementById("audio-warning");
+  if (audioBanner) {
+    audioBanner.addEventListener("click", () => {
+      if (audioContext) audioContext.resume();
+    });
+  }
 }
 
 export function miracle_reset() {
