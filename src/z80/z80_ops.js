@@ -1,4 +1,6 @@
-/* eslint-disable */
+// Imports and functions below look unused to ESLint because they are only
+// referenced from the opcode code inlined by the @z80-generate transform.
+/* eslint-disable no-unused-vars */
 import {
   z80,
   z80_instruction_hook,
