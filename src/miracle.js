@@ -172,7 +172,11 @@ function audio_init() {
   audioContext = new AudioCtx();
   // Create soundChip immediately so audio_reset() works synchronously.
   soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
-  _samplesPerFrame = Math.ceil(audioContext.sampleRate / framesPerSecond);
+  // Use floor so we never request more samples than the soundchip has actually
+  // advanced (ceil would synthesise a phantom extra sample on non-integer rates
+  // and cause long-term pitch drift). A fractional accumulator would be ideal
+  // for exact rate matching but floor is safe and correct in practice.
+  _samplesPerFrame = Math.floor(audioContext.sampleRate / framesPerSecond);
 
   if (!audioContext.audioWorklet) {
     // AudioWorklet unavailable (non-secure context, old browser, etc.)
@@ -182,6 +186,7 @@ function audio_init() {
     );
     audioContext.close();
     audioContext = null;
+    _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
     return;
   }
 
@@ -209,6 +214,7 @@ function audio_init() {
       if (audioContext) audioContext.close();
       audioContext = null;
       _audioNode = null;
+      _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
     });
 }
 
