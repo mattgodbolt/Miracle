@@ -110,7 +110,8 @@ function z80CodegenPlugin() {
         let result = code;
         for (const [markerKey, snippet] of generatedSnippets) {
           const marker = `/* @z80-generate ${markerKey} */`;
-          if (result.includes(marker)) result = result.replace(marker, snippet);
+          if (result.includes(marker))
+            result = result.replaceAll(marker, snippet);
         }
         return result !== code ? { code: result, map: null } : null;
       }
@@ -120,7 +121,8 @@ function z80CodegenPlugin() {
         let result = code;
         for (const [markerKey, snippet] of generatedDisSnippets) {
           const marker = `/* @z80-dis-generate ${markerKey} */`;
-          if (result.includes(marker)) result = result.replace(marker, snippet);
+          if (result.includes(marker))
+            result = result.replaceAll(marker, snippet);
         }
         return result !== code ? { code: result, map: null } : null;
       }
