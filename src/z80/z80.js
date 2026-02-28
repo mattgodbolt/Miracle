@@ -349,7 +349,7 @@ export function z80_reset() {
   z80.i = z80.r = z80.r7 = 0;
   z80.sp = z80.pc = 0;
   z80.iff1 = z80.iff2 = z80.im = 0;
-  z80.halted = 0;
+  z80.halted = false;
   z80.irq_pending = false;
   z80.irq_suppress = true;
 }

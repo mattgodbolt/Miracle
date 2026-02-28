@@ -542,7 +542,7 @@ const opcodes = {
     );
   },
 
-  HALT: () => print(`      z80.halted=1;\n      PC--;PC &= 0xffff;\n`),
+  HALT: () => print(`      z80.halted=true;\n      PC--;PC &= 0xffff;\n`),
 
   IM(mode) {
     print(`      IM=${mode};\n`);

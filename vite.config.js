@@ -143,11 +143,14 @@ function z80CodegenPlugin() {
     },
 
     async handleHotUpdate({ file, server }) {
-      if (Z80_WATCH.includes(file)) {
-        await generateZ80();
-        // Invalidate z80_ops.js so the transform re-runs
-        const mod = server.moduleGraph.getModuleById(z80OpsId);
-        if (mod) server.moduleGraph.invalidateModule(mod);
+      if (!Z80_WATCH.includes(file)) return;
+      await generateZ80();
+      // Invalidate z80_ops.js so the transform re-runs, and return it so
+      // Vite pushes the HMR update to the browser.
+      const mod = server.moduleGraph.getModuleById(z80OpsId);
+      if (mod) {
+        server.moduleGraph.invalidateModule(mod);
+        return [mod];
       }
     },
 
