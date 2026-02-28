@@ -1,13 +1,1 @@
-opcodes_base.jscpp
-z80_cb.jscpp
-z80_ddfd.jscpp
-z80_ddfdcb.jscpp
-z80_ed.jscpp
-z80_full.js
-z80_ops_full.js
-opcodes_base_dis.jscpp
-z80_cb_dis.jscpp
-z80_ddfd_dis.jscpp
-z80_ddfdcb_dis.jscpp
 z80_dis.js
-z80_ed_dis.jscpp
