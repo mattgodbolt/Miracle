@@ -48,7 +48,7 @@ let _generators = null;
 async function getGenerators() {
   if (!_generators) {
     const [z80mod, dismod] = await Promise.all([
-      import("./src/z80/z80.mjs"),
+      import("./src/z80/z80_generator.mjs"),
       import("./src/z80/disass.mjs"),
     ]);
     _generators = { z80gen: z80mod.generate, disgen: dismod.generate };

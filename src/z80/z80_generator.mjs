@@ -1,4 +1,4 @@
-// z80.mjs: generate Javascript code for Z80 opcodes
+// z80_generator.mjs: generate JavaScript code for Z80 opcodes
 // Ported from z80.pl to Node.js
 //
 // Copyright (c) 1999-2008 Philip Kendall, Matthew Westcott
