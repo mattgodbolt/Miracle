@@ -11,7 +11,7 @@ import {
   start,
   pages,
 } from "./miracle";
-import { z80 } from "./z80/z80";
+import { z80 } from "./z80/z80.js";
 import { z80_do_opcodes } from "./z80/z80_ops";
 import { disassemble } from "./z80/z80_dis";
 import { vdp_regs } from "./vdp";
