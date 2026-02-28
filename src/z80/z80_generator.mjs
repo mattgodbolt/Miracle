@@ -124,6 +124,10 @@ const RET_BODY = `{ addTstates(6); z80.pc = z80.pop16(); }`;
 // Generalised opcode routines
 // ---------------------------------------------------------------------------
 
+/**
+ * 8-bit arithmetic/logical — all 16-bit variants use the ADD16/ADC16/SBC16
+ * handlers so there is no length-based dispatch needed here.
+ */
 function arithmetic_logical(opcode, arg1, arg2) {
   if (!arg2) {
     arg2 = arg1;
@@ -131,41 +135,27 @@ function arithmetic_logical(opcode, arg1, arg2) {
   }
 
   const method = opcode.toLowerCase(); // and, or, xor, cp, add, adc, sub, sbc
-
-  if (arg1.length === 1) {
-    // 8-bit arithmetic — delegate to the matching z80 method
-    if (arg2.length === 1 || /^REGISTER[HL]$/.test(arg2)) {
-      print(`      z80.${method}(${regJS(arg2)});\n`);
-    } else if (arg2 === "(REGISTER+dd)") {
-      print(
-        `      addTstates(11);\n` +
-          `      {\n` +
-          `    const bytetemp = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
-          `    z80.${method}(bytetemp);\n` +
-          `      }\n`,
-      );
-    } else if (arg2 === "(HL)") {
-      print(
-        `      addTstates(3);\n` +
-          `      {\n` +
-          `    const bytetemp = readbyte( z80.hl() );\n` +
-          `    z80.${method}(bytetemp);\n` +
-          `      }\n`,
-      );
-    } else {
-      // Immediate byte (nn)
-      print(
-        `      addTstates(3);\n` + `      z80.${method}(z80.fetchByte());\n`,
-      );
-    }
-  } else if (opcode === "ADD") {
-    // 16-bit ADD HL/IX/IY,rr — dedicated z80 methods include flag update
-    const addMethod =
-      arg1 === "HL" ? "addHL" : `add${currentRegister.toUpperCase()}`; // addIX or addIY
-    print(`      addTstates(7); z80.${addMethod}(${pairRead(arg2)});\n`);
+  if (arg2.length === 1 || /^REGISTER[HL]$/.test(arg2)) {
+    print(`      z80.${method}(${regJS(arg2)});\n`);
+  } else if (arg2 === "(REGISTER+dd)") {
+    print(
+      `      addTstates(11);\n` +
+        `      {\n` +
+        `    const bytetemp = readbyte( (${r16()} + sign_extend(z80.fetchByte())) & 0xffff );\n` +
+        `    z80.${method}(bytetemp);\n` +
+        `      }\n`,
+    );
+  } else if (arg2 === "(HL)") {
+    print(
+      `      addTstates(3);\n` +
+        `      {\n` +
+        `    const bytetemp = readbyte( z80.hl() );\n` +
+        `    z80.${method}(bytetemp);\n` +
+        `      }\n`,
+    );
   } else {
-    // ADC HL,rr or SBC HL,rr
-    print(`      addTstates(7);\n      z80.${method}16(${pairRead(arg2)});\n`);
+    // Immediate byte (nn)
+    print(`      addTstates(3);\n` + `      z80.${method}(z80.fetchByte());\n`);
   }
 }
 
@@ -230,29 +220,15 @@ function cpir_cpdr(opcode) {
   );
 }
 
-function inc_dec(opcode, arg) {
-  const modifier = opcode === "INC" ? "+" : "-";
+/**
+ * 8-bit INC/DEC — only handles single registers, (HL), and (REGISTER+dd).
+ * 16-bit pair variants use INC16/DEC16 handlers.
+ */
+function inc_dec8(opcode, arg) {
   const method = opcode.toLowerCase(); // inc or dec
   if (arg.length === 1 || /^REGISTER[HL]$/.test(arg)) {
     const r = regJS(arg);
     print(`      ${r} = z80.${method}(${r});\n`);
-  } else if (arg.length === 2 || arg === "REGISTER") {
-    if (arg === "SP") {
-      print(
-        `      addTstates(2);\n` +
-          `      z80.sp = (z80.sp ${modifier} 1) & 0xffff;\n`,
-      );
-    } else {
-      const hi = pairHi(arg);
-      const lo = pairLo(arg);
-      const rd = pairRead(arg);
-      print(
-        `      addTstates(2);\n` +
-          `      const wordtemp = (${rd} ${modifier} 1) & 0xffff;\n` +
-          `      ${hi} = wordtemp >> 8;\n` +
-          `      ${lo} = wordtemp & 0xff;\n`,
-      );
-    }
   } else if (arg === "(HL)") {
     print(
       `      addTstates(7);\n` +
@@ -451,10 +427,82 @@ function rotate_shift(opcode, register) {
 // ---------------------------------------------------------------------------
 
 const opcodes = {
+  // ---------------------------------------------------------------------------
+  // 8-bit arithmetic/logical
+  // ---------------------------------------------------------------------------
   ADC: (a, b) => arithmetic_logical("ADC", a, b),
   ADD: (a, b) => arithmetic_logical("ADD", a, b),
   AND: (a, b) => arithmetic_logical("AND", a, b),
+  CP: (a, b) => arithmetic_logical("CP", a, b),
+  OR: (a, b) => arithmetic_logical("OR", a, b),
+  SBC: (a, b) => arithmetic_logical("SBC", a, b),
+  SUB: (a, b) => arithmetic_logical("SUB", a, b),
+  XOR: (a, b) => arithmetic_logical("XOR", a, b),
 
+  // ---------------------------------------------------------------------------
+  // 16-bit arithmetic — explicit 16-bit mnemonics from the dat files
+  // ---------------------------------------------------------------------------
+
+  /** ADD16 HL,rr / ADD16 REGISTER,rr — 16-bit add to HL / IX / IY */
+  ADD16(arg1, arg2) {
+    const addMethod =
+      arg1 === "HL" ? "addHL" : `add${currentRegister.toUpperCase()}`; // addIX or addIY
+    print(`      addTstates(7); z80.${addMethod}(${pairRead(arg2)});\n`);
+  },
+
+  /** ADC16 HL,rr — 16-bit ADC into HL */
+  ADC16(_arg1, arg2) {
+    print(`      addTstates(7);\n      z80.adc16(${pairRead(arg2)});\n`);
+  },
+
+  /** SBC16 HL,rr — 16-bit SBC from HL */
+  SBC16(_arg1, arg2) {
+    print(`      addTstates(7);\n      z80.sbc16(${pairRead(arg2)});\n`);
+  },
+
+  /** INC16 rr — increment 16-bit register pair */
+  INC16(arg) {
+    if (arg === "SP") {
+      print(`      addTstates(2);\n      z80.sp = (z80.sp + 1) & 0xffff;\n`);
+    } else {
+      const hi = pairHi(arg);
+      const lo = pairLo(arg);
+      const rd = pairRead(arg);
+      print(
+        `      addTstates(2);\n` +
+          `      const wordtemp = (${rd} + 1) & 0xffff;\n` +
+          `      ${hi} = wordtemp >> 8;\n` +
+          `      ${lo} = wordtemp & 0xff;\n`,
+      );
+    }
+  },
+
+  /** DEC16 rr — decrement 16-bit register pair */
+  DEC16(arg) {
+    if (arg === "SP") {
+      print(`      addTstates(2);\n      z80.sp = (z80.sp - 1) & 0xffff;\n`);
+    } else {
+      const hi = pairHi(arg);
+      const lo = pairLo(arg);
+      const rd = pairRead(arg);
+      print(
+        `      addTstates(2);\n` +
+          `      const wordtemp = (${rd} - 1) & 0xffff;\n` +
+          `      ${hi} = wordtemp >> 8;\n` +
+          `      ${lo} = wordtemp & 0xff;\n`,
+      );
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // 8-bit INC/DEC (and memory-addressed variants)
+  // ---------------------------------------------------------------------------
+  INC: (a) => inc_dec8("INC", a),
+  DEC: (a) => inc_dec8("DEC", a),
+
+  // ---------------------------------------------------------------------------
+  // Bit operations
+  // ---------------------------------------------------------------------------
   BIT(bit, register) {
     if (register.length === 1) {
       print(`      z80.bit( ${bit}, ${regJS(register)} );\n`);
@@ -477,148 +525,87 @@ const opcodes = {
     }
   },
 
+  RES: (a, b) => res_set("RES", a, b),
+  SET: (a, b) => res_set("SET", a, b),
+
+  // ---------------------------------------------------------------------------
+  // Rotate/shift
+  // ---------------------------------------------------------------------------
+  RL: (a) => rotate_shift("RL", a),
+  RLC: (a) => rotate_shift("RLC", a),
+  RR: (a) => rotate_shift("RR", a),
+  RRC: (a) => rotate_shift("RRC", a),
+  SLA: (a) => rotate_shift("SLA", a),
+  SLL: (a) => rotate_shift("SLL", a),
+  SRA: (a) => rotate_shift("SRA", a),
+  SRL: (a) => rotate_shift("SRL", a),
+
+  RLCA() {
+    print(
+      `      z80.a = ( (z80.a & 0x7f) << 1 ) | ( z80.a >> 7 );\n` +
+        `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
+        `    ( z80.a & ( FLAG_C | FLAG_3 | FLAG_5 ) );\n`,
+    );
+  },
+
+  RLA() {
+    print(
+      `      {\n` +
+        `    const bytetemp = z80.a;\n` +
+        `    z80.a = ( (z80.a & 0x7f) << 1 ) | ( z80.f & FLAG_C );\n` +
+        `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
+        `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp >> 7 );\n` +
+        `      }\n`,
+    );
+  },
+
+  RLD() {
+    print(
+      `      {\n` +
+        `    const bytetemp = readbyte( z80.hl() );\n` +
+        `    addTstates(10);\n` +
+        `    writebyte(z80.hl(), ((bytetemp & 0x0f) << 4 ) | ( z80.a & 0x0f ) );\n` +
+        `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp >> 4 );\n` +
+        `    z80.f = ( z80.f & FLAG_C ) | sz53p_table[z80.a];\n` +
+        `      }\n`,
+    );
+  },
+
+  RRA() {
+    print(
+      `      {\n` +
+        `    const bytetemp = z80.a;\n` +
+        `    z80.a = ( z80.a >> 1 ) | ( (z80.f & 0x01) << 7 );\n` +
+        `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
+        `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp & FLAG_C ) ;\n` +
+        `      }\n`,
+    );
+  },
+
+  RRCA() {
+    print(
+      `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) | ( z80.a & FLAG_C );\n` +
+        `      z80.a = ( z80.a >> 1) | ( (z80.a & 0x01) << 7 );\n` +
+        `      z80.f |= ( z80.a & ( FLAG_3 | FLAG_5 ) );\n`,
+    );
+  },
+
+  RRD() {
+    print(
+      `      {\n` +
+        `    const bytetemp = readbyte( z80.hl() );\n` +
+        `    addTstates(10);\n` +
+        `    writebyte(z80.hl(),  ( (z80.a & 0x0f) << 4 ) | ( bytetemp >> 4 ) );\n` +
+        `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp & 0x0f );\n` +
+        `    z80.f = ( z80.f & FLAG_C ) | sz53p_table[z80.a];\n` +
+        `      }\n`,
+    );
+  },
+
+  // ---------------------------------------------------------------------------
+  // Control flow
+  // ---------------------------------------------------------------------------
   CALL: (a, b) => call_jp("CALL", a, b),
-
-  CCF() {
-    print(
-      `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
-        `    ( ( z80.f & FLAG_C ) ? FLAG_H : FLAG_C ) | ( z80.a & ( FLAG_3 | FLAG_5 ) );\n`,
-    );
-  },
-
-  CP: (a, b) => arithmetic_logical("CP", a, b),
-  CPD: () => cpi_cpd("CPD"),
-  CPDR: () => cpir_cpdr("CPDR"),
-  CPI: () => cpi_cpd("CPI"),
-  CPIR: () => cpir_cpdr("CPIR"),
-
-  CPL() {
-    print(
-      `      z80.a ^= 0xff;\n` +
-        `      z80.f = ( z80.f & ( FLAG_C | FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
-        `    ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( FLAG_N | FLAG_H );\n`,
-    );
-  },
-
-  DAA() {
-    print(
-      `      {\n` +
-        `    let add = 0, carry = ( z80.f & FLAG_C );\n` +
-        `    if( ( z80.f & FLAG_H ) || ( (z80.a & 0x0f)>9 ) ) add=6;\n` +
-        `    if( carry || (z80.a > 0x99 ) ) add|=0x60;\n` +
-        `    if( z80.a > 0x99 ) carry=FLAG_C;\n` +
-        `    if ( z80.f & FLAG_N ) {\n` +
-        `      z80.sub(add);\n` +
-        `    } else {\n` +
-        `      z80.add(add);\n` +
-        `    }\n` +
-        `    z80.f = ( z80.f & ~( FLAG_C | FLAG_P) ) | carry | parity_table[z80.a];\n` +
-        `      }\n`,
-    );
-  },
-
-  DEC: (a) => inc_dec("DEC", a),
-  DI: () => print(`      z80.iff1=z80.iff2=0;\n`),
-
-  DJNZ() {
-    print(
-      `      addTstates(4);\n` +
-        `      z80.b = (z80.b-1) & 0xff;\n` +
-        `      if(z80.b) ${JR_BODY}\n` +
-        `      z80.pc++;\n` +
-        `      z80.pc &= 0xffff;\n`,
-    );
-  },
-
-  EI: () => print(`      z80.iff1=z80.iff2=1;\n`),
-
-  EX(arg1, arg2) {
-    if (arg1 === "AF" && arg2 === "AF'") {
-      print(
-        `      {\n` +
-          `          const olda = z80.a, oldf = z80.f;\n` +
-          `          z80.a = z80.a_; z80.f = z80.f_;\n` +
-          `          z80.a_ = olda; z80.f_ = oldf;\n` +
-          `      }\n`,
-      );
-    } else if (arg1 === "(SP)" && (arg2 === "HL" || arg2 === "REGISTER")) {
-      const hi = arg2 === "HL" ? "z80.h" : r16h();
-      const lo = arg2 === "HL" ? "z80.l" : r16l();
-      print(
-        `      {\n` +
-          `    const bytetempl = readbyte( z80.sp     ),\n` +
-          `                     bytetemph = readbyte( z80.sp + 1 );\n` +
-          `    addTstates(15);\n` +
-          `    writebyte(z80.sp+1,${hi}); writebyte(z80.sp,${lo});\n` +
-          `    ${lo}=bytetempl; ${hi}=bytetemph;\n` +
-          `      }\n`,
-      );
-    } else if (arg1 === "DE" && arg2 === "HL") {
-      print(
-        `      {\n` +
-          `    let bytetemp;\n` +
-          `    bytetemp = z80.d; z80.d = z80.h; z80.h = bytetemp;\n` +
-          `    bytetemp = z80.e; z80.e = z80.l; z80.l = bytetemp;\n` +
-          `      }\n`,
-      );
-    }
-  },
-
-  EXX() {
-    print(
-      `      {\n` +
-        `    let bytetemp;\n` +
-        `    bytetemp = z80.b; z80.b = z80.b_; z80.b_ = bytetemp;\n` +
-        `    bytetemp = z80.c; z80.c = z80.c_; z80.c_ = bytetemp;\n` +
-        `    bytetemp = z80.d; z80.d = z80.d_; z80.d_ = bytetemp;\n` +
-        `    bytetemp = z80.e; z80.e = z80.e_; z80.e_ = bytetemp;\n` +
-        `    bytetemp = z80.h; z80.h = z80.h_; z80.h_ = bytetemp;\n` +
-        `    bytetemp = z80.l; z80.l = z80.l_; z80.l_ = bytetemp;\n` +
-        `      }\n`,
-    );
-  },
-
-  HALT: () =>
-    print(`      z80.halted=true;\n      z80.pc--;z80.pc &= 0xffff;\n`),
-
-  IM(mode) {
-    print(`      z80.im=${mode};\n`);
-  },
-
-  IN(register, port) {
-    if (register === "A" && port === "(nn)") {
-      print(
-        `      {\n` +
-          `    addTstates(4);\n` +
-          `    const intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
-          `    addTstates(3);\n` +
-          `    z80.a=readport( intemp );\n` +
-          `      }\n`,
-      );
-    } else if (register === "F" && port === "(C)") {
-      // Undocumented: result discarded, flags still updated
-      print(
-        `      addTstates(4);\n` +
-          `      {\n` +
-          `    const bytetemp = readport( z80.bc() );\n` +
-          `    z80.f = (z80.f & FLAG_C) | sz53p_table[bytetemp];\n` +
-          `      }\n`,
-      );
-    } else if (register.length === 1 && port === "(C)") {
-      const r = regJS(register);
-      print(
-        `      addTstates(4);\n` +
-          `      ${r} = readport( z80.bc() );\n` +
-          `      z80.f = (z80.f & FLAG_C) | sz53p_table[${r}];\n`,
-      );
-    }
-  },
-
-  INC: (a) => inc_dec("INC", a),
-  IND: () => ini_ind("IND"),
-  INDR: () => inir_indr("INDR"),
-  INI: () => ini_ind("INI"),
-  INIR: () => inir_indr("INIR"),
 
   JP(condition, offset) {
     if (condition === "HL" || condition === "REGISTER") {
@@ -645,6 +632,43 @@ const opcodes = {
     print(`      z80.pc++; z80.pc &= 0xffff;\n`);
   },
 
+  RET(condition) {
+    if (condition === undefined) {
+      print(`      ${RET_BODY}\n`);
+    } else {
+      print(`      addTstates(1);\n`);
+      if (not_.has(condition)) {
+        print(
+          `      if( ! ( z80.f & FLAG_${flag[condition]} ) ) ${RET_BODY}\n`,
+        );
+      } else {
+        print(`      if( z80.f & FLAG_${flag[condition]} ) ${RET_BODY}\n`);
+      }
+    }
+  },
+
+  RETN() {
+    print(`      z80.iff1=z80.iff2;\n      ${RET_BODY}\n`);
+  },
+
+  RST(value) {
+    const hex = parseInt(value, 16).toString(16).padStart(2, "0");
+    print(`      addTstates(7); z80.push16(z80.pc); z80.pc = 0x${hex};\n`);
+  },
+
+  DJNZ() {
+    print(
+      `      addTstates(4);\n` +
+        `      z80.b = (z80.b-1) & 0xff;\n` +
+        `      if(z80.b) ${JR_BODY}\n` +
+        `      z80.pc++;\n` +
+        `      z80.pc &= 0xffff;\n`,
+    );
+  },
+
+  // ---------------------------------------------------------------------------
+  // Load/store
+  // ---------------------------------------------------------------------------
   LD(dest, src) {
     if (dest.length === 1 || /^REGISTER[HL]$/.test(dest)) {
       // 8-bit destination
@@ -776,6 +800,101 @@ const opcodes = {
   LDI: () => ldi_ldd("LDI"),
   LDIR: () => ldir_lddr("LDIR"),
 
+  // ---------------------------------------------------------------------------
+  // Stack
+  // ---------------------------------------------------------------------------
+  POP(a) {
+    push_pop("POP", a);
+  },
+
+  PUSH(regpair) {
+    print(`      addTstates(1);\n`);
+    push_pop("PUSH", regpair);
+  },
+
+  // ---------------------------------------------------------------------------
+  // Miscellaneous
+  // ---------------------------------------------------------------------------
+  CCF() {
+    print(
+      `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
+        `    ( ( z80.f & FLAG_C ) ? FLAG_H : FLAG_C ) | ( z80.a & ( FLAG_3 | FLAG_5 ) );\n`,
+    );
+  },
+
+  CPD: () => cpi_cpd("CPD"),
+  CPDR: () => cpir_cpdr("CPDR"),
+  CPI: () => cpi_cpd("CPI"),
+  CPIR: () => cpir_cpdr("CPIR"),
+
+  CPL() {
+    print(
+      `      z80.a ^= 0xff;\n` +
+        `      z80.f = ( z80.f & ( FLAG_C | FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
+        `    ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( FLAG_N | FLAG_H );\n`,
+    );
+  },
+
+  DAA() {
+    print(
+      `      {\n` +
+        `    let add = 0, carry = ( z80.f & FLAG_C );\n` +
+        `    if( ( z80.f & FLAG_H ) || ( (z80.a & 0x0f)>9 ) ) add=6;\n` +
+        `    if( carry || (z80.a > 0x99 ) ) add|=0x60;\n` +
+        `    if( z80.a > 0x99 ) carry=FLAG_C;\n` +
+        `    if ( z80.f & FLAG_N ) {\n` +
+        `      z80.sub(add);\n` +
+        `    } else {\n` +
+        `      z80.add(add);\n` +
+        `    }\n` +
+        `    z80.f = ( z80.f & ~( FLAG_C | FLAG_P) ) | carry | parity_table[z80.a];\n` +
+        `      }\n`,
+    );
+  },
+
+  DI: () => print(`      z80.iff1=z80.iff2=0;\n`),
+  EI: () => print(`      z80.iff1=z80.iff2=1;\n`),
+  HALT: () =>
+    print(`      z80.halted=true;\n      z80.pc--;z80.pc &= 0xffff;\n`),
+
+  IM(mode) {
+    print(`      z80.im=${mode};\n`);
+  },
+
+  IN(register, port) {
+    if (register === "A" && port === "(nn)") {
+      print(
+        `      {\n` +
+          `    addTstates(4);\n` +
+          `    const intemp = z80.fetchByte() + ( z80.a << 8 );\n` +
+          `    addTstates(3);\n` +
+          `    z80.a=readport( intemp );\n` +
+          `      }\n`,
+      );
+    } else if (register === "F" && port === "(C)") {
+      // Undocumented: result discarded, flags still updated
+      print(
+        `      addTstates(4);\n` +
+          `      {\n` +
+          `    const bytetemp = readport( z80.bc() );\n` +
+          `    z80.f = (z80.f & FLAG_C) | sz53p_table[bytetemp];\n` +
+          `      }\n`,
+      );
+    } else if (register.length === 1 && port === "(C)") {
+      const r = regJS(register);
+      print(
+        `      addTstates(4);\n` +
+          `      ${r} = readport( z80.bc() );\n` +
+          `      z80.f = (z80.f & FLAG_C) | sz53p_table[${r}];\n`,
+      );
+    }
+  },
+
+  IND: () => ini_ind("IND"),
+  INDR: () => inir_indr("INDR"),
+  INI: () => ini_ind("INI"),
+  INIR: () => inir_indr("INIR"),
+
   NEG() {
     print(
       `      {\n` +
@@ -788,7 +907,6 @@ const opcodes = {
 
   NOP: () => {},
 
-  OR: (a, b) => arithmetic_logical("OR", a, b),
   OTDR: () => otir_otdr("OTDR"),
   OTIR: () => otir_otdr("OTIR"),
 
@@ -812,109 +930,6 @@ const opcodes = {
 
   OUTD: () => outi_outd("OUTD"),
   OUTI: () => outi_outd("OUTI"),
-  POP: (a) => push_pop("POP", a),
-
-  PUSH(regpair) {
-    print(`      addTstates(1);\n`);
-    push_pop("PUSH", regpair);
-  },
-
-  RES: (a, b) => res_set("RES", a, b),
-
-  RET(condition) {
-    if (condition === undefined) {
-      print(`      ${RET_BODY}\n`);
-    } else {
-      print(`      addTstates(1);\n`);
-      if (not_.has(condition)) {
-        print(
-          `      if( ! ( z80.f & FLAG_${flag[condition]} ) ) ${RET_BODY}\n`,
-        );
-      } else {
-        print(`      if( z80.f & FLAG_${flag[condition]} ) ${RET_BODY}\n`);
-      }
-    }
-  },
-
-  RETN() {
-    print(`      z80.iff1=z80.iff2;\n      ${RET_BODY}\n`);
-  },
-
-  RL: (a) => rotate_shift("RL", a),
-  RLC: (a) => rotate_shift("RLC", a),
-
-  RLCA() {
-    print(
-      `      z80.a = ( (z80.a & 0x7f) << 1 ) | ( z80.a >> 7 );\n` +
-        `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
-        `    ( z80.a & ( FLAG_C | FLAG_3 | FLAG_5 ) );\n`,
-    );
-  },
-
-  RLA() {
-    print(
-      `      {\n` +
-        `    const bytetemp = z80.a;\n` +
-        `    z80.a = ( (z80.a & 0x7f) << 1 ) | ( z80.f & FLAG_C );\n` +
-        `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
-        `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp >> 7 );\n` +
-        `      }\n`,
-    );
-  },
-
-  RLD() {
-    print(
-      `      {\n` +
-        `    const bytetemp = readbyte( z80.hl() );\n` +
-        `    addTstates(10);\n` +
-        `    writebyte(z80.hl(), ((bytetemp & 0x0f) << 4 ) | ( z80.a & 0x0f ) );\n` +
-        `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp >> 4 );\n` +
-        `    z80.f = ( z80.f & FLAG_C ) | sz53p_table[z80.a];\n` +
-        `      }\n`,
-    );
-  },
-
-  RR: (a) => rotate_shift("RR", a),
-
-  RRA() {
-    print(
-      `      {\n` +
-        `    const bytetemp = z80.a;\n` +
-        `    z80.a = ( z80.a >> 1 ) | ( (z80.f & 0x01) << 7 );\n` +
-        `    z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) |\n` +
-        `      ( z80.a & ( FLAG_3 | FLAG_5 ) ) | ( bytetemp & FLAG_C ) ;\n` +
-        `      }\n`,
-    );
-  },
-
-  RRC: (a) => rotate_shift("RRC", a),
-
-  RRCA() {
-    print(
-      `      z80.f = ( z80.f & ( FLAG_P | FLAG_Z | FLAG_S ) ) | ( z80.a & FLAG_C );\n` +
-        `      z80.a = ( z80.a >> 1) | ( (z80.a & 0x01) << 7 );\n` +
-        `      z80.f |= ( z80.a & ( FLAG_3 | FLAG_5 ) );\n`,
-    );
-  },
-
-  RRD() {
-    print(
-      `      {\n` +
-        `    const bytetemp = readbyte( z80.hl() );\n` +
-        `    addTstates(10);\n` +
-        `    writebyte(z80.hl(),  ( (z80.a & 0x0f) << 4 ) | ( bytetemp >> 4 ) );\n` +
-        `    z80.a = ( z80.a & 0xf0 ) | ( bytetemp & 0x0f );\n` +
-        `    z80.f = ( z80.f & FLAG_C ) | sz53p_table[z80.a];\n` +
-        `      }\n`,
-    );
-  },
-
-  RST(value) {
-    const hex = parseInt(value, 16).toString(16).padStart(2, "0");
-    print(`      addTstates(7); z80.push16(z80.pc); z80.pc = 0x${hex};\n`);
-  },
-
-  SBC: (a, b) => arithmetic_logical("SBC", a, b),
 
   SCF() {
     print(
@@ -924,13 +939,51 @@ const opcodes = {
     );
   },
 
-  SET: (a, b) => res_set("SET", a, b),
-  SLA: (a) => rotate_shift("SLA", a),
-  SLL: (a) => rotate_shift("SLL", a),
-  SRA: (a) => rotate_shift("SRA", a),
-  SRL: (a) => rotate_shift("SRL", a),
-  SUB: (a, b) => arithmetic_logical("SUB", a, b),
-  XOR: (a, b) => arithmetic_logical("XOR", a, b),
+  EX(arg1, arg2) {
+    if (arg1 === "AF" && arg2 === "AF'") {
+      print(
+        `      {\n` +
+          `          const olda = z80.a, oldf = z80.f;\n` +
+          `          z80.a = z80.a_; z80.f = z80.f_;\n` +
+          `          z80.a_ = olda; z80.f_ = oldf;\n` +
+          `      }\n`,
+      );
+    } else if (arg1 === "(SP)" && (arg2 === "HL" || arg2 === "REGISTER")) {
+      const hi = arg2 === "HL" ? "z80.h" : r16h();
+      const lo = arg2 === "HL" ? "z80.l" : r16l();
+      print(
+        `      {\n` +
+          `    const bytetempl = readbyte( z80.sp     ),\n` +
+          `                     bytetemph = readbyte( z80.sp + 1 );\n` +
+          `    addTstates(15);\n` +
+          `    writebyte(z80.sp+1,${hi}); writebyte(z80.sp,${lo});\n` +
+          `    ${lo}=bytetempl; ${hi}=bytetemph;\n` +
+          `      }\n`,
+      );
+    } else if (arg1 === "DE" && arg2 === "HL") {
+      print(
+        `      {\n` +
+          `    let bytetemp;\n` +
+          `    bytetemp = z80.d; z80.d = z80.h; z80.h = bytetemp;\n` +
+          `    bytetemp = z80.e; z80.e = z80.l; z80.l = bytetemp;\n` +
+          `      }\n`,
+      );
+    }
+  },
+
+  EXX() {
+    print(
+      `      {\n` +
+        `    let bytetemp;\n` +
+        `    bytetemp = z80.b; z80.b = z80.b_; z80.b_ = bytetemp;\n` +
+        `    bytetemp = z80.c; z80.c = z80.c_; z80.c_ = bytetemp;\n` +
+        `    bytetemp = z80.d; z80.d = z80.d_; z80.d_ = bytetemp;\n` +
+        `    bytetemp = z80.e; z80.e = z80.e_; z80.e_ = bytetemp;\n` +
+        `    bytetemp = z80.h; z80.h = z80.h_; z80.h_ = bytetemp;\n` +
+        `    bytetemp = z80.l; z80.l = z80.l_; z80.l_ = bytetemp;\n` +
+        `      }\n`,
+    );
+  },
 
   shift(opcode) {
     const lcOpcode = opcode.toLowerCase();
@@ -965,9 +1018,9 @@ function _run(dataFile) {
 
   const lines = readFileSync(dataFile, "utf8").split("\n");
 
-  for (const rawLine of lines) {
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     // Remove comments
-    let line = rawLine.replace(/#.*/, "");
+    let line = lines[lineIdx].replace(/#.*/, "");
 
     // Skip blank lines
     if (/^\s*$/.test(line)) continue;
