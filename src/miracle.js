@@ -17,7 +17,7 @@ import {
   setEventNextEvent,
   setTstates,
   z80_do_opcodes,
-} from "./z80/z80_ops_full";
+} from "./z80/z80_ops";
 import { debug_init, showDebug, debugKeyPress } from "./debug";
 
 let ram = [];

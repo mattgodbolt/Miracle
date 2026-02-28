@@ -57,7 +57,7 @@ import path from "path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Memory mock — a flat 64K array used by z80.js and z80_ops_full.js
+// Memory mock — a flat 64K array used by z80.js and z80_ops.js
 // via the ../miracle module.  We mutate it between tests; never replace it.
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
@@ -78,7 +78,7 @@ import {
   tstates,
   setTstates,
   setEventNextEvent,
-} from "../src/z80/z80_ops_full.js";
+} from "../src/z80/z80_ops.js";
 
 // ---------------------------------------------------------------------------
 // FUSE test file parsers
