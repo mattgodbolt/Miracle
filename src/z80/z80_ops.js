@@ -15,6 +15,17 @@ import {
   sz53p_table,
 } from "./z80.js";
 import { readbyte, readport, writebyte, writeport } from "../miracle";
+import {
+  FLAG_C,
+  FLAG_N,
+  FLAG_P,
+  FLAG_V,
+  FLAG_3,
+  FLAG_H,
+  FLAG_5,
+  FLAG_Z,
+  FLAG_S,
+} from "./flags.js";
 
 export let tstates = 0;
 let event_next_event = 0;
