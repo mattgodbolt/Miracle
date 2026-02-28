@@ -198,8 +198,15 @@ function audio_push_frame() {
   if (!_audioNode || !_samplesPerFrame) return;
   const buf = new Float32Array(_samplesPerFrame);
   soundChip.render(buf, 0, buf.length);
-  // Transfer the underlying ArrayBuffer to avoid a copy.
-  _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
+  // Only push to the worklet while the context is actually running.
+  // While suspended (waiting for user gesture), we still drain the soundchip's
+  // internal buffer above to prevent it overflowing, but we discard the
+  // samples — otherwise they'd queue up and cause hundreds of ms of latency
+  // when the context eventually resumes.
+  if (audioContext && audioContext.state === "running") {
+    // Transfer the underlying ArrayBuffer to avoid a copy.
+    _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
+  }
 }
 
 export function audio_enable(enable) {
