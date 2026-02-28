@@ -85,30 +85,6 @@ export function start() {
 const targetTimeout = 1000 / framesPerSecond;
 let adjustedTimeout = targetTimeout;
 let lastFrame = null;
-const linesPerYield = 20;
-
-// Use a MessageChannel to yield between scanline batches instead of
-// setTimeout(fn, 0). Browsers throttle deeply-nested setTimeout calls to a
-// minimum of ~1 second after 5 minutes without user interaction (Chrome's
-// "intensive wake-up throttling"), which makes the emulator grind to a halt.
-// MessageChannel tasks are not subject to that throttling policy.
-const _yieldChannel = new MessageChannel();
-_yieldChannel.port1.onmessage = function _runnerStep() {
-  if (!running) return;
-  try {
-    for (let i = 0; i < linesPerYield; ++i) {
-      if (line()) {
-        audio_push_frame();
-        return;
-      }
-    }
-  } catch (e) {
-    running = false;
-    audio_enable(true);
-    throw e;
-  }
-  if (running) _yieldChannel.port2.postMessage(null);
-};
 
 function run() {
   if (!running) {
@@ -133,7 +109,23 @@ function run() {
   }
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
-  _yieldChannel.port2.postMessage(null);
+
+  // Run a full SMS frame synchronously. The original code yielded mid-frame
+  // via setTimeout(fn, 0) to give the ScriptProcessor audio callback room to
+  // fire on the main thread. AudioWorklet runs on its own dedicated audio
+  // thread, so there is no longer any need to yield mid-frame.
+  try {
+    while (running) {
+      if (line()) {
+        audio_push_frame();
+        break;
+      }
+    }
+  } catch (e) {
+    running = false;
+    audio_enable(true);
+    throw e;
+  }
 }
 
 export function stop() {
