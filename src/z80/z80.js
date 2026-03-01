@@ -1,6 +1,6 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
 
-import { readbyte, writebyte } from "../miracle";
+import { readbyte, writebyte, readport, writeport } from "../miracle";
 import { addTstates } from "./z80_ops.js";
 import {
   FLAG_C,
@@ -15,16 +15,10 @@ import {
 } from "./flags";
 
 // ---------------------------------------------------------------------------
-// Lookup tables (filled by z80_init_tables, used by Z80 micro-op methods)
+// Lookup tables — used by micro-op methods and the generated opcode code.
 // ---------------------------------------------------------------------------
 
-function byteTable(values) {
-  const result = new Uint8Array(values.length);
-  for (let i = 0; i < values.length; ++i) result[i] = values[i];
-  return result;
-}
-
-export const halfcarry_add_table = byteTable([
+export const halfcarry_add_table = new Uint8Array([
   0,
   FLAG_H,
   FLAG_H,
@@ -34,7 +28,7 @@ export const halfcarry_add_table = byteTable([
   0,
   FLAG_H,
 ]);
-export const halfcarry_sub_table = byteTable([
+export const halfcarry_sub_table = new Uint8Array([
   0,
   0,
   FLAG_H,
@@ -44,12 +38,33 @@ export const halfcarry_sub_table = byteTable([
   FLAG_H,
   FLAG_H,
 ]);
-export const overflow_add_table = byteTable([0, 0, 0, FLAG_V, FLAG_V, 0, 0, 0]);
-export const overflow_sub_table = byteTable([0, FLAG_V, 0, 0, 0, 0, FLAG_V, 0]);
+export const overflow_add_table = new Uint8Array([
+  0,
+  0,
+  0,
+  FLAG_V,
+  FLAG_V,
+  0,
+  0,
+  0,
+]);
+export const overflow_sub_table = new Uint8Array([
+  0,
+  FLAG_V,
+  0,
+  0,
+  0,
+  0,
+  FLAG_V,
+  0,
+]);
 
 export const sz53_table = new Uint8Array(256);
 export const parity_table = new Uint8Array(256);
 export const sz53p_table = new Uint8Array(256);
+
+// Sign-extend an 8-bit displacement byte to a signed integer.
+const sign_extend = (v) => (v < 128 ? v : v - 256);
 
 // ---------------------------------------------------------------------------
 // Z80 CPU — registers, state, and micro-op methods
@@ -96,7 +111,79 @@ class Z80 {
   }
 
   // -------------------------------------------------------------------------
-  // Arithmetic / logical — update this.a and/or this.f, return nothing
+  // 16-bit register-pair reads — returns the combined 16-bit value
+  // -------------------------------------------------------------------------
+
+  bc() {
+    return this.c | (this.b << 8);
+  }
+  de() {
+    return this.e | (this.d << 8);
+  }
+  hl() {
+    return this.l | (this.h << 8);
+  }
+  af() {
+    return this.f | (this.a << 8);
+  }
+  ix() {
+    return this.ixl | (this.ixh << 8);
+  }
+  iy() {
+    return this.iyl | (this.iyh << 8);
+  }
+
+  // SP/PC high and low byte reads
+  sph() {
+    return this.sp >> 8;
+  }
+  spl() {
+    return this.sp & 0xff;
+  }
+  pch() {
+    return this.pc >> 8;
+  }
+  pcl() {
+    return this.pc & 0xff;
+  }
+
+  // -------------------------------------------------------------------------
+  // 16-bit register-pair setters — mask to 16 bits and split into hi/lo bytes
+  // -------------------------------------------------------------------------
+
+  setBC(v) {
+    v &= 0xffff;
+    this.b = v >> 8;
+    this.c = v & 0xff;
+  }
+  setDE(v) {
+    v &= 0xffff;
+    this.d = v >> 8;
+    this.e = v & 0xff;
+  }
+  setHL(v) {
+    v &= 0xffff;
+    this.h = v >> 8;
+    this.l = v & 0xff;
+  }
+  setAF(v) {
+    v &= 0xffff;
+    this.a = v >> 8;
+    this.f = v & 0xff;
+  }
+  setIX(v) {
+    v &= 0xffff;
+    this.ixh = v >> 8;
+    this.ixl = v & 0xff;
+  }
+  setIY(v) {
+    v &= 0xffff;
+    this.iyh = v >> 8;
+    this.iyl = v & 0xff;
+  }
+
+  // -------------------------------------------------------------------------
+  // Arithmetic / logical — update this.a and/or this.f
   // -------------------------------------------------------------------------
 
   and(value) {
@@ -178,56 +265,51 @@ class Z80 {
   }
 
   // 16-bit ADC/SBC operate on HL.
-  // Timing (addTstates(7)) is emitted by the generator, not here.
   adc16(value) {
-    const hl = this.l | (this.h << 8);
-    const add16temp = hl + value + (this.f & FLAG_C);
+    const hl = this.hl();
+    const result = hl + value + (this.f & FLAG_C);
     const lookup =
       ((hl & 0x8800) >> 11) |
       ((value & 0x8800) >> 10) |
-      ((add16temp & 0x8800) >> 9);
-    this.h = (add16temp >> 8) & 0xff;
-    this.l = add16temp & 0xff;
+      ((result & 0x8800) >> 9);
+    this.setHL(result);
     this.f =
-      (add16temp & 0x10000 ? FLAG_C : 0) |
+      (result & 0x10000 ? FLAG_C : 0) |
       overflow_add_table[lookup >> 4] |
       (this.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
       halfcarry_add_table[lookup & 0x07] |
-      (this.l | (this.h << 8) ? 0 : FLAG_Z);
+      (this.hl() ? 0 : FLAG_Z);
   }
 
   sbc16(value) {
-    const hl = this.l | (this.h << 8);
-    const sub16temp = hl - value - (this.f & FLAG_C);
+    const hl = this.hl();
+    const result = hl - value - (this.f & FLAG_C);
     const lookup =
       ((hl & 0x8800) >> 11) |
       ((value & 0x8800) >> 10) |
-      ((sub16temp & 0x8800) >> 9);
-    this.h = (sub16temp >> 8) & 0xff;
-    this.l = sub16temp & 0xff;
+      ((result & 0x8800) >> 9);
+    this.setHL(result);
     this.f =
-      (sub16temp & 0x10000 ? FLAG_C : 0) |
+      (result & 0x10000 ? FLAG_C : 0) |
       FLAG_N |
       overflow_sub_table[lookup >> 4] |
       (this.h & (FLAG_3 | FLAG_5 | FLAG_S)) |
       halfcarry_sub_table[lookup & 0x07] |
-      (this.l | (this.h << 8) ? 0 : FLAG_Z);
+      (this.hl() ? 0 : FLAG_Z);
   }
 
   // 16-bit ADD — three dedicated methods to keep property accesses on known
   // names (avoids string-key access that could degrade V8 hidden-class shape).
-  // Timing (addTstates(7)) is emitted by the generator, not here.
   addHL(v) {
     const hl = this.hl();
     const result = hl + v;
     const lookup =
       ((hl & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
-    this.h = (result >> 8) & 0xff;
-    this.l = result & 0xff;
+    this.setHL(result);
     this.f =
       (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
       (result & 0x10000 ? FLAG_C : 0) |
-      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      (this.h & (FLAG_3 | FLAG_5)) |
       halfcarry_add_table[lookup];
   }
 
@@ -236,12 +318,11 @@ class Z80 {
     const result = ix + v;
     const lookup =
       ((ix & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
-    this.ixh = (result >> 8) & 0xff;
-    this.ixl = result & 0xff;
+    this.setIX(result);
     this.f =
       (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
       (result & 0x10000 ? FLAG_C : 0) |
-      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      (this.ixh & (FLAG_3 | FLAG_5)) |
       halfcarry_add_table[lookup];
   }
 
@@ -250,17 +331,16 @@ class Z80 {
     const result = iy + v;
     const lookup =
       ((iy & 0x0800) >> 11) | ((v & 0x0800) >> 10) | ((result & 0x0800) >> 9);
-    this.iyh = (result >> 8) & 0xff;
-    this.iyl = result & 0xff;
+    this.setIY(result);
     this.f =
       (this.f & (FLAG_V | FLAG_Z | FLAG_S)) |
       (result & 0x10000 ? FLAG_C : 0) |
-      ((result >> 8) & (FLAG_3 | FLAG_5)) |
+      (this.iyh & (FLAG_3 | FLAG_5)) |
       halfcarry_add_table[lookup];
   }
 
   // -------------------------------------------------------------------------
-  // Value-in / value-out — return the new register value, update this.f
+  // Value-in / value-out — return the new register value, update this.f.
   // The generator emits: z80.b = z80.inc(z80.b)
   // -------------------------------------------------------------------------
 
@@ -337,6 +417,87 @@ class Z80 {
   }
 
   // -------------------------------------------------------------------------
+  // Accumulator rotates — operate on this.a directly
+  // -------------------------------------------------------------------------
+
+  rlca() {
+    this.a = ((this.a & 0x7f) << 1) | (this.a >> 7);
+    this.f =
+      (this.f & (FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.a & (FLAG_C | FLAG_3 | FLAG_5));
+  }
+
+  rrca() {
+    this.f = (this.f & (FLAG_P | FLAG_Z | FLAG_S)) | (this.a & FLAG_C);
+    this.a = (this.a >> 1) | ((this.a & 0x01) << 7);
+    this.f |= this.a & (FLAG_3 | FLAG_5);
+  }
+
+  rla() {
+    const old = this.a;
+    this.a = ((this.a & 0x7f) << 1) | (this.f & FLAG_C);
+    this.f =
+      (this.f & (FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.a & (FLAG_3 | FLAG_5)) |
+      (old >> 7);
+  }
+
+  rra() {
+    const old = this.a;
+    this.a = (this.a >> 1) | ((this.f & 0x01) << 7);
+    this.f =
+      (this.f & (FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.a & (FLAG_3 | FLAG_5)) |
+      (old & FLAG_C);
+  }
+
+  // -------------------------------------------------------------------------
+  // Accumulator flag operations
+  // -------------------------------------------------------------------------
+
+  ccf() {
+    this.f =
+      (this.f & (FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.f & FLAG_C ? FLAG_H : FLAG_C) |
+      (this.a & (FLAG_3 | FLAG_5));
+  }
+
+  cpl() {
+    this.a ^= 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.a & (FLAG_3 | FLAG_5)) |
+      (FLAG_N | FLAG_H);
+  }
+
+  scf() {
+    this.f =
+      (this.f & (FLAG_P | FLAG_Z | FLAG_S)) |
+      (this.a & (FLAG_3 | FLAG_5)) |
+      FLAG_C;
+  }
+
+  neg() {
+    const old = this.a;
+    this.a = 0;
+    this.sub(old);
+  }
+
+  daa() {
+    let adj = 0;
+    let carry = this.f & FLAG_C;
+    if (this.f & FLAG_H || (this.a & 0x0f) > 9) adj = 6;
+    if (carry || this.a > 0x99) adj |= 0x60;
+    if (this.a > 0x99) carry = FLAG_C;
+    if (this.f & FLAG_N) {
+      this.sub(adj);
+    } else {
+      this.add(adj);
+    }
+    this.f = (this.f & ~(FLAG_C | FLAG_P)) | carry | parity_table[this.a];
+  }
+
+  // -------------------------------------------------------------------------
   // Bit operations — non-mutating, only update this.f
   // -------------------------------------------------------------------------
 
@@ -353,64 +514,188 @@ class Z80 {
     if (bit === 7 && value & 0x80) this.f |= FLAG_S;
   }
 
-  set(bit, value) {
-    return value | (0x01 << bit);
+  // -------------------------------------------------------------------------
+  // Rotate digit — RLD/RRD rotate 4-bit nibbles between A and (HL)
+  // -------------------------------------------------------------------------
+
+  rld() {
+    const mem = readbyte(this.hl());
+    addTstates(10);
+    writebyte(this.hl(), ((mem & 0x0f) << 4) | (this.a & 0x0f));
+    this.a = (this.a & 0xf0) | (mem >> 4);
+    this.f = (this.f & FLAG_C) | sz53p_table[this.a];
   }
 
-  res(bit, value) {
-    return value & ~(0x01 << bit);
+  rrd() {
+    const mem = readbyte(this.hl());
+    addTstates(10);
+    writebyte(this.hl(), ((this.a & 0x0f) << 4) | (mem >> 4));
+    this.a = (this.a & 0xf0) | (mem & 0x0f);
+    this.f = (this.f & FLAG_C) | sz53p_table[this.a];
   }
 
   // -------------------------------------------------------------------------
-  // 16-bit register-pair reads — non-lvalue expressions, always reads
+  // Register exchanges
   // -------------------------------------------------------------------------
 
-  bc() {
-    return this.c | (this.b << 8);
+  exAF() {
+    const a = this.a,
+      f = this.f;
+    this.a = this.a_;
+    this.f = this.f_;
+    this.a_ = a;
+    this.f_ = f;
   }
 
-  de() {
-    return this.e | (this.d << 8);
+  exx() {
+    let t;
+    t = this.b;
+    this.b = this.b_;
+    this.b_ = t;
+    t = this.c;
+    this.c = this.c_;
+    this.c_ = t;
+    t = this.d;
+    this.d = this.d_;
+    this.d_ = t;
+    t = this.e;
+    this.e = this.e_;
+    this.e_ = t;
+    t = this.h;
+    this.h = this.h_;
+    this.h_ = t;
+    t = this.l;
+    this.l = this.l_;
+    this.l_ = t;
   }
 
-  hl() {
-    return this.l | (this.h << 8);
+  exDEHL() {
+    let t;
+    t = this.d;
+    this.d = this.h;
+    this.h = t;
+    t = this.e;
+    this.e = this.l;
+    this.l = t;
   }
 
-  af() {
-    return this.f | (this.a << 8);
+  // EX (SP),HL — three dedicated methods to keep property access on known names
+  exSPHL() {
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
+    addTstates(15);
+    writebyte(sp1, this.h);
+    writebyte(sp0, this.l);
+    this.l = lo;
+    this.h = hi;
   }
 
-  ix() {
-    return this.ixl | (this.ixh << 8);
+  exSPIX() {
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
+    addTstates(15);
+    writebyte(sp1, this.ixh);
+    writebyte(sp0, this.ixl);
+    this.ixl = lo;
+    this.ixh = hi;
   }
 
-  iy() {
-    return this.iyl | (this.iyh << 8);
+  exSPIY() {
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
+    addTstates(15);
+    writebyte(sp1, this.iyh);
+    writebyte(sp0, this.iyl);
+    this.iyl = lo;
+    this.iyh = hi;
   }
 
-  // SP/PC high and low byte reads
-  sph() {
-    return this.sp >> 8;
+  // -------------------------------------------------------------------------
+  // Control flow
+  // -------------------------------------------------------------------------
+
+  halt() {
+    this.halted = true;
+    this.pc = (this.pc - 1) & 0xffff;
   }
 
-  spl() {
-    return this.sp & 0xff;
+  di() {
+    this.iff1 = this.iff2 = 0;
+  }
+  ei() {
+    this.iff1 = this.iff2 = 1;
   }
 
-  pch() {
-    return this.pc >> 8;
+  // JR — takes a pre-evaluated boolean (or falsy/truthy) for the branch condition.
+  // Reads the displacement byte unconditionally (matches real Z80 fetch behaviour);
+  // PC always advances past it. When taken, the signed displacement is applied first.
+  jr(taken) {
+    const disp = readbyte(this.pc);
+    addTstates(3);
+    if (taken) {
+      addTstates(5);
+      this.pc = (this.pc + sign_extend(disp) + 1) & 0xffff;
+    } else {
+      this.pc = (this.pc + 1) & 0xffff;
+    }
   }
 
-  pcl() {
-    return this.pc & 0xff;
+  // DJNZ — decrement B; if non-zero, take relative branch.
+  // Timing differs from JR: 8 t-states not-taken, 13 taken (no 3-cycle "JR fetch" overhead).
+  djnz() {
+    addTstates(4);
+    this.b = (this.b - 1) & 0xff;
+    if (this.b) {
+      addTstates(5);
+      this.pc += sign_extend(readbyte(this.pc));
+      this.pc &= 0xffff;
+    }
+    this.pc = (this.pc + 1) & 0xffff;
+  }
+
+  // -------------------------------------------------------------------------
+  // I/O instructions
+  // -------------------------------------------------------------------------
+
+  // IN A,(nn) — port address is nn + (A << 8)
+  inAN() {
+    const port = this.fetchByte() + (this.a << 8);
+    addTstates(7);
+    this.a = readport(port);
+  }
+
+  // IN r,(C) — reads from BC port, updates flags, returns value for assignment.
+  // Caller assigns: z80.b = z80.inC()  (or discards for IN F,(C))
+  inC() {
+    addTstates(4);
+    const v = readport(this.bc());
+    this.f = (this.f & FLAG_C) | sz53p_table[v];
+    return v;
+  }
+
+  // OUT (nn),A — port address is nn + (A << 8)
+  outAN() {
+    const port = this.fetchByte() + (this.a << 8);
+    addTstates(7);
+    writeport(port, this.a);
+  }
+
+  // OUT (C),value — write value to BC port
+  outC(value) {
+    addTstates(4);
+    writeport(this.bc(), value);
   }
 
   // -------------------------------------------------------------------------
   // Byte/word fetch from PC — reads and advances the program counter
   // -------------------------------------------------------------------------
 
-  /** Read a byte from the address in PC, then increment and wrap PC. */
   fetchByte() {
     const b = readbyte(this.pc++);
     this.pc &= 0xffff;
@@ -421,7 +706,6 @@ class Z80 {
   // Stack — push/pop without timing (callers add the tstates)
   // -------------------------------------------------------------------------
 
-  /** Push a 16-bit value onto the stack. No timing side-effects. */
   push16(val) {
     this.sp = (this.sp - 1) & 0xffff;
     writebyte(this.sp, val >> 8);
@@ -429,13 +713,167 @@ class Z80 {
     writebyte(this.sp, val & 0xff);
   }
 
-  /** Pop a 16-bit value from the stack. No timing side-effects. */
   pop16() {
     const lo = readbyte(this.sp++);
     this.sp &= 0xffff;
     const hi = readbyte(this.sp++);
     this.sp &= 0xffff;
     return lo | (hi << 8);
+  }
+
+  // -------------------------------------------------------------------------
+  // Block transfer and search instructions (ED-prefix, 0xA0–0xBB)
+  // -------------------------------------------------------------------------
+
+  // Shared core for LDI/LDD: copy one byte from (HL) to (DE), step both and decrement BC.
+  _ldx(dir) {
+    let byte = readbyte(this.hl());
+    addTstates(8);
+    writebyte(this.de(), byte);
+    this.setHL(this.hl() + dir);
+    this.setDE(this.de() + dir);
+    this.setBC(this.bc() - 1);
+    byte = (byte + this.a) & 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_Z | FLAG_S)) |
+      (this.bc() ? FLAG_V : 0) |
+      (byte & FLAG_3) |
+      (byte & 0x02 ? FLAG_5 : 0);
+  }
+
+  ldi() {
+    this._ldx(1);
+  }
+  ldd() {
+    this._ldx(-1);
+  }
+  ldir() {
+    this._ldx(1);
+    if (this.bc()) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+  lddr() {
+    this._ldx(-1);
+    if (this.bc()) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  // Shared core for CPI/CPD: compare A with (HL), step HL, decrement BC.
+  _cpx(dir) {
+    const mem = readbyte(this.hl());
+    let diff = (this.a - mem) & 0xff;
+    const lookup =
+      ((this.a & 0x08) >> 3) | ((mem & 0x08) >> 2) | ((diff & 0x08) >> 1);
+    addTstates(8);
+    this.setHL(this.hl() + dir);
+    this.setBC(this.bc() - 1);
+    this.f =
+      (this.f & FLAG_C) |
+      (this.bc() ? FLAG_V | FLAG_N : FLAG_N) |
+      halfcarry_sub_table[lookup] |
+      (diff ? 0 : FLAG_Z) |
+      (diff & FLAG_S);
+    if (this.f & FLAG_H) diff--;
+    this.f |= (diff & FLAG_3) | (diff & 0x02 ? FLAG_5 : 0);
+  }
+
+  cpi() {
+    this._cpx(1);
+  }
+  cpd() {
+    this._cpx(-1);
+  }
+  cpir() {
+    this._cpx(1);
+    if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+  cpdr() {
+    this._cpx(-1);
+    if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  // Shared core for INI/IND: read one byte from port BC into (HL), step HL, decrement B.
+  _inx(dir) {
+    const byte = readport(this.bc());
+    addTstates(8);
+    writebyte(this.hl(), byte);
+    this.b = (this.b - 1) & 0xff;
+    this.setHL(this.hl() + dir);
+    this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  ini() {
+    this._inx(1);
+  }
+  ind() {
+    this._inx(-1);
+  }
+  inir() {
+    this._inx(1);
+    if (this.b) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+  indr() {
+    this._inx(-1);
+    if (this.b) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  // Shared core for OUTI/OUTD: read (HL), decrement B (happens first!), step HL, write to port.
+  _outx(dir) {
+    const byte = readbyte(this.hl());
+    this.b = (this.b - 1) & 0xff; /* B decremented before the write, per spec */
+    addTstates(8);
+    this.setHL(this.hl() + dir);
+    writeport(this.bc(), byte);
+    this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  outi() {
+    this._outx(1);
+  }
+  outd() {
+    this._outx(-1);
+  }
+
+  // OTIR/OTDR have different conditional timing from OUTI/OUTD
+  _otxr(dir) {
+    const byte = readbyte(this.hl());
+    addTstates(5);
+    this.b = (this.b - 1) & 0xff;
+    this.setHL(this.hl() + dir);
+    writeport(this.bc(), byte);
+    this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+    if (this.b) {
+      addTstates(8);
+      this.pc = (this.pc - 2) & 0xffff;
+    } else {
+      addTstates(3);
+    }
+  }
+
+  otir() {
+    this._otxr(1);
+  }
+  otdr() {
+    this._otxr(-1);
   }
 }
 
@@ -485,15 +923,11 @@ export function z80_set_irq(asserted) {
 export function z80_interrupt() {
   if (z80.iff1) {
     if (z80.halted) {
-      z80.pc++;
-      z80.pc &= 0xffff;
+      z80.pc = (z80.pc + 1) & 0xffff;
       z80.halted = false;
     }
     z80.iff1 = z80.iff2 = 0;
-    z80.sp = (z80.sp - 1) & 0xffff;
-    writebyte(z80.sp, z80.pc >> 8);
-    z80.sp = (z80.sp - 1) & 0xffff;
-    writebyte(z80.sp, z80.pc & 0xff);
+    z80.push16(z80.pc);
     z80.r = (z80.r + 1) & 0x7f;
     switch (z80.im) {
       case 0:
@@ -506,9 +940,7 @@ export function z80_interrupt() {
         break;
       case 2: {
         const inttemp = 0x100 * z80.i + 0xff;
-        const pcl = readbyte(inttemp);
-        const pch = readbyte((inttemp + 1) & 0xffff);
-        z80.pc = pcl | (pch << 8);
+        z80.pc = readbyte(inttemp) | (readbyte((inttemp + 1) & 0xffff) << 8);
         addTstates(19);
         break;
       }
@@ -520,10 +952,7 @@ export function z80_instruction_hook() {}
 
 export function z80_nmi() {
   z80.iff1 = 0;
-  z80.sp = (z80.sp - 1) & 0xffff;
-  writebyte(z80.sp, z80.pc >> 8);
-  z80.sp = (z80.sp - 1) & 0xffff;
-  writebyte(z80.sp, z80.pc & 0xff);
+  z80.push16(z80.pc);
   addTstates(11);
   z80.pc = 0x0066;
 }
