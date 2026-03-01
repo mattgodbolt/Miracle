@@ -1,12 +1,9 @@
 import { vdp } from "./vdp";
 import { SoundChip } from "./soundchip";
 import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80.js";
-import {
-  tstates,
-  setEventNextEvent,
-  setTstates,
-  z80_do_opcodes,
-} from "./z80/z80_ops";
+import { makeZ80Runner } from "./z80/z80_ops";
+
+export const { z80_do_opcodes } = makeZ80Runner(z80);
 import { showDebug, debugKeyPress } from "./debug";
 import { bus } from "./bus";
 
@@ -36,8 +33,8 @@ export function cycleCallback(tstates) {
 }
 
 function line() {
-  setEventNextEvent(tstatesPerHblank);
-  setTstates(tstates - tstatesPerHblank);
+  z80.eventNextEvent = tstatesPerHblank;
+  z80.tstates -= tstatesPerHblank;
   z80_do_opcodes(cycleCallback);
   const vdp_status = vdp.hblank();
   z80_set_irq(!!(vdp_status & 3));
@@ -343,7 +340,7 @@ export function paintScreen() {
 }
 
 export function breakpoint() {
-  setEventNextEvent(0);
+  z80.eventNextEvent = 0;
   breakpointHit = true;
   audio_enable(false);
 }

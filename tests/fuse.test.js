@@ -62,23 +62,29 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/bus", () => ({
-  readbyte: (addr) => mem[addr & 0xffff],
-  writebyte: (addr, val) => {
-    mem[addr & 0xffff] = val & 0xff;
-  },
-  readport: (port) => (port >> 8) & 0xff, // FUSE convention: port returns high byte of address
-  writeport: () => {},
-}));
+vi.mock("../src/bus", () => {
+  const busObj = {
+    readbyte: (addr) => mem[addr & 0xffff],
+    writebyte: (addr, val) => {
+      mem[addr & 0xffff] = val & 0xff;
+    },
+    readport: (port) => (port >> 8) & 0xff, // FUSE convention: port returns high byte of address
+    writeport: () => {},
+  };
+  return {
+    bus: busObj,
+    readbyte: busObj.readbyte,
+    writebyte: busObj.writebyte,
+    readport: busObj.readport,
+    writeport: busObj.writeport,
+  };
+});
 
 // These imports must come *after* vi.mock (vitest hoists vi.mock automatically)
 import { z80, z80_init } from "../src/z80/z80.js";
-import {
-  z80_do_opcodes,
-  tstates,
-  setTstates,
-  setEventNextEvent,
-} from "../src/z80/z80_ops.js";
+import { makeZ80Runner } from "../src/z80/z80_ops.js";
+
+const { z80_do_opcodes } = makeZ80Runner(z80);
 
 // ---------------------------------------------------------------------------
 // FUSE test file parsers
@@ -348,8 +354,8 @@ describe("FUSE Z80 tests", () => {
       setZ80State(test.state);
 
       // Run for the specified number of tstates
-      setTstates(0);
-      setEventNextEvent(test.state.runTstates);
+      z80.tstates = 0;
+      z80.eventNextEvent = test.state.runTstates;
       z80_do_opcodes(() => {});
 
       // Check final CPU state
@@ -376,7 +382,7 @@ describe("FUSE Z80 tests", () => {
       }
 
       // Check tstates
-      expect(tstates, "tstates").toBe(exp.tstates);
+      expect(z80.tstates, "tstates").toBe(exp.tstates);
 
       // Check memory writes
       for (const [addr, val] of test.expected.memChanges) {
