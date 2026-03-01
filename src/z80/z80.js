@@ -581,31 +581,37 @@ class Z80 {
 
   // EX (SP),HL — three dedicated methods to keep property access on known names
   exSPHL() {
-    const lo = readbyte(this.sp),
-      hi = readbyte(this.sp + 1);
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
     addTstates(15);
-    writebyte(this.sp + 1, this.h);
-    writebyte(this.sp, this.l);
+    writebyte(sp1, this.h);
+    writebyte(sp0, this.l);
     this.l = lo;
     this.h = hi;
   }
 
   exSPIX() {
-    const lo = readbyte(this.sp),
-      hi = readbyte(this.sp + 1);
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
     addTstates(15);
-    writebyte(this.sp + 1, this.ixh);
-    writebyte(this.sp, this.ixl);
+    writebyte(sp1, this.ixh);
+    writebyte(sp0, this.ixl);
     this.ixl = lo;
     this.ixh = hi;
   }
 
   exSPIY() {
-    const lo = readbyte(this.sp),
-      hi = readbyte(this.sp + 1);
+    const sp0 = this.sp,
+      sp1 = (this.sp + 1) & 0xffff;
+    const lo = readbyte(sp0),
+      hi = readbyte(sp1);
     addTstates(15);
-    writebyte(this.sp + 1, this.iyh);
-    writebyte(this.sp, this.iyl);
+    writebyte(sp1, this.iyh);
+    writebyte(sp0, this.iyl);
     this.iyl = lo;
     this.iyh = hi;
   }
