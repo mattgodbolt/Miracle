@@ -53,6 +53,9 @@ export class VDP {
     for (let i = 0x0000; i < 0x4000; i++) {
       this.#vram[i] = 0;
     }
+    for (let i = 0x0000; i < 0x8000; i++) {
+      this.#vramUntwiddled[i] = 0;
+    }
     for (let i = 0; i < 32; i++) {
       this.#paletteR[i] =
         this.#paletteG[i] =
@@ -70,6 +73,10 @@ export class VDP {
     this.vdp_regs[6] = 0xfb;
     this.vdp_regs[10] = 0xff;
     this.#vdp_current_line = this.#vdp_status = this.#vdp_hblank_counter = 0;
+    this.#vdp_addr_state = 0;
+    this.#vdp_addr_latch = 0;
+    this.#vdp_addr = 0;
+    this.#vdp_pending_hblank = false;
     this.#vdp_mode_select = 0;
   }
 
