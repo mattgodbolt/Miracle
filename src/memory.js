@@ -47,6 +47,9 @@ export function memory_reset() {
 export function loadRom(name, rom) {
   if (rom.length === 0) {
     console.warn("loadRom: empty ROM, nothing to load");
+    romBanks.length = 0;
+    pages.fill(0);
+    romPageMask = 0;
     return;
   }
   const numRomBanks = Math.floor(rom.length / 0x4000);
