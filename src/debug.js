@@ -103,6 +103,12 @@ function updateDisassembly(address) {
     child.classList.toggle("current", address === z80.pc);
     child.querySelector(".instr_bytes").textContent = hex;
     child.querySelector(".disassembly").innerHTML = result[0];
+    // TODO(#18) re-enable once there's a vanilla-DOM solution:
+    // child.querySelector('.addr')
+    //     .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
+    //     .keypress(function (e) {
+    //         if (e.which === 13) child.querySelector('.addr').blur();
+    //     });
     address = result[1];
   }
 }
