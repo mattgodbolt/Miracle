@@ -1,11 +1,8 @@
-import { vdp } from "./vdp";
 import { SoundChip } from "./soundchip";
-import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80.js";
-import { makeZ80Runner } from "./z80/z80_ops";
-
-export const { z80_do_opcodes } = makeZ80Runner(z80);
+import { sms } from "./sms";
 import { showDebug, debugKeyPress } from "./debug";
-import { bus } from "./bus";
+
+export { sms };
 
 let breakpointHit = false;
 let running = false;
@@ -33,14 +30,14 @@ export function cycleCallback(tstates) {
 }
 
 function line() {
-  z80.eventNextEvent = tstatesPerHblank;
-  z80.tstates -= tstatesPerHblank;
-  z80_do_opcodes(cycleCallback);
-  const vdp_status = vdp.hblank();
-  z80_set_irq(!!(vdp_status & 3));
+  sms.z80.eventNextEvent = tstatesPerHblank;
+  sms.z80.tstates -= tstatesPerHblank;
+  sms.z80_do_opcodes(cycleCallback);
+  const vdp_status = sms.vdp.hblank();
+  sms.z80.setIrq(!!(vdp_status & 3));
   if (breakpointHit) {
     running = false;
-    showDebug(z80.pc);
+    showDebug(sms.z80.pc);
   } else if (vdp_status & 4) {
     paintScreen();
   }
@@ -62,7 +59,7 @@ let lastFrame = null;
 
 function run() {
   if (!running) {
-    showDebug(z80.pc);
+    showDebug(sms.z80.pc);
     return;
   }
   const now = Date.now();
@@ -212,10 +209,6 @@ export function audio_enable(enable) {
   if (enable && audioContext) audioContext.resume();
 }
 
-function audio_reset() {
-  soundChip.reset();
-}
-
 export function miracle_init() {
   canvas = document.getElementById("screen");
   ctx = canvas.getContext("2d");
@@ -228,9 +221,8 @@ export function miracle_init() {
     // Unsupported....
   }
 
-  vdp.init(canvas, fb32, paintScreen, breakpoint);
   audio_init();
-  bus.connect(vdp, soundChip);
+  sms.init(canvas, fb32, paintScreen, breakpoint, soundChip);
   miracle_reset();
 
   // Scale the canvas to fill its container while maintaining the native aspect ratio.
@@ -264,11 +256,7 @@ export function miracle_init() {
 }
 
 export function miracle_reset() {
-  bus.reset();
-  //inputMode = 7;
-  z80_reset();
-  vdp.reset();
-  audio_reset();
+  sms.reset();
 }
 
 const keys = {
@@ -298,7 +286,7 @@ function keyDown(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    bus.joystick &= ~key;
+    sms.bus.joystick &= ~key;
     if (!evt.metaKey) {
       evt.preventDefault();
       return;
@@ -306,7 +294,7 @@ function keyDown(evt) {
   }
   switch (evt.keyCode) {
     case 80: // 'P' for pause
-      z80_nmi();
+      sms.z80.nmi();
       break;
     case 8: // 'Backspace' is debug
       breakpoint();
@@ -319,7 +307,7 @@ function keyUp(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    bus.joystick |= key;
+    sms.bus.joystick |= key;
     if (!evt.metaKey) {
       evt.preventDefault();
     }
@@ -340,7 +328,7 @@ export function paintScreen() {
 }
 
 export function breakpoint() {
-  z80.eventNextEvent = 0;
+  sms.z80.eventNextEvent = 0;
   breakpointHit = true;
   audio_enable(false);
 }

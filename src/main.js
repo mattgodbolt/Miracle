@@ -1,7 +1,7 @@
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80.js";
 import { miracle_init, miracle_reset, start, stop } from "./miracle";
-import { bus } from "./bus";
+import { sms } from "./sms";
 import { step, stepOver, stepOut, debug_init } from "./debug";
 
 function loadRomData(name) {
@@ -18,7 +18,7 @@ function loadRomData(name) {
 
 function resetLoadAndStart(filename, romdata) {
   miracle_reset();
-  bus.loadRom(filename, romdata, debug_init);
+  sms.loadRom(filename, romdata, debug_init);
   hideRomChooser();
   start();
 }
@@ -129,10 +129,10 @@ function go() {
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
-    bus.loadRom("b64.sms", atob(parsedQuery["b64sms"]), debug_init);
+    sms.loadRom("b64.sms", atob(parsedQuery["b64sms"]), debug_init);
   } else {
     const defaultRom = getDefaultRom();
-    bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
+    sms.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
   }
 
   start();

@@ -1,15 +1,7 @@
 import { hexbyte, hexword } from "./utils";
-import { bus, readbyte, virtualAddress } from "./bus";
-import {
-  clearBreakpoint,
-  audio_enable,
-  cycleCallback,
-  start,
-  z80_do_opcodes,
-} from "./miracle";
-import { z80 } from "./z80/z80.js";
+import { bus, z80, vdp, z80_do_opcodes, readbyte, virtualAddress } from "./sms";
+import { clearBreakpoint, audio_enable, cycleCallback, start } from "./miracle";
 import { disassemble } from "./z80/z80_dis";
-import { vdp } from "./vdp";
 
 let debugSerial = 0;
 let annotations = null;

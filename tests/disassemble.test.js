@@ -13,7 +13,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/bus", () => {
+vi.mock("../src/sms", () => {
   const busObj = {
     readbyte: (addr) => mem[addr & 0xffff],
     writebyte: (addr, val) => {
@@ -25,9 +25,6 @@ vi.mock("../src/bus", () => {
   return {
     bus: busObj,
     readbyte: busObj.readbyte,
-    writebyte: busObj.writebyte,
-    writeport: busObj.writeport,
-    readport: busObj.readport,
   };
 });
 

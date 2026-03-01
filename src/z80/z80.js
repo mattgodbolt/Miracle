@@ -1,6 +1,5 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
 
-import { bus } from "../bus";
 import {
   FLAG_C,
   FLAG_N,
@@ -879,20 +878,83 @@ class Z80 {
   otdr() {
     this._otxr(-1);
   }
+
+  // -------------------------------------------------------------------------
+  // Lifecycle methods
+  // -------------------------------------------------------------------------
+
+  reset() {
+    this.a = this.f = this.b = this.c = this.d = this.e = this.h = this.l = 0;
+    this.a_ =
+      this.f_ =
+      this.b_ =
+      this.c_ =
+      this.d_ =
+      this.e_ =
+      this.h_ =
+      this.l_ =
+        0;
+    this.ixh = this.ixl = this.iyh = this.iyl = 0;
+    this.i = this.r = this.r7 = 0;
+    this.sp = this.pc = 0;
+    this.iff1 = this.iff2 = this.im = 0;
+    this.halted = false;
+    this.irq_pending = false;
+    this.irq_suppress = true;
+  }
+
+  setIrq(asserted) {
+    this.irq_pending = asserted;
+    if (this.irq_pending && this.iff1) this.interrupt();
+  }
+
+  interrupt() {
+    if (this.iff1) {
+      if (this.halted) {
+        this.pc = (this.pc + 1) & 0xffff;
+        this.halted = false;
+      }
+      this.iff1 = this.iff2 = 0;
+      this.push16(this.pc);
+      this.r = (this.r + 1) & 0x7f;
+      switch (this.im) {
+        case 0:
+          this.pc = 0x0038;
+          this.tstates += 12;
+          break;
+        case 1:
+          this.pc = 0x0038;
+          this.tstates += 13;
+          break;
+        case 2: {
+          const inttemp = 0x100 * this.i + 0xff;
+          this.pc =
+            this.bus.readbyte(inttemp) |
+            (this.bus.readbyte((inttemp + 1) & 0xffff) << 8);
+          this.tstates += 19;
+          break;
+        }
+      }
+    }
+  }
+
+  instructionHook() {}
+
+  nmi() {
+    this.iff1 = 0;
+    this.push16(this.pc);
+    this.tstates += 11;
+    this.pc = 0x0066;
+  }
 }
 
-export const z80 = new Z80();
-z80.bus = bus;
+export { Z80 };
 
 // ---------------------------------------------------------------------------
-// Lifecycle functions (standalone exports; external API unchanged)
+// Self-initialise lookup tables at module load time
 // ---------------------------------------------------------------------------
 
-export function z80_init() {
-  z80_init_tables();
-}
-
-function z80_init_tables() {
+(() => {
   for (let i = 0; i < 0x100; i++) {
     sz53_table[i] = i & (FLAG_3 | FLAG_5 | FLAG_S);
     let j = i;
@@ -906,60 +968,7 @@ function z80_init_tables() {
   }
   sz53_table[0] |= FLAG_Z;
   sz53p_table[0] |= FLAG_Z;
-}
+})();
 
-export function z80_reset() {
-  z80.a = z80.f = z80.b = z80.c = z80.d = z80.e = z80.h = z80.l = 0;
-  z80.a_ = z80.f_ = z80.b_ = z80.c_ = z80.d_ = z80.e_ = z80.h_ = z80.l_ = 0;
-  z80.ixh = z80.ixl = z80.iyh = z80.iyl = 0;
-  z80.i = z80.r = z80.r7 = 0;
-  z80.sp = z80.pc = 0;
-  z80.iff1 = z80.iff2 = z80.im = 0;
-  z80.halted = false;
-  z80.irq_pending = false;
-  z80.irq_suppress = true;
-}
-
-export function z80_set_irq(asserted) {
-  z80.irq_pending = asserted;
-  if (z80.irq_pending && z80.iff1) z80_interrupt();
-}
-
-export function z80_interrupt() {
-  if (z80.iff1) {
-    if (z80.halted) {
-      z80.pc = (z80.pc + 1) & 0xffff;
-      z80.halted = false;
-    }
-    z80.iff1 = z80.iff2 = 0;
-    z80.push16(z80.pc);
-    z80.r = (z80.r + 1) & 0x7f;
-    switch (z80.im) {
-      case 0:
-        z80.pc = 0x0038;
-        z80.tstates += 12;
-        break;
-      case 1:
-        z80.pc = 0x0038;
-        z80.tstates += 13;
-        break;
-      case 2: {
-        const inttemp = 0x100 * z80.i + 0xff;
-        z80.pc =
-          z80.bus.readbyte(inttemp) |
-          (z80.bus.readbyte((inttemp + 1) & 0xffff) << 8);
-        z80.tstates += 19;
-        break;
-      }
-    }
-  }
-}
-
-export function z80_instruction_hook() {}
-
-export function z80_nmi() {
-  z80.iff1 = 0;
-  z80.push16(z80.pc);
-  z80.tstates += 11;
-  z80.pc = 0x0066;
-}
+// Backward-compatible no-op (tables are now self-initialised above).
+export function z80_init() {}
