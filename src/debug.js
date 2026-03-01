@@ -1,4 +1,3 @@
-import $ from "jquery";
 import {
   clearBreakpoint,
   romBanks,
@@ -83,7 +82,7 @@ function labelHtml(addr) {
 
 // TODO(#18) reinstate
 // function endLabelEdit(content) {
-//   var addr = $(this).attr("title") || content.previous;
+//   var addr = this.getAttribute("title") || content.previous;
 //   var virtual = virtualAddress(parseInt(addr, 16));
 //   setLabel(virtual, content.current);
 // }
@@ -91,27 +90,21 @@ function labelHtml(addr) {
 let disassPc = 0;
 
 function updateDisassembly(address) {
-  const disass = $("#disassembly");
+  const disass = document.getElementById("disassembly");
   disassPc = address;
-  disass.children().each(function () {
+  for (const child of disass.children) {
     const result = disassemble(address);
     let hex = "";
     for (let i = address; i < result[1]; ++i) {
       if (hex !== "") hex += " ";
       hex += hexbyte(readbyte(i));
     }
-    $(this).find(".dis_addr").html(labelHtml(address));
-    $(this).toggleClass("current", address === z80.pc);
-    $(this).find(".instr_bytes").text(hex);
-    $(this).find(".disassembly").html(result[0]);
-    // TODO(#18) re-enable this once there's a solution
-    // $(this).find('.addr')
-    //     .editable({editBy: 'dblclick', editClass: 'editable', onSubmit: endLabelEdit})
-    //     .keypress(function (e) {
-    //         if (e.which === 13) $(this).blur();
-    //     });
+    child.querySelector(".dis_addr").innerHTML = labelHtml(address);
+    child.classList.toggle("current", address === z80.pc);
+    child.querySelector(".instr_bytes").textContent = hex;
+    child.querySelector(".disassembly").innerHTML = result[0];
     address = result[1];
-  });
+  }
 }
 
 function prevInstruction(address) {
@@ -137,14 +130,15 @@ function nextInstruction(address) {
 }
 
 function updateElement(elem, newVal) {
-  elem.toggleClass("changed", newVal !== elem.text()).text(newVal);
+  elem.classList.toggle("changed", newVal !== elem.textContent);
+  elem.textContent = newVal;
 }
 
 function updateFlags(f) {
   const string = "cnp_h_zs";
   for (let i = 0; i < 8; ++i) {
     let r = string[i];
-    const elem = $("#z80_flag_" + r);
+    const elem = document.getElementById("z80_flag_" + r);
     if (f & 1) {
       r = r.toUpperCase();
     }
@@ -156,8 +150,9 @@ function updateFlags(f) {
 }
 
 export function showDebug(pc) {
-  $("#debug").show(200);
-  for (let i = 0; i < $("#disassembly").children().length / 2; i++) {
+  document.getElementById("debug").style.display = "";
+  const disass = document.getElementById("disassembly");
+  for (let i = 0; i < disass.children.length / 2; i++) {
     pc = prevInstruction(pc);
   }
   updateDebug(pc);
@@ -169,7 +164,7 @@ function updateDebug(pcOrNone) {
   }
   updateDisassembly(pcOrNone);
   for (const reg in z80) {
-    const elem = $("#z80_" + reg);
+    const elem = document.getElementById("z80_" + reg);
     if (elem) {
       if (
         reg.length > 1 &&
@@ -183,13 +178,13 @@ function updateDebug(pcOrNone) {
     }
   }
   let i = 0;
-  $("#vdp_registers > div:visible .value").each(function () {
-    updateElement($(this), hexbyte(vdp_regs[i++]));
-  });
+  for (const el of document.querySelectorAll("#vdp_registers > div .value")) {
+    if (el.offsetParent !== null) updateElement(el, hexbyte(vdp_regs[i++]));
+  }
   i = 0;
-  $("#pages .value").each(function () {
-    updateElement($(this), hexbyte(pages[i++]));
-  });
+  for (const el of document.querySelectorAll("#pages .value")) {
+    updateElement(el, hexbyte(pages[i++]));
+  }
   updateFlags(z80.f);
 }
 
@@ -246,7 +241,7 @@ export function stepOut() {
 }
 
 export function debugKeyPress(key) {
-  if ($("input:visible").length) {
+  if (Array.from(document.querySelectorAll("input")).some(el => el.offsetParent !== null)) {
     return true;
   }
   const keyStr = String.fromCharCode(key);

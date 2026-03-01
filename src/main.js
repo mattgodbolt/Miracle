@@ -1,4 +1,3 @@
-import $ from "jquery";
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80.js";
 import { miracle_init, miracle_reset, loadRom, start, stop } from "./miracle";
@@ -32,14 +31,12 @@ function loadUploadFile(file) {
 }
 
 function addRomToList(rom) {
-  $("#rom_list .template")
-    .clone()
-    .removeClass("template")
-    .text(rom)
-    .click(function () {
-      resetLoadAndStart(rom, loadRomData(rom));
-    })
-    .appendTo("#rom_list");
+  const template = document.querySelector("#rom_list .template");
+  const item = template.cloneNode(true);
+  item.classList.remove("template");
+  item.textContent = rom;
+  item.addEventListener("click", () => resetLoadAndStart(rom, loadRomData(rom)));
+  document.getElementById("rom_list").appendChild(item);
 }
 
 function parseQuery() {
@@ -67,8 +64,7 @@ function go() {
   hideRomChooser();
   hideAbout();
 
-  const uploadElem = $("#file_upload");
-  uploadElem.change(function (e) {
+  document.getElementById("file_upload").addEventListener("change", function (e) {
     const files = e.target.files;
     if (files && files.length) {
       loadUploadFile(files[0]);
@@ -78,29 +74,34 @@ function go() {
   for (i = 0; i < RomList.length; ++i) {
     addRomToList(RomList[i]);
   }
-  const disass = $("#disassembly");
+
+  const disass = document.getElementById("disassembly");
+  const dissTemplate = disass.querySelector(".template");
   for (i = 0; i < 32; i++) {
-    disass.find(".template").clone().removeClass("template").appendTo(disass);
+    const item = dissTemplate.cloneNode(true);
+    item.classList.remove("template");
+    disass.appendChild(item);
   }
-  const vdp = $("#vdp_registers");
+  dissTemplate.remove();
+
+  const vdp = document.getElementById("vdp_registers");
+  const vdpTemplate = vdp.querySelector(".template");
   for (i = 0; i < 11; i++) {
-    vdp
-      .find(".template")
-      .clone()
-      .removeClass("template")
-      .appendTo(vdp)
-      .find(".register")
-      .text("v" + i);
+    const item = vdpTemplate.cloneNode(true);
+    item.classList.remove("template");
+    item.querySelector(".register").textContent = "v" + i;
+    vdp.appendChild(item);
   }
-  disass.find(".template").remove();
-  $(".menu_start").on("click", () => start());
-  $(".menu_stop").on("click", () => stop());
-  $(".menu_step").on("click", () => step());
-  $(".menu_stepOver").on("click", () => stepOver());
-  $(".menu_stepOut").on("click", () => stepOut());
-  $(".menu_reset").on("click", () => miracle_reset());
-  $(".menu_showRomChooser").on("click", () => showRomChooser());
-  $(".menu_showAbout").on("click", () => showAbout());
+
+  document.querySelectorAll(".menu_start").forEach(el => el.addEventListener("click", () => start()));
+  document.querySelectorAll(".menu_stop").forEach(el => el.addEventListener("click", () => stop()));
+  document.querySelectorAll(".menu_step").forEach(el => el.addEventListener("click", () => step()));
+  document.querySelectorAll(".menu_stepOver").forEach(el => el.addEventListener("click", () => stepOver()));
+  document.querySelectorAll(".menu_stepOut").forEach(el => el.addEventListener("click", () => stepOut()));
+  document.querySelectorAll(".menu_reset").forEach(el => el.addEventListener("click", () => miracle_reset()));
+  document.querySelectorAll(".menu_showRomChooser").forEach(el => el.addEventListener("click", () => showRomChooser()));
+  document.querySelectorAll(".menu_showAbout").forEach(el => el.addEventListener("click", () => showAbout()));
+
   z80_init();
   miracle_init();
   miracle_reset();
@@ -123,29 +124,27 @@ function getDefaultRom() {
 }
 
 function showRomChooser() {
-  $("#rom_chooser").show();
+  document.getElementById("rom_chooser").style.display = "";
 }
 
 function clearFileUploadElement() {
-  const uploadElem = $("#file_upload")[0];
-  uploadElem.value = "";
+  document.getElementById("file_upload").value = "";
 }
 
 function hideRomChooser() {
-  $("#rom_chooser").hide();
+  document.getElementById("rom_chooser").style.display = "none";
   clearFileUploadElement();
 }
-$("#hideRomChooser").on("click", hideRomChooser);
 
 function showAbout() {
-  $("#about").show();
+  document.getElementById("about").style.display = "";
 }
 
 function hideAbout() {
-  $("#about").hide();
+  document.getElementById("about").style.display = "none";
 }
-$("#hideAbout").on("click", hideAbout);
 
-$(function () {
-  go();
-});
+// Modules are deferred by default; DOM is ready when this executes.
+document.getElementById("hideRomChooser").addEventListener("click", hideRomChooser);
+document.getElementById("hideAbout").addEventListener("click", hideAbout);
+go();

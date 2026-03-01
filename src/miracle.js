@@ -1,4 +1,3 @@
-import $ from "jquery";
 import {
   vdp_init,
   vdp_reset,
@@ -73,7 +72,7 @@ export function start() {
   running = true;
   document.getElementById("menu").className = "running";
   audio_enable(true);
-  $("#debug").hide();
+  document.getElementById("debug").style.display = "none";
   run();
 }
 
