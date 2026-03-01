@@ -1,4 +1,4 @@
-import { vdp_init, vdp_reset, vdp_hblank } from "./vdp";
+import { vdp } from "./vdp";
 import { SoundChip } from "./soundchip";
 import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80.js";
 import {
@@ -39,7 +39,7 @@ function line() {
   setEventNextEvent(tstatesPerHblank);
   setTstates(tstates - tstatesPerHblank);
   z80_do_opcodes(cycleCallback);
-  const vdp_status = vdp_hblank();
+  const vdp_status = vdp.hblank();
   z80_set_irq(!!(vdp_status & 3));
   if (breakpointHit) {
     running = false;
@@ -233,7 +233,7 @@ export function miracle_init() {
     // Unsupported....
   }
 
-  vdp_init(canvas, fb32, paintScreen, breakpoint);
+  vdp.init(canvas, fb32, paintScreen, breakpoint);
   audio_init();
   miracle_reset();
 
@@ -271,7 +271,7 @@ export function miracle_reset() {
   memory_reset();
   //inputMode = 7;
   z80_reset();
-  vdp_reset();
+  vdp.reset();
   audio_reset();
 }
 

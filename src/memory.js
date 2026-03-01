@@ -1,12 +1,5 @@
 import { hexbyte, hexword } from "./utils";
-import {
-  vdp_get_line,
-  vdp_get_x,
-  vdp_readbyte,
-  vdp_readstatus,
-  vdp_writeaddr,
-  vdp_writebyte,
-} from "./vdp";
+import { vdp } from "./vdp";
 import { debug_init } from "./debug";
 
 const ram = new Uint8Array(0x2000);
@@ -179,9 +172,9 @@ export function readport(addr) {
   addr &= 0xff;
   switch (addr) {
     case 0x7e:
-      return vdp_get_line();
+      return vdp.get_line();
     case 0x7f:
-      return vdp_get_x();
+      return vdp.get_x();
     case 0xdc:
     case 0xc0:
       // keyboard: if ((inputMode & 7) != 7) return 0xff;
@@ -191,10 +184,10 @@ export function readport(addr) {
       // keyboard: if ((inputMode & 7) != 7) return 0xff;
       return (joystick >> 8) & 0xff;
     case 0xbe:
-      return vdp_readbyte();
+      return vdp.readbyte();
     case 0xbd:
     case 0xbf:
-      return vdp_readstatus();
+      return vdp.readstatus();
     case 0xde:
       // if we ever support keyboard: return inputMode;
       return 0xff;
@@ -227,10 +220,10 @@ export function writeport(addr, val) {
       break;
     case 0xbd:
     case 0xbf:
-      vdp_writeaddr(val);
+      vdp.writeaddr(val);
       break;
     case 0xbe:
-      vdp_writebyte(val);
+      vdp.writebyte(val);
       break;
     case 0xde:
       //inputMode = val;
