@@ -14,7 +14,7 @@ import {
   parity_table,
   sz53p_table,
 } from "./z80.js";
-import { readbyte, readport, writebyte, writeport } from "../miracle";
+import { readbyte, readport, writebyte, writeport } from "../memory";
 import {
   FLAG_C,
   FLAG_N,

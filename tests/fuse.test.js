@@ -62,7 +62,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/miracle", () => ({
+vi.mock("../src/memory", () => ({
   readbyte: (addr) => mem[addr & 0xffff],
   writebyte: (addr, val) => {
     mem[addr & 0xffff] = val & 0xff;

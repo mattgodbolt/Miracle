@@ -1,5 +1,5 @@
-import { canvas, fb32, hexbyte, paintScreen, hexword } from "./miracle";
-import { breakpoint } from "./miracle";
+import { hexbyte, hexword } from "./utils";
+import { canvas, fb32, paintScreen, breakpoint } from "./miracle";
 import { z80_set_irq } from "./z80/z80.js";
 
 let vram = [];
