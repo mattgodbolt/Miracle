@@ -1,15 +1,6 @@
-import {
-  clearBreakpoint,
-  romBanks,
-  hexbyte,
-  hexword,
-  readbyte,
-  virtualAddress,
-  audio_enable,
-  cycleCallback,
-  start,
-  pages,
-} from "./miracle";
+import { hexbyte, hexword } from "./utils";
+import { romBanks, readbyte, virtualAddress, pages } from "./memory";
+import { clearBreakpoint, audio_enable, cycleCallback, start } from "./miracle";
 import { z80 } from "./z80/z80.js";
 import { z80_do_opcodes } from "./z80/z80_ops";
 import { disassemble } from "./z80/z80_dis";
@@ -247,7 +238,11 @@ export function stepOut() {
 }
 
 export function debugKeyPress(key) {
-  if (Array.from(document.querySelectorAll("input")).some(el => el.offsetParent !== null)) {
+  if (
+    Array.from(document.querySelectorAll("input")).some(
+      (el) => el.offsetParent !== null,
+    )
+  ) {
     return true;
   }
   const keyStr = String.fromCharCode(key);
