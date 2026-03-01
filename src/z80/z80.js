@@ -633,15 +633,17 @@ class Z80 {
   }
 
   // JR — takes a pre-evaluated boolean (or falsy/truthy) for the branch condition.
-  // Reads the displacement byte regardless; advances PC past it.
+  // Reads the displacement byte unconditionally (matches real Z80 fetch behaviour);
+  // PC always advances past it. When taken, the signed displacement is applied first.
   jr(taken) {
+    const disp = readbyte(this.pc);
     addTstates(3);
     if (taken) {
       addTstates(5);
-      this.pc += sign_extend(readbyte(this.pc));
-      this.pc &= 0xffff;
+      this.pc = (this.pc + sign_extend(disp) + 1) & 0xffff;
+    } else {
+      this.pc = (this.pc + 1) & 0xffff;
     }
-    this.pc = (this.pc + 1) & 0xffff;
   }
 
   // DJNZ — decrement B; if non-zero, take relative branch.
