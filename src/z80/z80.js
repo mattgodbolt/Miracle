@@ -1,6 +1,6 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
 
-import { readbyte, writebyte } from "../miracle";
+import { readbyte, writebyte, readport, writeport } from "../miracle";
 import { addTstates } from "./z80_ops.js";
 import {
   FLAG_C,
@@ -436,6 +436,322 @@ class Z80 {
     const hi = readbyte(this.sp++);
     this.sp &= 0xffff;
     return lo | (hi << 8);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Block transfer and search instructions (ED-prefix, 0xA0–0xBB)
+  // These need readbyte/writebyte/readport/writeport/addTstates which are all
+  // imported at the top of this module.
+  // ---------------------------------------------------------------------------
+
+  ldi() {
+    let bytetemp = readbyte(this.hl());
+    addTstates(8);
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    writebyte(this.de(), bytetemp);
+    const detemp = (this.de() + 1) & 0xffff;
+    this.d = detemp >> 8;
+    this.e = detemp & 0xff;
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    bytetemp = (bytetemp + this.a) & 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_Z | FLAG_S)) |
+      (this.bc() ? FLAG_V : 0) |
+      (bytetemp & FLAG_3) |
+      (bytetemp & 0x02 ? FLAG_5 : 0);
+  }
+
+  ldd() {
+    let bytetemp = readbyte(this.hl());
+    addTstates(8);
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    writebyte(this.de(), bytetemp);
+    const detemp = (this.de() - 1) & 0xffff;
+    this.d = detemp >> 8;
+    this.e = detemp & 0xff;
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    bytetemp = (bytetemp + this.a) & 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_Z | FLAG_S)) |
+      (this.bc() ? FLAG_V : 0) |
+      (bytetemp & FLAG_3) |
+      (bytetemp & 0x02 ? FLAG_5 : 0);
+  }
+
+  ldir() {
+    let bytetemp = readbyte(this.hl());
+    addTstates(8);
+    writebyte(this.de(), bytetemp);
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const detemp = (this.de() + 1) & 0xffff;
+    this.d = detemp >> 8;
+    this.e = detemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    bytetemp = (bytetemp + this.a) & 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_Z | FLAG_S)) |
+      (this.bc() ? FLAG_V : 0) |
+      (bytetemp & FLAG_3) |
+      (bytetemp & 0x02 ? FLAG_5 : 0);
+    if (this.bc()) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  lddr() {
+    let bytetemp = readbyte(this.hl());
+    addTstates(8);
+    writebyte(this.de(), bytetemp);
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const detemp = (this.de() - 1) & 0xffff;
+    this.d = detemp >> 8;
+    this.e = detemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    bytetemp = (bytetemp + this.a) & 0xff;
+    this.f =
+      (this.f & (FLAG_C | FLAG_Z | FLAG_S)) |
+      (this.bc() ? FLAG_V : 0) |
+      (bytetemp & FLAG_3) |
+      (bytetemp & 0x02 ? FLAG_5 : 0);
+    if (this.bc()) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  cpi() {
+    const value = readbyte(this.hl());
+    let bytetemp = (this.a - value) & 0xff;
+    const lookup =
+      ((this.a & 0x08) >> 3) | ((value & 0x08) >> 2) | ((bytetemp & 0x08) >> 1);
+    addTstates(8);
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    this.f =
+      (this.f & FLAG_C) |
+      (this.bc() ? FLAG_V | FLAG_N : FLAG_N) |
+      halfcarry_sub_table[lookup] |
+      (bytetemp ? 0 : FLAG_Z) |
+      (bytetemp & FLAG_S);
+    if (this.f & FLAG_H) bytetemp--;
+    this.f |= (bytetemp & FLAG_3) | (bytetemp & 0x02 ? FLAG_5 : 0);
+  }
+
+  cpd() {
+    const value = readbyte(this.hl());
+    let bytetemp = (this.a - value) & 0xff;
+    const lookup =
+      ((this.a & 0x08) >> 3) | ((value & 0x08) >> 2) | ((bytetemp & 0x08) >> 1);
+    addTstates(8);
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    this.f =
+      (this.f & FLAG_C) |
+      (this.bc() ? FLAG_V | FLAG_N : FLAG_N) |
+      halfcarry_sub_table[lookup] |
+      (bytetemp ? 0 : FLAG_Z) |
+      (bytetemp & FLAG_S);
+    if (this.f & FLAG_H) bytetemp--;
+    this.f |= (bytetemp & FLAG_3) | (bytetemp & 0x02 ? FLAG_5 : 0);
+  }
+
+  cpir() {
+    const value = readbyte(this.hl());
+    let bytetemp = (this.a - value) & 0xff;
+    const lookup =
+      ((this.a & 0x08) >> 3) | ((value & 0x08) >> 2) | ((bytetemp & 0x08) >> 1);
+    addTstates(8);
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    this.f =
+      (this.f & FLAG_C) |
+      (this.bc() ? FLAG_V | FLAG_N : FLAG_N) |
+      halfcarry_sub_table[lookup] |
+      (bytetemp ? 0 : FLAG_Z) |
+      (bytetemp & FLAG_S);
+    if (this.f & FLAG_H) bytetemp--;
+    this.f |= (bytetemp & FLAG_3) | (bytetemp & 0x02 ? FLAG_5 : 0);
+    if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  cpdr() {
+    const value = readbyte(this.hl());
+    let bytetemp = (this.a - value) & 0xff;
+    const lookup =
+      ((this.a & 0x08) >> 3) | ((value & 0x08) >> 2) | ((bytetemp & 0x08) >> 1);
+    addTstates(8);
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    const bctemp = (this.bc() - 1) & 0xffff;
+    this.b = bctemp >> 8;
+    this.c = bctemp & 0xff;
+    this.f =
+      (this.f & FLAG_C) |
+      (this.bc() ? FLAG_V | FLAG_N : FLAG_N) |
+      halfcarry_sub_table[lookup] |
+      (bytetemp ? 0 : FLAG_Z) |
+      (bytetemp & FLAG_S);
+    if (this.f & FLAG_H) bytetemp--;
+    this.f |= (bytetemp & FLAG_3) | (bytetemp & 0x02 ? FLAG_5 : 0);
+    if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  ini() {
+    const initemp = readport(this.bc());
+    addTstates(8);
+    writebyte(this.hl(), initemp);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    this.f = (initemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  ind() {
+    const initemp = readport(this.bc());
+    addTstates(8);
+    writebyte(this.hl(), initemp);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    this.f = (initemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  inir() {
+    const initemp = readport(this.bc());
+    addTstates(8);
+    writebyte(this.hl(), initemp);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    this.f = (initemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+    if (this.b) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  indr() {
+    const initemp = readport(this.bc());
+    addTstates(8);
+    writebyte(this.hl(), initemp);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    this.f = (initemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+    if (this.b) {
+      addTstates(5);
+      this.pc = (this.pc - 2) & 0xffff;
+    }
+  }
+
+  outi() {
+    const outitemp = readbyte(this.hl());
+    this.b =
+      (this.b - 1) &
+      0xff; /* This does happen first, despite what the specs say */
+    addTstates(8);
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    writeport(this.bc(), outitemp);
+    this.f = (outitemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  outd() {
+    const outitemp = readbyte(this.hl());
+    this.b =
+      (this.b - 1) &
+      0xff; /* This does happen first, despite what the specs say */
+    addTstates(8);
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    writeport(this.bc(), outitemp);
+    this.f = (outitemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+  }
+
+  otir() {
+    const outitemp = readbyte(this.hl());
+    addTstates(5);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() + 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    /* This does happen first, despite what the specs say */
+    writeport(this.bc(), outitemp);
+    this.f = (outitemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+    if (this.b) {
+      addTstates(8);
+      this.pc = (this.pc - 2) & 0xffff;
+    } else {
+      addTstates(3);
+    }
+  }
+
+  otdr() {
+    const outitemp = readbyte(this.hl());
+    addTstates(5);
+    this.b = (this.b - 1) & 0xff;
+    const hltemp = (this.hl() - 1) & 0xffff;
+    this.h = hltemp >> 8;
+    this.l = hltemp & 0xff;
+    /* This does happen first, despite what the specs say */
+    writeport(this.bc(), outitemp);
+    this.f = (outitemp & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
+    /* C,H and P/V flags not implemented */
+    if (this.b) {
+      addTstates(8);
+      this.pc = (this.pc - 2) & 0xffff;
+    } else {
+      addTstates(3);
+    }
   }
 }
 

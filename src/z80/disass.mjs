@@ -117,24 +117,9 @@ function processLine(line) {
 }
 
 function processFile(filename) {
-  const lines = readFileSync(filename, "utf8").split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const stripped = lines[i].replace(/#.*/, "").trim();
-    if (stripped.endsWith("{")) {
-      // Inline JS block: process the opcode line without the trailing `{`,
-      // then skip all block content using brace-depth counting.
-      processLine(stripped.slice(0, -1));
-      let depth = 1;
-      while (i + 1 < lines.length && depth > 0) {
-        i++;
-        for (const ch of lines[i]) {
-          if (ch === "{") depth++;
-          else if (ch === "}") depth--;
-        }
-      }
-    } else {
-      processLine(lines[i]);
-    }
+  const content = readFileSync(filename, "utf8");
+  for (const line of content.split("\n")) {
+    processLine(line);
   }
 }
 

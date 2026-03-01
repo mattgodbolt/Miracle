@@ -346,6 +346,26 @@ const opcodes = {
   DEC: (a) => inc_dec8("DEC", a),
 
   // ---------------------------------------------------------------------------
+  // Block transfer and search — implemented as Z80 methods (z80.js)
+  // ---------------------------------------------------------------------------
+  LDI: () => print(`      z80.ldi();\n`),
+  LDD: () => print(`      z80.ldd();\n`),
+  LDIR: () => print(`      z80.ldir();\n`),
+  LDDR: () => print(`      z80.lddr();\n`),
+  CPI: () => print(`      z80.cpi();\n`),
+  CPD: () => print(`      z80.cpd();\n`),
+  CPIR: () => print(`      z80.cpir();\n`),
+  CPDR: () => print(`      z80.cpdr();\n`),
+  INI: () => print(`      z80.ini();\n`),
+  IND: () => print(`      z80.ind();\n`),
+  INIR: () => print(`      z80.inir();\n`),
+  INDR: () => print(`      z80.indr();\n`),
+  OUTI: () => print(`      z80.outi();\n`),
+  OUTD: () => print(`      z80.outd();\n`),
+  OTIR: () => print(`      z80.otir();\n`),
+  OTDR: () => print(`      z80.otdr();\n`),
+
+  // ---------------------------------------------------------------------------
   // Bit operations
   // ---------------------------------------------------------------------------
   BIT(bit, register) {
@@ -843,28 +863,25 @@ function _run(dataFile) {
   const lines = readFileSync(dataFile, "utf8").split("\n");
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    // Remove comments and skip blank lines (outside blocks)
+    // Remove comments
     let line = lines[lineIdx].replace(/#.*/, "");
+
+    // Skip blank lines
     if (/^\s*$/.test(line)) continue;
 
     const fields = line.trim().split(/\s+/);
     const number = fields[0];
     const opcode = fields[1];
-
-    // Detect inline JS block: opcode line ends with `{`
-    const hasBlock = fields[fields.length - 1] === "{";
+    const argsStr = fields[2];
+    const extra = fields[3];
 
     if (opcode === undefined) {
       print(`    ops[${number}] = \n`);
       continue;
     }
 
-    // For inline-block ops, strip the trailing `{` from the args field list
-    const argsFields = hasBlock ? fields.slice(2, -1) : fields.slice(2);
-    const argsStr = argsFields[0];
-    const extra = argsFields[1]; // only used by DDFDCB store-to-register opcodes
-
-    const argsList = argsStr ? argsStr.split(",") : [];
+    const argsRaw = argsStr !== undefined ? argsStr : "";
+    const argsList = argsRaw ? argsRaw.split(",") : [];
 
     // Print function header
     print(
@@ -873,23 +890,6 @@ function _run(dataFile) {
     if (argsList.length) print(` ${argsList.join(",")}`);
     if (extra !== undefined) print(` ${extra}`);
     print(` */\n`);
-
-    if (hasBlock) {
-      // Inline JS block — slurp lines with brace-depth counting until depth=0
-      let depth = 1; // opened by the `{` on the opcode line
-      while (lineIdx + 1 < lines.length && depth > 0) {
-        lineIdx++;
-        const bodyLine = lines[lineIdx];
-        for (const ch of bodyLine) {
-          if (ch === "{") depth++;
-          else if (ch === "}") depth--;
-        }
-        if (depth > 0) print(bodyLine + "\n");
-        // depth === 0: we consumed the closing `}` — stop without emitting it
-      }
-      print(`    };\n`);
-      continue;
-    }
 
     // Handle the DDFDCB combined register-store opcodes specially
     if (extra !== undefined) {
