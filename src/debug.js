@@ -1,5 +1,5 @@
 import { hexbyte, hexword } from "./utils";
-import { romBanks, readbyte, virtualAddress, pages } from "./memory";
+import { bus, readbyte, virtualAddress } from "./bus";
 import { clearBreakpoint, audio_enable, cycleCallback, start } from "./miracle";
 import { z80 } from "./z80/z80.js";
 import { z80_do_opcodes } from "./z80/z80_ops";
@@ -11,7 +11,7 @@ let debugSerial = 0;
 let annotations = null;
 
 export function debug_init(romName) {
-  debugSerial = (romBanks[1][0x3ffc] << 8) | romBanks[1][0x3ffd];
+  debugSerial = (bus.romBanks[1][0x3ffc] << 8) | bus.romBanks[1][0x3ffd];
 
   if (!localStorage[debugSerial]) {
     annotations = { romName: romName, labels: {} };
@@ -180,7 +180,7 @@ function updateDebug(pcOrNone) {
   }
   i = 0;
   for (const el of document.querySelectorAll("#pages .value")) {
-    updateElement(el, hexbyte(pages[i++]));
+    updateElement(el, hexbyte(bus.pages[i++]));
   }
   updateFlags(z80.f);
 }

@@ -1,6 +1,6 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
 
-import { readbyte, writebyte, readport, writeport } from "../memory";
+import { readbyte, writebyte, readport, writeport } from "../bus";
 import { addTstates } from "./z80_ops.js";
 import {
   FLAG_C,
