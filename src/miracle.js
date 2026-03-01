@@ -222,10 +222,6 @@ function audio_reset() {
 }
 
 export function miracle_init() {
-  vdp_init();
-  audio_init();
-  miracle_reset();
-
   canvas = document.getElementById("screen");
   ctx = canvas.getContext("2d");
   if (ctx.getImageData) {
@@ -236,6 +232,10 @@ export function miracle_init() {
     alert("Unsupported browser...");
     // Unsupported....
   }
+
+  vdp_init(canvas, fb32, paintScreen, breakpoint);
+  audio_init();
+  miracle_reset();
 
   // Scale the canvas to fill its container while maintaining the native aspect ratio.
   // ResizeObserver fires whenever the container's size changes (initial layout,

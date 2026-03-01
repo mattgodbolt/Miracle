@@ -1,6 +1,10 @@
 import { hexbyte, hexword } from "./utils";
-import { canvas, fb32, paintScreen, breakpoint } from "./miracle";
 import { z80_set_irq } from "./z80/z80.js";
+
+let canvas;
+let fb32;
+let paintScreen;
+let breakpoint;
 
 let vram = [];
 let vramUntwiddled = [];
@@ -504,7 +508,11 @@ export function vdp_hblank() {
   return needIrq;
 }
 
-export function vdp_init() {
+export function vdp_init(canvasEl, fb32Arr, paintScreenFn, breakpointFn) {
+  canvas = canvasEl;
+  fb32 = fb32Arr;
+  paintScreen = paintScreenFn;
+  breakpoint = breakpointFn;
   vram = new Uint8Array(0x4000);
   vramUntwiddled = new Uint8Array(0x8000);
   palette = new Uint8Array(32);
