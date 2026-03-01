@@ -8,7 +8,7 @@ import {
   z80_do_opcodes,
 } from "./z80/z80_ops";
 import { showDebug, debugKeyPress } from "./debug";
-import { memory_reset, setSoundChip, getJoystick, setJoystick } from "./memory";
+import { bus } from "./bus";
 
 let breakpointHit = false;
 let running = false;
@@ -139,14 +139,12 @@ function audio_init() {
   if (!AudioCtx) {
     // No Web Audio API at all.
     soundChip = new SoundChip(10000, cpuHz);
-    setSoundChip(soundChip);
     return;
   }
 
   audioContext = new AudioCtx();
   // Create soundChip immediately so audio_reset() works synchronously.
   soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
-  setSoundChip(soundChip);
   // Use floor so we never request more samples than the soundchip has actually
   // advanced (ceil would synthesise a phantom extra sample on non-integer rates
   // and cause long-term pitch drift). A fractional accumulator would be ideal
@@ -235,6 +233,7 @@ export function miracle_init() {
 
   vdp.init(canvas, fb32, paintScreen, breakpoint);
   audio_init();
+  bus.connect(vdp, soundChip);
   miracle_reset();
 
   // Scale the canvas to fill its container while maintaining the native aspect ratio.
@@ -268,7 +267,7 @@ export function miracle_init() {
 }
 
 export function miracle_reset() {
-  memory_reset();
+  bus.reset();
   //inputMode = 7;
   z80_reset();
   vdp.reset();
@@ -302,7 +301,7 @@ function keyDown(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    setJoystick(getJoystick() & ~key);
+    bus.joystick &= ~key;
     if (!evt.metaKey) {
       evt.preventDefault();
       return;
@@ -323,7 +322,7 @@ function keyUp(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    setJoystick(getJoystick() | key);
+    bus.joystick |= key;
     if (!evt.metaKey) {
       evt.preventDefault();
     }

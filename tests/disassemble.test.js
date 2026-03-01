@@ -13,7 +13,7 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/memory", () => ({
+vi.mock("../src/bus", () => ({
   readbyte: (addr) => mem[addr & 0xffff],
   writebyte: (addr, val) => {
     mem[addr & 0xffff] = val & 0xff;

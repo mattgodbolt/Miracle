@@ -1,6 +1,6 @@
 /* eslint-disable */
 import { hexbyte } from "../utils";
-import { readbyte } from "../memory";
+import { readbyte } from "../bus";
 import { addressHtml } from "../debug";
 import { sign_extend } from "./z80_ops.js";
 
