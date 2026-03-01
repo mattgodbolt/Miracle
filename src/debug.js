@@ -4,7 +4,7 @@ import { clearBreakpoint, audio_enable, cycleCallback, start } from "./miracle";
 import { z80 } from "./z80/z80.js";
 import { z80_do_opcodes } from "./z80/z80_ops";
 import { disassemble } from "./z80/z80_dis";
-import { vdp_regs } from "./vdp";
+import { vdp } from "./vdp";
 import { setEventNextEvent, setTstates } from "./z80/z80_ops";
 
 let debugSerial = 0;
@@ -176,7 +176,7 @@ function updateDebug(pcOrNone) {
   }
   let i = 0;
   for (const el of document.querySelectorAll("#vdp_registers > div .value")) {
-    if (el.offsetParent !== null) updateElement(el, hexbyte(vdp_regs[i++]));
+    if (el.offsetParent !== null) updateElement(el, hexbyte(vdp.vdp_regs[i++]));
   }
   i = 0;
   for (const el of document.querySelectorAll("#pages .value")) {
