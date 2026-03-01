@@ -45,9 +45,14 @@ export function memory_reset() {
 }
 
 export function loadRom(name, rom) {
-  const numRomBanks = rom.length / 0x4000;
+  if (rom.length === 0) {
+    console.warn("loadRom: empty ROM, nothing to load");
+    return;
+  }
+  const numRomBanks = Math.floor(rom.length / 0x4000);
   let i;
   console.log("Loading rom of " + numRomBanks + " banks");
+  romBanks.length = 0;
   for (i = 0; i < numRomBanks; i++) {
     romBanks[i] = new Uint8Array(0x4000);
     for (let j = 0; j < 0x4000; j++) {
@@ -58,7 +63,11 @@ export function loadRom(name, rom) {
     pages[i] = i % numRomBanks;
   }
   romPageMask = (numRomBanks - 1) | 0;
-  debug_init(name);
+  if (numRomBanks >= 2) {
+    debug_init(name);
+  } else {
+    console.warn("loadRom: ROM has fewer than 2 banks, skipping debug_init");
+  }
 }
 
 export function virtualAddress(address) {
@@ -151,7 +160,9 @@ export function writebyte(address, value) {
         pages[2] = value;
         break;
       default:
-        throw "zoiks";
+        throw new Error(
+          "Unexpected memory write to address " + hexword(address),
+        );
     }
   }
   address -= 0xc000;
