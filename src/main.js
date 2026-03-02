@@ -1,7 +1,14 @@
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80.js";
-import { miracle_init, miracle_reset, start, stop } from "./miracle";
-import { bus } from "./bus";
+import {
+  sms,
+  miracle_init,
+  miracle_reset,
+  start,
+  stop,
+  audio_enable,
+  cycleCallback,
+} from "./miracle";
 import { step, stepOver, stepOut, debug_init } from "./debug";
 
 function loadRomData(name) {
@@ -16,9 +23,17 @@ function loadRomData(name) {
   return request.response;
 }
 
+function onRomLoaded(name) {
+  debug_init(name, sms, {
+    audioEnable: audio_enable,
+    cycleCallback: cycleCallback,
+    start: start,
+  });
+}
+
 function resetLoadAndStart(filename, romdata) {
   miracle_reset();
-  bus.loadRom(filename, romdata, debug_init);
+  sms.loadRom(filename, romdata, onRomLoaded);
   hideRomChooser();
   start();
 }
@@ -129,10 +144,10 @@ function go() {
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
-    bus.loadRom("b64.sms", atob(parsedQuery["b64sms"]), debug_init);
+    sms.loadRom("b64.sms", atob(parsedQuery["b64sms"]), onRomLoaded);
   } else {
     const defaultRom = getDefaultRom();
-    bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
+    sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);
   }
 
   start();

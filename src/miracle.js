@@ -1,53 +1,36 @@
-import { vdp } from "./vdp";
 import { SoundChip } from "./soundchip";
-import { z80, z80_reset, z80_set_irq, z80_nmi } from "./z80/z80.js";
-import { makeZ80Runner } from "./z80/z80_ops";
-
-export const { z80_do_opcodes } = makeZ80Runner(z80);
+import { SMS } from "./sms";
 import { showDebug, debugKeyPress } from "./debug";
-import { bus } from "./bus";
 
-let breakpointHit = false;
+export const sms = new SMS();
+
 let running = false;
 
-export let canvas;
+let canvas;
 let ctx;
 let imageData;
 let fb8;
-export let fb32;
+let fb32;
 
 let soundChip;
 
-const framesPerSecond = 50;
-const scanLinesPerFrame = 313; // 313 lines in PAL TODO: unify all this
-const scanLinesPerSecond = scanLinesPerFrame * framesPerSecond;
-const cpuHz = 3.58 * 1000 * 1000; // According to Sega docs.
-const tstatesPerHblank = Math.ceil(cpuHz / scanLinesPerSecond) | 0;
-
-export function clearBreakpoint() {
-  breakpointHit = false;
-}
+const targetTimeout = 1000 / SMS.FRAMES_PER_SECOND;
+let adjustedTimeout = targetTimeout;
+let lastFrame = null;
 
 export function cycleCallback(tstates) {
   soundChip.polltime(tstates);
 }
 
 function line() {
-  z80.eventNextEvent = tstatesPerHblank;
-  z80.tstates -= tstatesPerHblank;
-  z80_do_opcodes(cycleCallback);
-  const vdp_status = vdp.hblank();
-  z80_set_irq(!!(vdp_status & 3));
-  if (breakpointHit) {
+  if (sms.runLine(cycleCallback)) {
     running = false;
-    showDebug(z80.pc);
-  } else if (vdp_status & 4) {
-    paintScreen();
+    showDebug(sms.pc);
   }
 }
 
 export function start() {
-  breakpointHit = false;
+  sms.clearBreakpoint();
   if (running) return;
   running = true;
   document.getElementById("menu").className = "running";
@@ -56,13 +39,9 @@ export function start() {
   run();
 }
 
-const targetTimeout = 1000 / framesPerSecond;
-let adjustedTimeout = targetTimeout;
-let lastFrame = null;
-
 function run() {
   if (!running) {
-    showDebug(z80.pc);
+    showDebug(sms.pc);
     return;
   }
   const now = Date.now();
@@ -85,7 +64,7 @@ function run() {
   setTimeout(run, adjustedTimeout);
 
   try {
-    for (let i = 0; i < scanLinesPerFrame && running; i++) line();
+    for (let i = 0; i < SMS.SCAN_LINES_PER_FRAME && running; i++) line();
   } catch (e) {
     running = false;
     audio_enable(true);
@@ -135,18 +114,15 @@ function audio_init() {
 
   if (!AudioCtx) {
     // No Web Audio API at all.
-    soundChip = new SoundChip(10000, cpuHz);
+    soundChip = new SoundChip(10000, SMS.CPU_HZ);
     return;
   }
 
   audioContext = new AudioCtx();
-  // Create soundChip immediately so audio_reset() works synchronously.
-  soundChip = new SoundChip(audioContext.sampleRate, cpuHz);
-  // Use floor so we never request more samples than the soundchip has actually
-  // advanced (ceil would synthesise a phantom extra sample on non-integer rates
-  // and cause long-term pitch drift). A fractional accumulator would be ideal
-  // for exact rate matching but floor is safe and correct in practice.
-  _samplesPerFrame = Math.floor(audioContext.sampleRate / framesPerSecond);
+  soundChip = new SoundChip(audioContext.sampleRate, SMS.CPU_HZ);
+  _samplesPerFrame = Math.floor(
+    audioContext.sampleRate / SMS.FRAMES_PER_SECOND,
+  );
 
   if (!audioContext.audioWorklet) {
     // AudioWorklet unavailable (non-secure context, old browser, etc.)
@@ -156,7 +132,7 @@ function audio_init() {
     );
     audioContext.close();
     audioContext = null;
-    _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
+    _samplesPerFrame = 0;
     return;
   }
 
@@ -184,36 +160,22 @@ function audio_init() {
       if (audioContext) audioContext.close();
       audioContext = null;
       _audioNode = null;
-      _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
+      _samplesPerFrame = 0;
     });
 }
 
 function audio_push_frame() {
   if (!_samplesPerFrame) return;
   const buf = new Float32Array(_samplesPerFrame);
-  // Always drain the soundchip's internal buffer every frame, regardless of
-  // whether the worklet is ready yet. Skipping render() allows pending cycles
-  // to accumulate and overflow the soundchip's internal cap, causing desynced
-  // audio once the worklet eventually initialises.
   soundChip.render(buf, 0, buf.length);
-  // Only push to the worklet while the context is actually running and the
-  // node is ready. While suspended or still initialising we drain (above) but
-  // discard the samples — otherwise they'd queue up and cause latency on resume.
   if (_audioNode && audioContext && audioContext.state === "running") {
-    // Transfer the underlying ArrayBuffer to avoid a copy.
     _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
   }
 }
 
 export function audio_enable(enable) {
   soundChip.enable(enable);
-  // Only resume the AudioContext when actually enabling audio; calling
-  // resume() while disabling would wrongly hide the suspended banner.
   if (enable && audioContext) audioContext.resume();
-}
-
-function audio_reset() {
-  soundChip.reset();
 }
 
 export function miracle_init() {
@@ -225,17 +187,13 @@ export function miracle_init() {
     fb32 = new Uint32Array(fb8.buffer);
   } else {
     alert("Unsupported browser...");
-    // Unsupported....
   }
 
-  vdp.init(canvas, fb32, paintScreen, breakpoint);
   audio_init();
-  bus.connect(vdp, soundChip);
+  sms.init(canvas, fb32, paintScreen, soundChip);
   miracle_reset();
 
   // Scale the canvas to fill its container while maintaining the native aspect ratio.
-  // ResizeObserver fires whenever the container's size changes (initial layout,
-  // window resize, panel show/hide, etc.) — more reliable than a one-shot setTimeout.
   function resizeCanvas() {
     const border = parseInt(window.getComputedStyle(canvas).borderWidth) || 0;
     const container = canvas.parentElement;
@@ -264,11 +222,7 @@ export function miracle_init() {
 }
 
 export function miracle_reset() {
-  bus.reset();
-  //inputMode = 7;
-  z80_reset();
-  vdp.reset();
-  audio_reset();
+  sms.reset();
 }
 
 const keys = {
@@ -298,7 +252,7 @@ function keyDown(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    bus.joystick &= ~key;
+    sms.joystick &= ~key;
     if (!evt.metaKey) {
       evt.preventDefault();
       return;
@@ -306,7 +260,7 @@ function keyDown(evt) {
   }
   switch (evt.keyCode) {
     case 80: // 'P' for pause
-      z80_nmi();
+      sms.nmi();
       break;
     case 8: // 'Backspace' is debug
       breakpoint();
@@ -319,7 +273,7 @@ function keyUp(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    bus.joystick |= key;
+    sms.joystick |= key;
     if (!evt.metaKey) {
       evt.preventDefault();
     }
@@ -335,12 +289,11 @@ function keyPress(evt) {
   }
 }
 
-export function paintScreen() {
+function paintScreen() {
   ctx.putImageData(imageData, 0, 0);
 }
 
-export function breakpoint() {
-  z80.eventNextEvent = 0;
-  breakpointHit = true;
+function breakpoint() {
+  sms.triggerBreakpoint();
   audio_enable(false);
 }

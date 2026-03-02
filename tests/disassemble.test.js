@@ -13,35 +13,17 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/bus", () => {
-  const busObj = {
-    readbyte: (addr) => mem[addr & 0xffff],
-    writebyte: (addr, val) => {
-      mem[addr & 0xffff] = val & 0xff;
-    },
-    writeport: () => {},
-    readport: () => 0xff,
-  };
-  return {
-    bus: busObj,
-    readbyte: busObj.readbyte,
-    writebyte: busObj.writebyte,
-    writeport: busObj.writeport,
-    readport: busObj.readport,
-  };
-});
-
 vi.mock("../src/utils", () => ({
   hexbyte: (v) => v.toString(16).padStart(2, "0"),
 }));
 
-vi.mock("../src/debug", () => ({
-  // Return a plain hex address string (no HTML) for predictable assertions.
-  addressHtml: (addr) => `0x${addr.toString(16).padStart(4, "0")}`,
-}));
+// Create a disassembler wired to the mock memory — no bus/debug mocks needed.
+import { makeDisassembler } from "../src/z80/z80_dis.js";
 
-// These imports must come *after* vi.mock (vitest hoists vi.mock calls).
-import { disassemble } from "../src/z80/z80_dis.js";
+const { disassemble } = makeDisassembler(
+  (addr) => mem[addr & 0xffff],
+  (addr) => `0x${addr.toString(16).padStart(4, "0")}`,
+);
 
 // ---------------------------------------------------------------------------
 // Helper — write a sequence of bytes into the memory mock

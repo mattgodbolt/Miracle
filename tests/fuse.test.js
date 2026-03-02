@@ -49,7 +49,7 @@ const KNOWN_FAILURES = new Set([
   "edbb_1",
 ]);
 
-import { vi, describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import path from "path";
@@ -57,33 +57,24 @@ import path from "path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// Memory mock — a flat 64K array used by z80.js and z80_ops.js
-// via the ../miracle module.  We mutate it between tests; never replace it.
+// Memory mock — a flat 64K array; wired directly to a fresh Z80 instance.
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/bus", () => {
-  const busObj = {
-    readbyte: (addr) => mem[addr & 0xffff],
-    writebyte: (addr, val) => {
-      mem[addr & 0xffff] = val & 0xff;
-    },
-    readport: (port) => (port >> 8) & 0xff, // FUSE convention: port returns high byte of address
-    writeport: () => {},
-  };
-  return {
-    bus: busObj,
-    readbyte: busObj.readbyte,
-    writebyte: busObj.writebyte,
-    readport: busObj.readport,
-    writeport: busObj.writeport,
-  };
-});
+const mockBus = {
+  readbyte: (addr) => mem[addr & 0xffff],
+  writebyte: (addr, val) => {
+    mem[addr & 0xffff] = val & 0xff;
+  },
+  readport: (port) => (port >> 8) & 0xff, // FUSE convention: port returns high byte of address
+  writeport: () => {},
+};
 
-// These imports must come *after* vi.mock (vitest hoists vi.mock automatically)
-import { z80, z80_init } from "../src/z80/z80.js";
+import { Z80, z80_init } from "../src/z80/z80.js";
 import { makeZ80Runner } from "../src/z80/z80_ops.js";
 
+const z80 = new Z80();
+z80.bus = mockBus;
 const { z80_do_opcodes } = makeZ80Runner(z80);
 
 // ---------------------------------------------------------------------------

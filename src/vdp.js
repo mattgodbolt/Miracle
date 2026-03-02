@@ -1,5 +1,4 @@
 import { hexbyte, hexword } from "./utils";
-import { z80_set_irq } from "./z80/z80.js";
 
 export class VDP {
   // Exposed for debug.js (read-only intent).
@@ -9,6 +8,7 @@ export class VDP {
   #fb32;
   #paintScreen;
   #breakpoint;
+  #setIrq;
   #vram;
   #vramUntwiddled;
   #palette;
@@ -33,11 +33,12 @@ export class VDP {
   // Initialisation
   // -------------------------------------------------------------------------
 
-  init(canvas, fb32, paintScreen, breakpoint) {
+  init(canvas, fb32, paintScreen, breakpoint, setIrq) {
     this.#canvas = canvas;
     this.#fb32 = fb32;
     this.#paintScreen = paintScreen;
     this.#breakpoint = breakpoint;
+    this.#setIrq = setIrq;
     this.#vram = new Uint8Array(0x4000);
     this.#vramUntwiddled = new Uint8Array(0x8000);
     this.#palette = new Uint8Array(32);
@@ -218,7 +219,7 @@ export class VDP {
     // Clear top three here.
     this.#vdp_status &= 0x1f;
     this.#vdp_pending_hblank = false;
-    z80_set_irq(false);
+    this.#setIrq(false);
     this.#vdp_addr_state = 0;
     return res;
   }
@@ -601,5 +602,3 @@ export class VDP {
     return needIrq;
   }
 }
-
-export const vdp = new VDP();
