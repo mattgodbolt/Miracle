@@ -2,20 +2,20 @@ import { hexbyte, hexword } from "./utils";
 
 export class VDP {
   // Exposed for debug.js (read-only intent).
-  vdp_regs;
+  vdp_regs = new Uint8Array(16);
 
   #canvas;
   #fb32;
   #paintScreen;
   #breakpoint;
   #setIrq;
-  #vram;
-  #vramUntwiddled;
-  #palette;
-  #paletteR;
-  #paletteG;
-  #paletteB;
-  #paletteRGB;
+  #vram = new Uint8Array(0x4000);
+  #vramUntwiddled = new Uint8Array(0x8000);
+  #palette = new Uint8Array(32);
+  #paletteR = new Uint8Array(32);
+  #paletteG = new Uint8Array(32);
+  #paletteB = new Uint8Array(32);
+  #paletteRGB = new Uint32Array(32);
   #vdp_addr_state = 0;
   #vdp_mode_select = 0;
   #vdp_addr_latch = 0;
@@ -39,14 +39,6 @@ export class VDP {
     this.#paintScreen = paintScreen;
     this.#breakpoint = breakpoint;
     this.#setIrq = setIrq;
-    this.#vram = new Uint8Array(0x4000);
-    this.#vramUntwiddled = new Uint8Array(0x8000);
-    this.#palette = new Uint8Array(32);
-    this.#paletteR = new Uint8Array(32);
-    this.#paletteG = new Uint8Array(32);
-    this.#paletteB = new Uint8Array(32);
-    this.#paletteRGB = new Uint32Array(32);
-    this.vdp_regs = new Uint8Array(16);
     this.reset();
   }
 

@@ -16,6 +16,7 @@ export class SMS {
   #breakpointHit = false;
   #paintScreen = null;
   #tstatesPerHblank;
+  #initialized = false;
 
   constructor() {
     this.#bus = new Bus();
@@ -39,6 +40,7 @@ export class SMS {
       (asserted) => this.#z80.setIrq(asserted),
     );
     this.#bus.connect(this.#vdp, soundChip);
+    this.#initialized = true;
   }
 
   reset() {
@@ -54,6 +56,7 @@ export class SMS {
 
   // Run one scanline. Returns true if a breakpoint was hit.
   runLine(cycleCallback) {
+    if (!this.#initialized) return false;
     this.#z80.eventNextEvent = this.#tstatesPerHblank;
     this.#z80.tstates -= this.#tstatesPerHblank;
     this.#z80_do_opcodes(cycleCallback);
@@ -100,6 +103,7 @@ export class SMS {
   }
 
   execOpcodes(cycleCallback) {
+    if (!this.#initialized) return;
     this.#z80_do_opcodes(cycleCallback);
   }
 }
