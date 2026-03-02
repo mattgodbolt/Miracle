@@ -13,14 +13,23 @@ import { vi, describe, it, expect, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 const mem = new Uint8Array(0x10000);
 
-vi.mock("../src/bus", () => ({
-  readbyte: (addr) => mem[addr & 0xffff],
-  writebyte: (addr, val) => {
-    mem[addr & 0xffff] = val & 0xff;
-  },
-  writeport: () => {},
-  readport: () => 0xff,
-}));
+vi.mock("../src/bus", () => {
+  const busObj = {
+    readbyte: (addr) => mem[addr & 0xffff],
+    writebyte: (addr, val) => {
+      mem[addr & 0xffff] = val & 0xff;
+    },
+    writeport: () => {},
+    readport: () => 0xff,
+  };
+  return {
+    bus: busObj,
+    readbyte: busObj.readbyte,
+    writebyte: busObj.writebyte,
+    writeport: busObj.writeport,
+    readport: busObj.readport,
+  };
+});
 
 vi.mock("../src/utils", () => ({
   hexbyte: (v) => v.toString(16).padStart(2, "0"),

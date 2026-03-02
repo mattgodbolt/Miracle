@@ -1,7 +1,6 @@
 // Z80 state, flag tables, lifecycle functions, and micro-op methods.
 
-import { readbyte, writebyte, readport, writeport } from "../bus";
-import { addTstates } from "./z80_ops.js";
+import { bus } from "../bus";
 import {
   FLAG_C,
   FLAG_N,
@@ -108,6 +107,11 @@ class Z80 {
     this.halted = false;
     this.irq_pending = false;
     this.irq_suppress = false;
+    // Timing state (used by z80_ops.js factory closure)
+    this.tstates = 0;
+    this.eventNextEvent = 0;
+    // Bus reference (set after construction)
+    this.bus = null;
   }
 
   // -------------------------------------------------------------------------
@@ -519,17 +523,17 @@ class Z80 {
   // -------------------------------------------------------------------------
 
   rld() {
-    const mem = readbyte(this.hl());
-    addTstates(10);
-    writebyte(this.hl(), ((mem & 0x0f) << 4) | (this.a & 0x0f));
+    const mem = this.bus.readbyte(this.hl());
+    this.tstates += 10;
+    this.bus.writebyte(this.hl(), ((mem & 0x0f) << 4) | (this.a & 0x0f));
     this.a = (this.a & 0xf0) | (mem >> 4);
     this.f = (this.f & FLAG_C) | sz53p_table[this.a];
   }
 
   rrd() {
-    const mem = readbyte(this.hl());
-    addTstates(10);
-    writebyte(this.hl(), ((this.a & 0x0f) << 4) | (mem >> 4));
+    const mem = this.bus.readbyte(this.hl());
+    this.tstates += 10;
+    this.bus.writebyte(this.hl(), ((this.a & 0x0f) << 4) | (mem >> 4));
     this.a = (this.a & 0xf0) | (mem & 0x0f);
     this.f = (this.f & FLAG_C) | sz53p_table[this.a];
   }
@@ -583,11 +587,11 @@ class Z80 {
   exSPHL() {
     const sp0 = this.sp,
       sp1 = (this.sp + 1) & 0xffff;
-    const lo = readbyte(sp0),
-      hi = readbyte(sp1);
-    addTstates(15);
-    writebyte(sp1, this.h);
-    writebyte(sp0, this.l);
+    const lo = this.bus.readbyte(sp0),
+      hi = this.bus.readbyte(sp1);
+    this.tstates += 15;
+    this.bus.writebyte(sp1, this.h);
+    this.bus.writebyte(sp0, this.l);
     this.l = lo;
     this.h = hi;
   }
@@ -595,11 +599,11 @@ class Z80 {
   exSPIX() {
     const sp0 = this.sp,
       sp1 = (this.sp + 1) & 0xffff;
-    const lo = readbyte(sp0),
-      hi = readbyte(sp1);
-    addTstates(15);
-    writebyte(sp1, this.ixh);
-    writebyte(sp0, this.ixl);
+    const lo = this.bus.readbyte(sp0),
+      hi = this.bus.readbyte(sp1);
+    this.tstates += 15;
+    this.bus.writebyte(sp1, this.ixh);
+    this.bus.writebyte(sp0, this.ixl);
     this.ixl = lo;
     this.ixh = hi;
   }
@@ -607,11 +611,11 @@ class Z80 {
   exSPIY() {
     const sp0 = this.sp,
       sp1 = (this.sp + 1) & 0xffff;
-    const lo = readbyte(sp0),
-      hi = readbyte(sp1);
-    addTstates(15);
-    writebyte(sp1, this.iyh);
-    writebyte(sp0, this.iyl);
+    const lo = this.bus.readbyte(sp0),
+      hi = this.bus.readbyte(sp1);
+    this.tstates += 15;
+    this.bus.writebyte(sp1, this.iyh);
+    this.bus.writebyte(sp0, this.iyl);
     this.iyl = lo;
     this.iyh = hi;
   }
@@ -636,10 +640,10 @@ class Z80 {
   // Reads the displacement byte unconditionally (matches real Z80 fetch behaviour);
   // PC always advances past it. When taken, the signed displacement is applied first.
   jr(taken) {
-    const disp = readbyte(this.pc);
-    addTstates(3);
+    const disp = this.bus.readbyte(this.pc);
+    this.tstates += 3;
     if (taken) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc + sign_extend(disp) + 1) & 0xffff;
     } else {
       this.pc = (this.pc + 1) & 0xffff;
@@ -649,11 +653,11 @@ class Z80 {
   // DJNZ — decrement B; if non-zero, take relative branch.
   // Timing differs from JR: 8 t-states not-taken, 13 taken (no 3-cycle "JR fetch" overhead).
   djnz() {
-    addTstates(4);
+    this.tstates += 4;
     this.b = (this.b - 1) & 0xff;
     if (this.b) {
-      addTstates(5);
-      this.pc += sign_extend(readbyte(this.pc));
+      this.tstates += 5;
+      this.pc += sign_extend(this.bus.readbyte(this.pc));
       this.pc &= 0xffff;
     }
     this.pc = (this.pc + 1) & 0xffff;
@@ -666,15 +670,15 @@ class Z80 {
   // IN A,(nn) — port address is nn + (A << 8)
   inAN() {
     const port = this.fetchByte() + (this.a << 8);
-    addTstates(7);
-    this.a = readport(port);
+    this.tstates += 7;
+    this.a = this.bus.readport(port);
   }
 
   // IN r,(C) — reads from BC port, updates flags, returns value for assignment.
   // Caller assigns: z80.b = z80.inC()  (or discards for IN F,(C))
   inC() {
-    addTstates(4);
-    const v = readport(this.bc());
+    this.tstates += 4;
+    const v = this.bus.readport(this.bc());
     this.f = (this.f & FLAG_C) | sz53p_table[v];
     return v;
   }
@@ -682,14 +686,14 @@ class Z80 {
   // OUT (nn),A — port address is nn + (A << 8)
   outAN() {
     const port = this.fetchByte() + (this.a << 8);
-    addTstates(7);
-    writeport(port, this.a);
+    this.tstates += 7;
+    this.bus.writeport(port, this.a);
   }
 
   // OUT (C),value — write value to BC port
   outC(value) {
-    addTstates(4);
-    writeport(this.bc(), value);
+    this.tstates += 4;
+    this.bus.writeport(this.bc(), value);
   }
 
   // -------------------------------------------------------------------------
@@ -697,7 +701,7 @@ class Z80 {
   // -------------------------------------------------------------------------
 
   fetchByte() {
-    const b = readbyte(this.pc++);
+    const b = this.bus.readbyte(this.pc++);
     this.pc &= 0xffff;
     return b;
   }
@@ -708,15 +712,15 @@ class Z80 {
 
   push16(val) {
     this.sp = (this.sp - 1) & 0xffff;
-    writebyte(this.sp, val >> 8);
+    this.bus.writebyte(this.sp, val >> 8);
     this.sp = (this.sp - 1) & 0xffff;
-    writebyte(this.sp, val & 0xff);
+    this.bus.writebyte(this.sp, val & 0xff);
   }
 
   pop16() {
-    const lo = readbyte(this.sp++);
+    const lo = this.bus.readbyte(this.sp++);
     this.sp &= 0xffff;
-    const hi = readbyte(this.sp++);
+    const hi = this.bus.readbyte(this.sp++);
     this.sp &= 0xffff;
     return lo | (hi << 8);
   }
@@ -727,9 +731,9 @@ class Z80 {
 
   // Shared core for LDI/LDD: copy one byte from (HL) to (DE), step both and decrement BC.
   _ldx(dir) {
-    let byte = readbyte(this.hl());
-    addTstates(8);
-    writebyte(this.de(), byte);
+    let byte = this.bus.readbyte(this.hl());
+    this.tstates += 8;
+    this.bus.writebyte(this.de(), byte);
     this.setHL(this.hl() + dir);
     this.setDE(this.de() + dir);
     this.setBC(this.bc() - 1);
@@ -750,25 +754,25 @@ class Z80 {
   ldir() {
     this._ldx(1);
     if (this.bc()) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
   lddr() {
     this._ldx(-1);
     if (this.bc()) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
 
   // Shared core for CPI/CPD: compare A with (HL), step HL, decrement BC.
   _cpx(dir) {
-    const mem = readbyte(this.hl());
+    const mem = this.bus.readbyte(this.hl());
     let diff = (this.a - mem) & 0xff;
     const lookup =
       ((this.a & 0x08) >> 3) | ((mem & 0x08) >> 2) | ((diff & 0x08) >> 1);
-    addTstates(8);
+    this.tstates += 8;
     this.setHL(this.hl() + dir);
     this.setBC(this.bc() - 1);
     this.f =
@@ -790,23 +794,23 @@ class Z80 {
   cpir() {
     this._cpx(1);
     if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
   cpdr() {
     this._cpx(-1);
     if ((this.f & (FLAG_V | FLAG_Z)) === FLAG_V) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
 
   // Shared core for INI/IND: read one byte from port BC into (HL), step HL, decrement B.
   _inx(dir) {
-    const byte = readport(this.bc());
-    addTstates(8);
-    writebyte(this.hl(), byte);
+    const byte = this.bus.readport(this.bc());
+    this.tstates += 8;
+    this.bus.writebyte(this.hl(), byte);
     this.b = (this.b - 1) & 0xff;
     this.setHL(this.hl() + dir);
     this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
@@ -822,25 +826,25 @@ class Z80 {
   inir() {
     this._inx(1);
     if (this.b) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
   indr() {
     this._inx(-1);
     if (this.b) {
-      addTstates(5);
+      this.tstates += 5;
       this.pc = (this.pc - 2) & 0xffff;
     }
   }
 
   // Shared core for OUTI/OUTD: read (HL), decrement B (happens first!), step HL, write to port.
   _outx(dir) {
-    const byte = readbyte(this.hl());
+    const byte = this.bus.readbyte(this.hl());
     this.b = (this.b - 1) & 0xff; /* B decremented before the write, per spec */
-    addTstates(8);
+    this.tstates += 8;
     this.setHL(this.hl() + dir);
-    writeport(this.bc(), byte);
+    this.bus.writeport(this.bc(), byte);
     this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
     /* C,H and P/V flags not implemented */
   }
@@ -854,18 +858,18 @@ class Z80 {
 
   // OTIR/OTDR have different conditional timing from OUTI/OUTD
   _otxr(dir) {
-    const byte = readbyte(this.hl());
-    addTstates(5);
+    const byte = this.bus.readbyte(this.hl());
+    this.tstates += 5;
     this.b = (this.b - 1) & 0xff;
     this.setHL(this.hl() + dir);
-    writeport(this.bc(), byte);
+    this.bus.writeport(this.bc(), byte);
     this.f = (byte & 0x80 ? FLAG_N : 0) | sz53_table[this.b];
     /* C,H and P/V flags not implemented */
     if (this.b) {
-      addTstates(8);
+      this.tstates += 8;
       this.pc = (this.pc - 2) & 0xffff;
     } else {
-      addTstates(3);
+      this.tstates += 3;
     }
   }
 
@@ -878,6 +882,7 @@ class Z80 {
 }
 
 export const z80 = new Z80();
+z80.bus = bus;
 
 // ---------------------------------------------------------------------------
 // Lifecycle functions (standalone exports; external API unchanged)
@@ -932,16 +937,18 @@ export function z80_interrupt() {
     switch (z80.im) {
       case 0:
         z80.pc = 0x0038;
-        addTstates(12);
+        z80.tstates += 12;
         break;
       case 1:
         z80.pc = 0x0038;
-        addTstates(13);
+        z80.tstates += 13;
         break;
       case 2: {
         const inttemp = 0x100 * z80.i + 0xff;
-        z80.pc = readbyte(inttemp) | (readbyte((inttemp + 1) & 0xffff) << 8);
-        addTstates(19);
+        z80.pc =
+          z80.bus.readbyte(inttemp) |
+          (z80.bus.readbyte((inttemp + 1) & 0xffff) << 8);
+        z80.tstates += 19;
         break;
       }
     }
@@ -953,6 +960,6 @@ export function z80_instruction_hook() {}
 export function z80_nmi() {
   z80.iff1 = 0;
   z80.push16(z80.pc);
-  addTstates(11);
+  z80.tstates += 11;
   z80.pc = 0x0066;
 }

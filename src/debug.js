@@ -1,11 +1,15 @@
 import { hexbyte, hexword } from "./utils";
 import { bus, readbyte, virtualAddress } from "./bus";
-import { clearBreakpoint, audio_enable, cycleCallback, start } from "./miracle";
+import {
+  clearBreakpoint,
+  audio_enable,
+  cycleCallback,
+  start,
+  z80_do_opcodes,
+} from "./miracle";
 import { z80 } from "./z80/z80.js";
-import { z80_do_opcodes } from "./z80/z80_ops";
 import { disassemble } from "./z80/z80_dis";
 import { vdp } from "./vdp";
-import { setEventNextEvent, setTstates } from "./z80/z80_ops";
 
 let debugSerial = 0;
 let annotations = null;
@@ -189,8 +193,8 @@ export function stepUntil(f) {
   audio_enable(true);
   clearBreakpoint();
   for (let i = 0; i < 65536; i++) {
-    setTstates(0);
-    setEventNextEvent(1);
+    z80.tstates = 0;
+    z80.eventNextEvent = 1;
     z80_do_opcodes(cycleCallback);
     if (f()) break;
   }
