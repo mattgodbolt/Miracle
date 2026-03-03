@@ -18,7 +18,8 @@ function loadRomData(name) {
 
 function updateUrl(params) {
   const url = new URL(window.location.href);
-  // Clear existing emulator params before setting new ones
+  // Clear hash and query params so hash-based legacy URLs don't override new state
+  url.hash = "";
   for (const key of [...url.searchParams.keys()]) {
     url.searchParams.delete(key);
   }
@@ -26,6 +27,12 @@ function updateUrl(params) {
     if (val !== null) url.searchParams.set(key, val);
   }
   history.replaceState(null, "", url);
+}
+
+/** Return a ROM name only if it is in the known ROM list; null otherwise. */
+function sanitizeRomName(name) {
+  if (!name) return null;
+  return RomList.includes(name) ? name : null;
 }
 
 function resetLoadAndStart(filename, romdata, urlParams) {
@@ -146,13 +153,19 @@ function go() {
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
-    const name = parsedQuery["load"] ?? "uploaded.sms";
+    const name = parsedQuery["load"] || "uploaded.sms";
     bus.loadRom(name, atob(parsedQuery["b64sms"]), debug_init);
     updateUrl({ b64sms: parsedQuery["b64sms"], load: name });
   } else if (parsedQuery["load"]) {
-    const name = parsedQuery["load"];
-    bus.loadRom(name, loadRomData(name), debug_init);
-    updateUrl({ load: name });
+    const name = sanitizeRomName(parsedQuery["load"]);
+    if (name) {
+      bus.loadRom(name, loadRomData(name), debug_init);
+      updateUrl({ load: name });
+    } else {
+      // Unknown/invalid ROM name — fall through to default
+      const defaultRom = getDefaultRom();
+      bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
+    }
   } else {
     const defaultRom = getDefaultRom();
     bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
