@@ -16,17 +16,36 @@ function loadRomData(name) {
   return request.response;
 }
 
+function updateUrl(params) {
+  const url = new URL(window.location.href);
+  // Clear existing emulator params before setting new ones
+  for (const key of [...url.searchParams.keys()]) {
+    url.searchParams.delete(key);
+  }
+  for (const [key, val] of Object.entries(params)) {
+    if (val !== null) url.searchParams.set(key, val);
+  }
+  history.replaceState(null, "", url);
+}
+
 function resetLoadAndStart(filename, romdata) {
   miracle_reset();
   bus.loadRom(filename, romdata, debug_init);
   hideRomChooser();
   start();
+  updateUrl({ load: filename });
 }
 
 function loadUploadFile(file) {
   const reader = new FileReader();
   reader.onload = function () {
-    resetLoadAndStart(file.name, reader.result);
+    // Uploaded files use b64sms encoding for shareability
+    const b64 = btoa(reader.result);
+    miracle_reset();
+    bus.loadRom(file.name, reader.result, debug_init);
+    hideRomChooser();
+    start();
+    updateUrl({ b64sms: b64 });
   };
   reader.readAsBinaryString(file);
 }
@@ -129,7 +148,13 @@ function go() {
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
-    bus.loadRom("b64.sms", atob(parsedQuery["b64sms"]), debug_init);
+    const name = parsedQuery["load"] ?? "uploaded.sms";
+    bus.loadRom(name, atob(parsedQuery["b64sms"]), debug_init);
+    updateUrl({ b64sms: parsedQuery["b64sms"], load: name });
+  } else if (parsedQuery["load"]) {
+    const name = parsedQuery["load"];
+    bus.loadRom(name, loadRomData(name), debug_init);
+    updateUrl({ load: name });
   } else {
     const defaultRom = getDefaultRom();
     bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
