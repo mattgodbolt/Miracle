@@ -28,24 +28,22 @@ function updateUrl(params) {
   history.replaceState(null, "", url);
 }
 
-function resetLoadAndStart(filename, romdata) {
+function resetLoadAndStart(filename, romdata, urlParams) {
   miracle_reset();
   bus.loadRom(filename, romdata, debug_init);
   hideRomChooser();
   start();
-  updateUrl({ load: filename });
+  updateUrl(urlParams ?? { load: filename });
 }
 
 function loadUploadFile(file) {
   const reader = new FileReader();
   reader.onload = function () {
-    // Uploaded files use b64sms encoding for shareability
     const b64 = btoa(reader.result);
-    miracle_reset();
-    bus.loadRom(file.name, reader.result, debug_init);
-    hideRomChooser();
-    start();
-    updateUrl({ b64sms: b64 });
+    resetLoadAndStart(file.name, reader.result, {
+      b64sms: b64,
+      load: file.name,
+    });
   };
   reader.readAsBinaryString(file);
 }
