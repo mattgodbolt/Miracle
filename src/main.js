@@ -56,7 +56,6 @@ function resetLoadAndStart(filename, romdata, urlParams) {
   miracle_reset();
   sms.loadRom(filename, romdata, onRomLoaded);
   hideRomChooser();
-  updateUrl(urlParams ?? { load: filename });
   start();
   updateUrl(urlParams ?? { load: filename });
 }
