@@ -1,7 +1,7 @@
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80.js";
+import { SMS } from "./sms";
 import {
-  sms,
   miracle_init,
   miracle_reset,
   start,
@@ -9,6 +9,8 @@ import {
   audio_enable,
   cycleCallback,
 } from "./miracle";
+
+const sms = new SMS();
 import { step, stepOver, stepOut, debug_init } from "./debug";
 
 function loadRomData(name) {
@@ -31,17 +33,42 @@ function onRomLoaded(name) {
   });
 }
 
-function resetLoadAndStart(filename, romdata) {
+function updateUrl(params) {
+  const url = new URL(window.location.href);
+  // Clear hash and query params so hash-based legacy URLs don't override new state
+  url.hash = "";
+  for (const key of [...url.searchParams.keys()]) {
+    url.searchParams.delete(key);
+  }
+  for (const [key, val] of Object.entries(params)) {
+    if (val !== null) url.searchParams.set(key, val);
+  }
+  history.replaceState(null, "", url);
+}
+
+/** Return a ROM name only if it is in the known ROM list; null otherwise. */
+function sanitizeRomName(name) {
+  if (!name) return null;
+  return RomList.includes(name) ? name : null;
+}
+
+function resetLoadAndStart(filename, romdata, urlParams) {
   miracle_reset();
   sms.loadRom(filename, romdata, onRomLoaded);
   hideRomChooser();
+  updateUrl(urlParams ?? { load: filename });
   start();
+  updateUrl(urlParams ?? { load: filename });
 }
 
 function loadUploadFile(file) {
   const reader = new FileReader();
   reader.onload = function () {
-    resetLoadAndStart(file.name, reader.result);
+    const b64 = btoa(reader.result);
+    resetLoadAndStart(file.name, reader.result, {
+      b64sms: b64,
+      load: file.name,
+    });
   };
   reader.readAsBinaryString(file);
 }
@@ -139,12 +166,24 @@ function go() {
     .forEach((el) => el.addEventListener("click", () => showAbout()));
 
   z80_init();
-  miracle_init();
+  miracle_init(sms);
   miracle_reset();
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
-    sms.loadRom("b64.sms", atob(parsedQuery["b64sms"]), onRomLoaded);
+    const name = parsedQuery["load"] || "uploaded.sms";
+    sms.loadRom(name, atob(parsedQuery["b64sms"]), onRomLoaded);
+    updateUrl({ b64sms: parsedQuery["b64sms"], load: name });
+  } else if (parsedQuery["load"]) {
+    const name = sanitizeRomName(parsedQuery["load"]);
+    if (name) {
+      sms.loadRom(name, loadRomData(name), onRomLoaded);
+      updateUrl({ load: name });
+    } else {
+      // Unknown/invalid ROM name — fall through to default
+      const defaultRom = getDefaultRom();
+      sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);
+    }
   } else {
     const defaultRom = getDefaultRom();
     sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);

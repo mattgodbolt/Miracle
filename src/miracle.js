@@ -2,7 +2,7 @@ import { SoundChip } from "./soundchip";
 import { SMS } from "./sms";
 import { showDebug, debugKeyPress } from "./debug";
 
-export const sms = new SMS();
+let sms;
 
 let running = false;
 
@@ -178,7 +178,8 @@ export function audio_enable(enable) {
   if (enable && audioContext) audioContext.resume();
 }
 
-export function miracle_init() {
+export function miracle_init(smsInstance) {
+  sms = smsInstance;
   canvas = document.getElementById("screen");
   ctx = canvas.getContext("2d");
   if (ctx.getImageData) {
