@@ -119,7 +119,12 @@ function audio_init() {
   }
 
   audioContext = new AudioCtx();
+  // Create soundChip immediately so audio_reset() works synchronously.
   soundChip = new SoundChip(audioContext.sampleRate, SMS.CPU_HZ);
+  // Use floor so we never request more samples than the soundchip has actually
+  // advanced (ceil would synthesise a phantom extra sample on non-integer rates
+  // and cause long-term pitch drift). A fractional accumulator would be ideal
+  // for exact rate matching but floor is safe and correct in practice.
   _samplesPerFrame = Math.floor(
     audioContext.sampleRate / SMS.FRAMES_PER_SECOND,
   );
@@ -132,7 +137,7 @@ function audio_init() {
     );
     audioContext.close();
     audioContext = null;
-    _samplesPerFrame = 0;
+    _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
     return;
   }
 
@@ -160,21 +165,31 @@ function audio_init() {
       if (audioContext) audioContext.close();
       audioContext = null;
       _audioNode = null;
-      _samplesPerFrame = 0;
+      _samplesPerFrame = 0; // Prevent audio_push_frame() doing work with no output
     });
 }
 
 function audio_push_frame() {
   if (!_samplesPerFrame) return;
   const buf = new Float32Array(_samplesPerFrame);
+  // Always drain the soundchip's internal buffer every frame, regardless of
+  // whether the worklet is ready yet. Skipping render() allows pending cycles
+  // to accumulate and overflow the soundchip's internal cap, causing desynced
+  // audio once the worklet eventually initialises.
   soundChip.render(buf, 0, buf.length);
+  // Only push to the worklet while the context is actually running and the
+  // node is ready. While suspended or still initialising we drain (above) but
+  // discard the samples — otherwise they'd queue up and cause latency on resume.
   if (_audioNode && audioContext && audioContext.state === "running") {
+    // Transfer the underlying ArrayBuffer to avoid a copy.
     _audioNode.port.postMessage({ buffer: buf }, [buf.buffer]);
   }
 }
 
 export function audio_enable(enable) {
   soundChip.enable(enable);
+  // Only resume the AudioContext when actually enabling audio; calling
+  // resume() while disabling would wrongly hide the suspended banner.
   if (enable && audioContext) audioContext.resume();
 }
 
@@ -188,6 +203,7 @@ export function miracle_init(smsInstance) {
     fb32 = new Uint32Array(fb8.buffer);
   } else {
     alert("Unsupported browser...");
+    // Unsupported....
   }
 
   audio_init();
@@ -195,6 +211,8 @@ export function miracle_init(smsInstance) {
   miracle_reset();
 
   // Scale the canvas to fill its container while maintaining the native aspect ratio.
+  // ResizeObserver fires whenever the container's size changes (initial layout,
+  // window resize, panel show/hide, etc.) — more reliable than a one-shot setTimeout.
   function resizeCanvas() {
     const border = parseInt(window.getComputedStyle(canvas).borderWidth) || 0;
     const container = canvas.parentElement;
@@ -223,6 +241,7 @@ export function miracle_init(smsInstance) {
 }
 
 export function miracle_reset() {
+  //inputMode = 7;
   sms.reset();
 }
 
