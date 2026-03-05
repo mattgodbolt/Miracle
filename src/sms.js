@@ -62,7 +62,7 @@ export class SMS {
     this.#z80_do_opcodes(cycleCallback);
     const vdpStatus = this.#vdp.hblank();
     this.#z80.setIrq(!!(vdpStatus & 3));
-    if (vdpStatus & 4) this.#paintScreen();
+    if (vdpStatus & 4 && !this.#breakpointHit) this.#paintScreen();
     return this.#breakpointHit;
   }
 
