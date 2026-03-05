@@ -1,7 +1,16 @@
 import { RomList } from "./roms";
 import { z80_init } from "./z80/z80.js";
-import { miracle_init, miracle_reset, start, stop } from "./miracle";
-import { bus } from "./bus";
+import { SMS } from "./sms";
+import {
+  miracle_init,
+  miracle_reset,
+  start,
+  stop,
+  audio_enable,
+  cycleCallback,
+} from "./miracle";
+
+const sms = new SMS();
 import { step, stepOver, stepOut, debug_init } from "./debug";
 
 function loadRomData(name) {
@@ -14,6 +23,14 @@ function loadRomData(name) {
   request.send(null);
   if (request.status !== 200) return [];
   return request.response;
+}
+
+function onRomLoaded(name) {
+  debug_init(name, sms, {
+    audioEnable: audio_enable,
+    cycleCallback: cycleCallback,
+    start: start,
+  });
 }
 
 function updateUrl(params) {
@@ -37,7 +54,7 @@ function sanitizeRomName(name) {
 
 function resetLoadAndStart(filename, romdata, urlParams) {
   miracle_reset();
-  bus.loadRom(filename, romdata, debug_init);
+  sms.loadRom(filename, romdata, onRomLoaded);
   hideRomChooser();
   start();
   updateUrl(urlParams ?? { load: filename });
@@ -148,27 +165,27 @@ function go() {
     .forEach((el) => el.addEventListener("click", () => showAbout()));
 
   z80_init();
-  miracle_init();
+  miracle_init(sms);
   miracle_reset();
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
     const name = parsedQuery["load"] || "uploaded.sms";
-    bus.loadRom(name, atob(parsedQuery["b64sms"]), debug_init);
+    sms.loadRom(name, atob(parsedQuery["b64sms"]), onRomLoaded);
     updateUrl({ b64sms: parsedQuery["b64sms"], load: name });
   } else if (parsedQuery["load"]) {
     const name = sanitizeRomName(parsedQuery["load"]);
     if (name) {
-      bus.loadRom(name, loadRomData(name), debug_init);
+      sms.loadRom(name, loadRomData(name), onRomLoaded);
       updateUrl({ load: name });
     } else {
       // Unknown/invalid ROM name — fall through to default
       const defaultRom = getDefaultRom();
-      bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
+      sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);
     }
   } else {
     const defaultRom = getDefaultRom();
-    bus.loadRom(defaultRom, loadRomData(defaultRom), debug_init);
+    sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);
   }
 
   start();

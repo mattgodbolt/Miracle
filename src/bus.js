@@ -1,6 +1,6 @@
 import { hexbyte, hexword } from "./utils";
 
-class Bus {
+export class Bus {
   #ram = new Uint8Array(0x2000);
   #cartridgeRam = new Uint8Array(0x8000);
   #romBanks = [];
@@ -247,24 +247,4 @@ class Bus {
         break;
     }
   }
-}
-
-export const bus = new Bus();
-
-// Convenience re-exports so callers that import bare functions (z80.js,
-// z80_ops.js, z80_dis.js, debug.js) only need to change their import path.
-export function readbyte(a) {
-  return bus.readbyte(a);
-}
-export function writebyte(a, v) {
-  bus.writebyte(a, v);
-}
-export function readport(a) {
-  return bus.readport(a);
-}
-export function writeport(a, v) {
-  bus.writeport(a, v);
-}
-export function virtualAddress(a) {
-  return bus.virtualAddress(a);
 }

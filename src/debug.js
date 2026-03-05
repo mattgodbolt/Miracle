@@ -1,20 +1,30 @@
 import { hexbyte, hexword } from "./utils";
-import { bus, readbyte, virtualAddress } from "./bus";
-import {
-  clearBreakpoint,
-  audio_enable,
-  cycleCallback,
-  start,
-  z80_do_opcodes,
-} from "./miracle";
-import { z80 } from "./z80/z80.js";
-import { disassemble } from "./z80/z80_dis";
-import { vdp } from "./vdp";
+import { makeDisassembler } from "./z80/z80_dis";
+
+// Module-level refs — set during debug_init from the SMS instance + callbacks.
+let z80, bus, vdp;
+let sms;
+let disassemble;
+let _audioEnable, _cycleCallback, _start;
 
 let debugSerial = 0;
 let annotations = null;
 
-export function debug_init(romName) {
+export function debug_init(romName, smsInstance, callbacks) {
+  sms = smsInstance;
+  z80 = sms.getZ80();
+  bus = sms.getBus();
+  vdp = sms.getVdp();
+  _audioEnable = callbacks.audioEnable;
+  _cycleCallback = callbacks.cycleCallback;
+  _start = callbacks.start;
+
+  const { disassemble: dis } = makeDisassembler(
+    (a) => bus.readbyte(a),
+    addressHtml,
+  );
+  disassemble = dis;
+
   debugSerial = (bus.romBanks[1][0x3ffc] << 8) | bus.romBanks[1][0x3ffd];
 
   if (!localStorage[debugSerial]) {
@@ -44,7 +54,7 @@ export function debug_init(romName) {
 // }
 
 function addressName(addr) {
-  const virtual = virtualAddress(addr);
+  const virtual = bus.virtualAddress(addr);
   if (annotations.labels[virtual]) {
     return (
       '<span class="addr label" title="' +
@@ -78,7 +88,7 @@ function labelHtml(addr) {
 // TODO(#18) reinstate
 // function endLabelEdit(content) {
 //   var addr = this.getAttribute("title") || content.previous;
-//   var virtual = virtualAddress(parseInt(addr, 16));
+//   var virtual = bus.virtualAddress(parseInt(addr, 16));
 //   setLabel(virtual, content.current);
 // }
 
@@ -92,7 +102,7 @@ function updateDisassembly(address) {
     let hex = "";
     for (let i = address; i < result[1]; ++i) {
       if (hex !== "") hex += " ";
-      hex += hexbyte(readbyte(i));
+      hex += hexbyte(bus.readbyte(i));
     }
     child.querySelector(".dis_addr").innerHTML = labelHtml(address);
     child.classList.toggle("current", address === z80.pc);
@@ -190,16 +200,16 @@ function updateDebug(pcOrNone) {
 }
 
 export function stepUntil(f) {
-  audio_enable(true);
-  clearBreakpoint();
+  _audioEnable(true);
+  sms.clearBreakpoint();
   for (let i = 0; i < 65536; i++) {
     z80.tstates = 0;
     z80.eventNextEvent = 1;
-    z80_do_opcodes(cycleCallback);
+    sms.execOpcodes(_cycleCallback);
     if (f()) break;
   }
   showDebug(z80.pc);
-  audio_enable(false);
+  _audioEnable(false);
 }
 
 export function step() {
@@ -267,7 +277,7 @@ export function debugKeyPress(key) {
       stepOut();
       break;
     case "g":
-      start();
+      _start();
       break;
   }
   return true;

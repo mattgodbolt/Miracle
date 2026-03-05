@@ -2,9 +2,6 @@
 // referenced from the opcode code inlined by the @z80-generate transform.
 /* eslint-disable no-unused-vars */
 import {
-  z80_instruction_hook,
-  z80_set_irq,
-  z80_interrupt,
   halfcarry_add_table,
   halfcarry_sub_table,
   overflow_add_table,
@@ -121,7 +118,7 @@ export function makeZ80Runner(z80) {
           z80.irq_suppress = false;
         } else {
           z80.irq_suppress = true;
-          z80_interrupt();
+          z80.interrupt();
         }
       }
 
@@ -129,7 +126,7 @@ export function makeZ80Runner(z80) {
       addTstates(4);
       z80.r = (z80.r + 1) & 0x7f;
       const opcode = readbyte(z80.pc);
-      z80_instruction_hook(z80.pc, opcode);
+      z80.instructionHook(z80.pc, opcode);
       z80.pc = (z80.pc + 1) & 0xffff;
 
       z80BaseOps[opcode]();
