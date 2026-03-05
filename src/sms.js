@@ -76,6 +76,7 @@ export class SMS {
   }
 
   nmi() {
+    if (!this.#initialized) return;
     this.#z80.nmi();
   }
 
