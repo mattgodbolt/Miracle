@@ -68,4 +68,12 @@ describe("VDP", () => {
     renderFirstLine();
     expect(fb32[100]).toBe(SpriteColour);
   });
+
+  it("shows sprites through colour 0 of a priority tile using the second palette", () => {
+    writePalette(16, 0x30);
+    writeVram(0x3800 + 12 * 2, [0, 0x18]);
+    placeSprite(1, 100);
+    renderFirstLine();
+    expect(fb32[100]).toBe(SpriteColour);
+  });
 });
