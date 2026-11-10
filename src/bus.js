@@ -6,7 +6,7 @@ export class Bus {
   #romBanks = [];
   #pages = new Uint8Array(3);
   #ramSelectRegister = 0;
-  #romPageMask = 0;
+  #numRomBanks = 1;
   #joystick = 0xffff;
   #vdp = null;
   #soundChip = null;
@@ -48,7 +48,7 @@ export class Bus {
       console.warn("loadRom: empty ROM, nothing to load");
       this.#romBanks.length = 0;
       this.#pages.fill(0);
-      this.#romPageMask = 0;
+      this.#numRomBanks = 1;
       return;
     }
     const numRomBanks = Math.floor(rom.length / 0x4000);
@@ -64,7 +64,7 @@ export class Bus {
     for (i = 0; i < 3; i++) {
       this.#pages[i] = i % numRomBanks;
     }
-    this.#romPageMask = (numRomBanks - 1) | 0;
+    this.#numRomBanks = numRomBanks;
     if (numRomBanks >= 2) {
       if (onLoaded) onLoaded(name);
     } else {
@@ -150,15 +150,15 @@ export class Bus {
           this.#ramSelectRegister = value;
           break;
         case 0xfffd:
-          value &= this.#romPageMask;
+          value %= this.#numRomBanks;
           this.#pages[0] = value;
           break;
         case 0xfffe:
-          value &= this.#romPageMask;
+          value %= this.#numRomBanks;
           this.#pages[1] = value;
           break;
         case 0xffff:
-          value &= this.#romPageMask;
+          value %= this.#numRomBanks;
           this.#pages[2] = value;
           break;
         default:
