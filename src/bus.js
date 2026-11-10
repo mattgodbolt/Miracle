@@ -51,14 +51,18 @@ export class Bus {
       this.#romPageMask = 0;
       return;
     }
-    const numRomBanks = Math.floor(rom.length / 0x4000);
+    // Cartridge ROMs are power-of-two sized; anything missing reads as 0xff.
+    const numRomBanks =
+      2 ** Math.ceil(Math.log2(Math.ceil(rom.length / 0x4000)));
     let i;
     console.log("Loading rom of " + numRomBanks + " banks");
     this.#romBanks.length = 0;
     for (i = 0; i < numRomBanks; i++) {
-      this.#romBanks[i] = new Uint8Array(0x4000);
-      for (let j = 0; j < 0x4000; j++) {
-        this.#romBanks[i][j] = rom.charCodeAt(i * 0x4000 + j);
+      this.#romBanks[i] = new Uint8Array(0x4000).fill(0xff);
+      const start = i * 0x4000;
+      const end = Math.min(rom.length, start + 0x4000);
+      for (let j = start; j < end; j++) {
+        this.#romBanks[i][j - start] = rom.charCodeAt(j);
       }
     }
     for (i = 0; i < 3; i++) {
