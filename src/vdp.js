@@ -344,12 +344,13 @@ export class VDP {
     }
     const paletteOffset = tileData & (1 << 11) ? 16 : 0;
     let index;
-    if (transparent && paletteOffset === 0) {
+    if (transparent) {
       for (i = 0; i < 8; i++) {
         index = this.#vramUntwiddled[tileDef];
         tileDef += tileDefInc;
         if (index !== 0)
-          this.#fb32[lineAddr + pixelOffset] = this.#paletteRGB[index];
+          this.#fb32[lineAddr + pixelOffset] =
+            this.#paletteRGB[index + paletteOffset];
         pixelOffset = (pixelOffset + 1) & 255;
       }
     } else {
