@@ -63,6 +63,7 @@ function run() {
   lastFrame = now;
   setTimeout(run, adjustedTimeout);
 
+  pollGamepad();
   try {
     for (let i = 0; i < SMS.SCAN_LINES_PER_FRAME && running; i++) line();
   } catch (e) {
@@ -263,6 +264,33 @@ const keys = {
 
   82: 1 << 12, // R for reset button
 };
+
+const GamepadAxisThreshold = 0.5;
+const GamepadStartButton = 9;
+let gamepadState = 0;
+let gamepadStartDown = false;
+
+// Standard-mapping gamepad: d-pad or left stick to directions, face buttons to
+// fire, start to pause. Only changes are applied so the keyboard still works.
+function pollGamepad() {
+  const pad = navigator.getGamepads?.().find((p) => p?.mapping === "standard");
+  let state = 0;
+  if (pad) {
+    const pressed = (i) => !!pad.buttons[i]?.pressed;
+    if (pressed(12) || pad.axes[1] < -GamepadAxisThreshold) state |= 1;
+    if (pressed(13) || pad.axes[1] > GamepadAxisThreshold) state |= 2;
+    if (pressed(14) || pad.axes[0] < -GamepadAxisThreshold) state |= 4;
+    if (pressed(15) || pad.axes[0] > GamepadAxisThreshold) state |= 8;
+    if (pressed(0) || pressed(2)) state |= 16;
+    if (pressed(1) || pressed(3)) state |= 32;
+  }
+  const startDown = !!pad?.buttons[GamepadStartButton]?.pressed;
+  if (startDown && !gamepadStartDown) sms.nmi();
+  gamepadStartDown = startDown;
+  const changed = state ^ gamepadState;
+  sms.joystick = (sms.joystick | (changed & gamepadState)) & ~(changed & state);
+  gamepadState = state;
+}
 
 function keyCode(evt) {
   return evt.which || evt.charCode || evt.keyCode;
