@@ -6,7 +6,6 @@ import { VDP } from "../src/vdp";
 
 const FirstDisplayLine = 70;
 const SpriteColour = 0xff0000ff; // palette entry 17 = 0x03 (red)
-const BackdropColour = 0xff000000;
 
 describe("VDP", () => {
   let vdp;
