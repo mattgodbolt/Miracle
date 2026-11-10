@@ -6,6 +6,7 @@ import { VDP } from "../src/vdp";
 
 const FirstDisplayLine = 70;
 const SpriteColour = 0xff0000ff; // palette entry 17 = 0x03 (red)
+const BackdropColour = 0xff000000;
 
 describe("VDP", () => {
   let vdp;
@@ -49,6 +50,15 @@ describe("VDP", () => {
     setReg(1, 0x40);
     writePalette(0, 0x00);
     writePalette(17, 0x03);
+  });
+
+  it("does not scroll sprites when horizontal scroll is locked on the top rows", () => {
+    setReg(0, 0x40);
+    setReg(8, 16);
+    placeSprite(1, 100);
+    renderFirstLine();
+    expect(fb32[100]).toBe(SpriteColour);
+    expect(fb32[84]).toBe(BackdropColour);
   });
 
   it("ignores bit 0 of the tile number for 8x16 sprites", () => {

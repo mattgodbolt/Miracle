@@ -189,7 +189,7 @@ export class SoundChip {
   }
 
   reset() {
-    for (let i = 0; i < 3; ++i) {
+    for (let i = 0; i < 4; ++i) {
       this.#counter[i] = this.volume[i] = this.#register[i] = 0;
     }
     this.#noisePoked();
