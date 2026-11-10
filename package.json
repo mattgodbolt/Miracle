@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "prepare": "husky",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -23,10 +24,10 @@
     "vitest": "^4.1.12"
   },
   "lint-staged": {
-    "*.js": [
+    "*.{js,mjs}": [
       "eslint",
       "prettier --write"
     ],
-    "!(*.js)": "prettier --write --ignore-unknown"
+    "!(*.{js,mjs})": "prettier --write --ignore-unknown"
   }
 }

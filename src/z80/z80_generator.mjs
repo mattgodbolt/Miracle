@@ -117,10 +117,7 @@ const JP_BODY =
  * so there is no length-based dispatch needed here.
  */
 function arithmetic_logical(opcode, arg1, arg2) {
-  if (!arg2) {
-    arg2 = arg1;
-    arg1 = "A";
-  }
+  if (!arg2) arg2 = arg1;
 
   const method = opcode.toLowerCase();
   if (arg2.length === 1 || /^REGISTER[HL]$/.test(arg2)) {
@@ -334,10 +331,7 @@ const opcodes = {
 
   // JR/DJNZ — logic (including fetchByte and sign_extend) lives in z80.js
   JR(condition, offset) {
-    if (offset === undefined) {
-      offset = condition;
-      condition = "";
-    }
+    if (offset === undefined) condition = "";
     const taken = condition ? condExpr(condition) : "true";
     print(`      z80.jr(${taken});\n`);
   },
