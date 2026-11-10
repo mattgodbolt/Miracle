@@ -463,9 +463,8 @@ export class VDP {
     }
   }
 
-  #rasterize_sprites(line, lineAddr, pixelOffset, sprites) {
+  #rasterize_sprites(line, lineAddr, sprites) {
     lineAddr = lineAddr | 0;
-    pixelOffset = pixelOffset | 0;
     const spriteBase = this.vdp_regs[6] & 4 ? 0x2000 : 0;
     // TODO: sprite X-8 shift
     // TODO: sprite double size
@@ -499,8 +498,7 @@ export class VDP {
           this.#vdp_status |= 0x20;
           break;
         }
-        this.#fb32[lineAddr + ((pixelOffset + i - this.vdp_regs[8]) & 0xff)] =
-          this.#paletteRGB[16 + index];
+        this.#fb32[lineAddr + i] = this.#paletteRGB[16 + index];
         writtenTo = true;
       }
       if (!spriteFoundThisX && minDistToNext > 1) {
@@ -539,8 +537,7 @@ export class VDP {
     const yMod = effectiveLine & 7;
 
     this.#rasterize_background_line(lineAddr, pixelOffset, nameAddr, yMod);
-    if (sprites.length)
-      this.#rasterize_sprites(line, lineAddr, pixelOffset, sprites);
+    if (sprites.length) this.#rasterize_sprites(line, lineAddr, sprites);
     this.#rasterize_foreground_line(lineAddr, pixelOffset, nameAddr, yMod);
 
     if (this.vdp_regs[0] & (1 << 5)) {
