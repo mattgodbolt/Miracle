@@ -61,6 +61,14 @@ describe("VDP", () => {
     expect(fb32[84]).toBe(BackdropColour);
   });
 
+  it("ignores bit 0 of the tile number for 8x16 sprites", () => {
+    setReg(1, 0x42);
+    placeSprite(2, 100);
+    writeVram(0x3f80, [100, 3]);
+    renderFirstLine();
+    expect(fb32[100]).toBe(SpriteColour);
+  });
+
   it("shows sprites through colour 0 of a priority tile using the second palette", () => {
     writePalette(16, 0x30);
     writeVram(0x3800 + 12 * 2, [0, 0x18]);
