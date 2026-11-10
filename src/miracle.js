@@ -267,29 +267,37 @@ const keys = {
 
 const GamepadAxisThreshold = 0.5;
 const GamepadStartButton = 9;
+const ControlBits = 0x103f; // Directions, both fire buttons and reset.
+let keyboardState = 0;
 let gamepadState = 0;
 let gamepadStartDown = false;
 
+// The joystick bits are active low; both input sources are held in separate
+// masks so that releasing one never releases a control the other still holds.
+function updateJoystick() {
+  const held = keyboardState | gamepadState;
+  sms.joystick = (sms.joystick & ~ControlBits) | (~held & ControlBits);
+}
+
 // Standard-mapping gamepad: d-pad or left stick to directions, face buttons to
-// fire, start to pause. Only changes are applied so the keyboard still works.
+// fire, start to pause.
 function pollGamepad() {
-  const pad = navigator.getGamepads?.().find((p) => p?.mapping === "standard");
-  let state = 0;
+  const pads = navigator.getGamepads?.() ?? [];
+  const pad = Array.from(pads).find((p) => p?.mapping === "standard");
+  gamepadState = 0;
   if (pad) {
     const pressed = (i) => !!pad.buttons[i]?.pressed;
-    if (pressed(12) || pad.axes[1] < -GamepadAxisThreshold) state |= 1;
-    if (pressed(13) || pad.axes[1] > GamepadAxisThreshold) state |= 2;
-    if (pressed(14) || pad.axes[0] < -GamepadAxisThreshold) state |= 4;
-    if (pressed(15) || pad.axes[0] > GamepadAxisThreshold) state |= 8;
-    if (pressed(0) || pressed(2)) state |= 16;
-    if (pressed(1) || pressed(3)) state |= 32;
+    if (pressed(12) || pad.axes[1] < -GamepadAxisThreshold) gamepadState |= 1;
+    if (pressed(13) || pad.axes[1] > GamepadAxisThreshold) gamepadState |= 2;
+    if (pressed(14) || pad.axes[0] < -GamepadAxisThreshold) gamepadState |= 4;
+    if (pressed(15) || pad.axes[0] > GamepadAxisThreshold) gamepadState |= 8;
+    if (pressed(0) || pressed(2)) gamepadState |= 16;
+    if (pressed(1) || pressed(3)) gamepadState |= 32;
   }
   const startDown = !!pad?.buttons[GamepadStartButton]?.pressed;
   if (startDown && !gamepadStartDown) sms.nmi();
   gamepadStartDown = startDown;
-  const changed = state ^ gamepadState;
-  sms.joystick = (sms.joystick | (changed & gamepadState)) & ~(changed & state);
-  gamepadState = state;
+  updateJoystick();
 }
 
 function keyCode(evt) {
@@ -300,7 +308,8 @@ function keyDown(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    sms.joystick &= ~key;
+    keyboardState |= key;
+    updateJoystick();
     if (!evt.metaKey) {
       evt.preventDefault();
       return;
@@ -321,7 +330,8 @@ function keyUp(evt) {
   if (!running) return;
   const key = keys[keyCode(evt)];
   if (key) {
-    sms.joystick |= key;
+    keyboardState &= ~key;
+    updateJoystick();
     if (!evt.metaKey) {
       evt.preventDefault();
     }
