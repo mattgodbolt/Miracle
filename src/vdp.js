@@ -233,9 +233,11 @@ export class VDP {
     const spriteInfo = (this.vdp_regs[5] & 0x7e) << 7;
     const active = [];
     let spriteHeight = 8;
+    let tileMask = 0xff;
     let i;
     if (this.vdp_regs[1] & 2) {
       spriteHeight = 16;
+      tileMask = 0xfe;
     }
     for (i = 0; i < 64; i++) {
       let y = this.#vram[spriteInfo + i];
@@ -250,7 +252,7 @@ export class VDP {
         }
         active.push([
           this.#vram[spriteInfo + 128 + i * 2],
-          this.#vram[spriteInfo + 128 + i * 2 + 1],
+          this.#vram[spriteInfo + 128 + i * 2 + 1] & tileMask,
           y,
         ]);
       }
