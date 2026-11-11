@@ -52,7 +52,7 @@ jobs:
       - name: Unpack existing ROMs
         run: |
           cd public
-          curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
+          curl -fsSL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
       - name: Build distribution
         run: |
           npm ci
@@ -68,13 +68,17 @@ jobs:
           else
             echo "::notice::Not deploying: main has moved on to $tip, whose own run deploys it if its tests pass"
           fi
-      - uses: jakejarvis/s3-sync-action@master
+      - name: Deploy to S3
         if: steps.newest.outputs.deploy == 'true'
-        with:
-          args: --cache-control max-age=30 --metadata-directive REPLACE
         env:
-          AWS_REGION: us-east-2
-          AWS_S3_BUCKET: miracle.xania.org
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          SOURCE_DIR: dist
+          AWS_REGION: us-east-2
+        run: |
+          # Names under assets/ contain a content hash. Upload before the html that names them.
+          aws s3 sync dist/assets s3://miracle.xania.org/assets \
+            --no-progress \
+            --cache-control "max-age=31536000,immutable" --metadata-directive REPLACE
+          aws s3 sync dist s3://miracle.xania.org \
+            --no-progress --exclude "assets/*" \
+            --cache-control max-age=30 --metadata-directive REPLACE
