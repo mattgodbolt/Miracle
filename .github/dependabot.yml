@@ -1,6 +1,21 @@
 version: 2
 
 updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      # One PR for the routine churn, rather than one per package.
+      npm-minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+    commit-message:
+      prefix: "build(deps)"
+      prefix-development: "build(deps-dev)"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
