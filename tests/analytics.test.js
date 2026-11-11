@@ -1,3 +1,4 @@
+import vm from "node:vm";
 import { describe, it, expect } from "vitest";
 import { analyticsPlugin } from "../tools/vite-plugin-analytics.js";
 
@@ -28,13 +29,19 @@ describe("analyticsPlugin", () => {
     expect(tags[1].children).toContain('gtag("config", "G-TEST123");');
   });
 
-  it("escapes the id in both the url and the script", () => {
-    const [loader, setup] =
-      analyticsPlugin('G-A&B"</script>').transformIndexHtml(Html).tags;
+  it("keeps an awkward id inside its string, in the url and in the script", () => {
+    const id = 'G-A&B"</script><!--\u2028';
+    const [loader, setup] = analyticsPlugin(id).transformIndexHtml(Html).tags;
 
     expect(loader.attrs.src).toBe(
-      "https://www.googletagmanager.com/gtag/js?id=G-A%26B%22%3C%2Fscript%3E",
+      `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`,
     );
-    expect(setup.children).toContain('gtag("config", "G-A&B\\"</script>");');
+    // Nothing in the script can end its element or start an HTML comment...
+    expect(setup.children).not.toContain("<");
+    // ...and it still says the id: run it and read the config call back.
+    const page = {};
+    page.window = page;
+    vm.runInNewContext(setup.children, page);
+    expect(Array.from(page.dataLayer[1])).toEqual(["config", id]);
   });
 });

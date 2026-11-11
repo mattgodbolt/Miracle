@@ -1,3 +1,7 @@
+// A JavaScript string for use inside an inline <script>: "<" is escaped too, so
+// nothing in the value can close the element or open an HTML comment.
+const scriptString = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
+
 const gtagTags = (measurementId) => [
   {
     tag: "script",
@@ -14,7 +18,7 @@ function gtag() {
   dataLayer.push(arguments);
 }
 gtag("js", new Date());
-gtag("config", ${JSON.stringify(measurementId)});`,
+gtag("config", ${scriptString(measurementId)});`,
     injectTo: "head-prepend",
   },
 ];
