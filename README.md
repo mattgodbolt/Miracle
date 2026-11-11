@@ -20,6 +20,11 @@ npm test         # run the FUSE Z80 CPU test suite
 The dev server watches all source files — including the Z80 opcode `.dat`
 definitions and `.jscpp` templates — and rebuilds automatically on change.
 
+Google Analytics is only on the deployed site: the deploy job builds with
+`GA_MEASUREMENT_ID` set from the repository variable of that name, and every
+other build (`npm run dev`, a clone's own build, the tests) has no analytics on
+the page and sends nothing.
+
 ### Z80 emulation
 
 Z80 emulation and tests are based on rev 1071 of http://svn.matt.west.co.tt/svn/jsspec/trunk

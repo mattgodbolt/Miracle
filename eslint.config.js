@@ -15,5 +15,9 @@ export default [
       "prefer-const": ["error"],
     },
   },
+  {
+    files: ["vite.config.js"],
+    languageOptions: { globals: globals.node },
+  },
   eslintConfigPrettier,
 ];
