@@ -53,9 +53,9 @@ export class VDP {
       this.#paletteR[i] =
         this.#paletteG[i] =
         this.#paletteB[i] =
-        this.#paletteRGB[i] =
         this.#palette[i] =
           0;
+      this.#paletteRGB[i] = 0xff000000;
     }
     for (let i = 0; i < 16; i++) {
       this.vdp_regs[i] = 0;
