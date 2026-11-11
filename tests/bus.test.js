@@ -43,3 +43,19 @@ describe("Bus ROM paging", () => {
     expect(bus.readbyte(address)).toBe(expected);
   });
 });
+
+describe("Bus pages after reset", () => {
+  const Page2Base = 0x8000;
+  const DataOffset = 0x500;
+
+  it.each([1, 2, 4])(
+    "with a %i bank ROM, reset maps only banks that exist",
+    (banks) => {
+      const bus = makeBus(banks * BankSize);
+      bus.reset();
+      expect([...bus.pages].every((page) => page < banks)).toBe(true);
+      for (const base of [0, Page1Base, Page2Base])
+        expect(() => bus.readbyte(base + DataOffset)).not.toThrow();
+    },
+  );
+});

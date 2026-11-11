@@ -38,7 +38,7 @@ export class Bus {
       this.#cartridgeRam[i] = 0;
     }
     for (let i = 0; i < 3; i++) {
-      this.#pages[i] = i;
+      this.#pages[i] = i & this.#romPageMask;
     }
     this.#ramSelectRegister = 0;
   }
