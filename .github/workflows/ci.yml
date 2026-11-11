@@ -39,6 +39,10 @@ jobs:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    concurrency:
+      group: deploy-web
+      cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -53,8 +57,19 @@ jobs:
         run: |
           npm ci
           npm run build
-          rm -rf .git
+      # Test runs finish out of order, so an older commit can reach the deploy after a newer one.
+      - name: Check this is still the newest commit on main
+        id: newest
+        run: |
+          tip=$(git ls-remote --exit-code origin refs/heads/main)
+          tip=${tip%%[[:space:]]*}
+          if [ "$tip" = "$GITHUB_SHA" ]; then
+            echo deploy=true >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Not deploying: main has moved on to $tip, whose own run deploys it if its tests pass"
+          fi
       - uses: jakejarvis/s3-sync-action@master
+        if: steps.newest.outputs.deploy == 'true'
         with:
           args: --cache-control max-age=30 --metadata-directive REPLACE
         env:
