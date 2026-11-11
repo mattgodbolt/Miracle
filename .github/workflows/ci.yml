@@ -9,9 +9,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: "npm"
@@ -24,3 +24,32 @@ jobs:
 
       - name: Run FUSE Z80 tests
         run: npm test
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Unpack existing ROMs
+        run: |
+          cd public
+          curl -sL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
+      - name: Build distribution
+        run: |
+          npm ci
+          npm run build
+          rm -rf .git
+      - uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --cache-control max-age=30 --metadata-directive REPLACE
+        env:
+          AWS_REGION: us-east-2
+          AWS_S3_BUCKET: miracle.xania.org
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SOURCE_DIR: dist
