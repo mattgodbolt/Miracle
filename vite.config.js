@@ -3,6 +3,7 @@
 import path from "path";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
+import { analyticsPlugin } from "./tools/vite-plugin-analytics.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const z80Dir = path.join(__dirname, "src/z80");
@@ -170,5 +171,9 @@ function romsPlugin() {
 // ---------------------------------------------------------------------------
 
 export default {
-  plugins: [z80CodegenPlugin(), romsPlugin()],
+  plugins: [
+    z80CodegenPlugin(),
+    romsPlugin(),
+    analyticsPlugin(process.env.GA_MEASUREMENT_ID),
+  ],
 };

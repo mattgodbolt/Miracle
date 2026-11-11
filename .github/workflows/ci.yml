@@ -54,6 +54,8 @@ jobs:
           cd public
           curl -fsSL https://miracle.xania.org/miracle-roms.tar.gz | tar zx
       - name: Build distribution
+        env:
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
         run: |
           npm ci
           npm run build
