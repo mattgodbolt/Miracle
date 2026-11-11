@@ -50,8 +50,29 @@ export class SMS {
     this.#soundChip?.reset();
   }
 
+  snapshotState() {
+    return {
+      z80: this.#z80.snapshotState(),
+      bus: this.#bus.snapshotState(),
+      vdp: this.#vdp.snapshotState(),
+      sound: this.#soundChip?.snapshotState() ?? null,
+    };
+  }
+
+  restoreState(state) {
+    this.#z80.restoreState(state.z80);
+    this.#bus.restoreState(state.bus);
+    this.#vdp.restoreState(state.vdp);
+    if (state.sound) this.#soundChip?.restoreState(state.sound);
+    this.clearBreakpoint();
+  }
+
   loadRom(name, data, onLoaded) {
     this.#bus.loadRom(name, data, onLoaded);
+  }
+
+  get romIdentity() {
+    return this.#bus.romIdentity;
   }
 
   // Run one scanline. Returns true if a breakpoint was hit.

@@ -197,6 +197,35 @@ export class SoundChip {
     this.#cyclesPending = 0;
   }
 
+  // Sound only advances when rendered, so timing is best-effort: the audio
+  // buffer and pending cycles are flushed on restore rather than saved.
+  snapshotState() {
+    return {
+      registers: Array.from(this.#register),
+      counter: Array.from(this.#counter),
+      outputBit: Array.from(this.#outputBit),
+      volumeIndex: Array.from(this.volume, (v) => VOLUME_TABLE.indexOf(v)),
+      lfsr: this.#lfsr,
+      whiteNoise: this.#useWhiteNoise,
+      latchedChannel: this.#latchedChannel,
+      residual: this.#residual,
+    };
+  }
+
+  restoreState(state) {
+    this.#register.set(state.registers);
+    this.#counter.set(state.counter);
+    this.#outputBit.set(state.outputBit);
+    for (let i = 0; i < 4; ++i)
+      this.volume[i] = VOLUME_TABLE[state.volumeIndex[i]];
+    this.#lfsr = state.lfsr;
+    this.#useWhiteNoise = state.whiteNoise;
+    this.#latchedChannel = state.latchedChannel;
+    this.#residual = state.residual;
+    this.#position = 0;
+    this.#cyclesPending = 0;
+  }
+
   enable(e) {
     this.#enabled = e;
   }
