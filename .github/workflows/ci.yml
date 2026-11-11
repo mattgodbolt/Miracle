@@ -1,5 +1,8 @@
 name: CI
 
+# push covers same-repo branches (a PR here opens moments after the push);
+# pull_request exists for forks, so the job guard skips same-repo PR events
+# to avoid running everything twice.
 on:
   push:
     branches: ["**"]
@@ -7,6 +10,7 @@ on:
 
 jobs:
   test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
