@@ -54,6 +54,10 @@ export class SMS {
     this.#bus.loadRom(name, data, onLoaded);
   }
 
+  get romIdentity() {
+    return this.#bus.romIdentity;
+  }
+
   // Run one scanline. Returns true if a breakpoint was hit.
   runLine(cycleCallback) {
     if (!this.#initialized) return false;

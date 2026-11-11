@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Bus } from "../src/bus.js";
+import { crc32 } from "../src/crc32.js";
 
 const BankSize = 0x4000;
 const Page1Register = 0xfffe;
@@ -58,4 +59,24 @@ describe("Bus pages after reset", () => {
         expect(() => bus.readbyte(base + DataOffset)).not.toThrow();
     },
   );
+});
+
+describe("Bus ROM identity", () => {
+  it("covers the exact bytes handed to loadRom, not the padding", () => {
+    const rom = "\x01\x02\x03".repeat(BankSize);
+    const bus = new Bus();
+    bus.loadRom("three.sms", rom);
+    expect(bus.romIdentity).toEqual({
+      crc32: crc32(rom),
+      size: 3 * BankSize,
+      name: "three.sms",
+    });
+  });
+
+  it("is size 0 and crc32 0 for an empty ROM, replacing the previous ROM's", () => {
+    const bus = new Bus();
+    bus.loadRom("a.sms", "abc".repeat(BankSize));
+    bus.loadRom("empty.sms", "");
+    expect(bus.romIdentity).toEqual({ crc32: 0, size: 0, name: "empty.sms" });
+  });
 });
