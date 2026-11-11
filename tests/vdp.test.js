@@ -76,4 +76,15 @@ describe("VDP", () => {
     renderFirstLine();
     expect(fb32[100]).toBe(SpriteColour);
   });
+
+  it.each([
+    ["never written", false],
+    ["written as black", true],
+  ])("draws a palette entry %s as opaque black", (_, written) => {
+    writeVram(32, [0xff]);
+    writeVram(0x3800, [1, 0]);
+    if (written) writePalette(1, 0x00);
+    renderFirstLine();
+    expect(fb32[0]).toBe(BackdropColour);
+  });
 });
