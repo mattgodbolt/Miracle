@@ -50,6 +50,27 @@ export class Bus {
     this.#ramSelectRegister = 0;
   }
 
+  snapshotState() {
+    return {
+      ramSelect: this.#ramSelectRegister,
+      pages: Array.from(this.#pages),
+      joystick: this.#joystick,
+      ram: this.#ram.slice(),
+      cartridgeRam: this.#cartridgeRam.slice(),
+    };
+  }
+
+  restoreState(state) {
+    this.#ramSelectRegister = state.ramSelect;
+    // Masked as a write to the page register would be, so that a state saved
+    // against a bigger ROM cannot point past the banks loaded here.
+    for (let i = 0; i < 3; i++)
+      this.#pages[i] = state.pages[i] & this.#romPageMask;
+    this.#joystick = state.joystick;
+    this.#ram.set(state.ram);
+    this.#cartridgeRam.set(state.cartridgeRam);
+  }
+
   loadRom(name, rom, onLoaded) {
     this.#romIdentity = Object.freeze({
       crc32: crc32(rom),

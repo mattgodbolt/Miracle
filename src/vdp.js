@@ -73,6 +73,40 @@ export class VDP {
     this.#vdp_mode_select = 0;
   }
 
+  snapshotState() {
+    return {
+      regs: Array.from(this.vdp_regs),
+      addrState: this.#vdp_addr_state,
+      modeSelect: this.#vdp_mode_select,
+      addrLatch: this.#vdp_addr_latch,
+      addr: this.#vdp_addr,
+      currentLine: this.#vdp_current_line,
+      status: this.#vdp_status,
+      pendingHblank: this.#vdp_pending_hblank,
+      hblankCounter: this.#vdp_hblank_counter,
+      vram: this.#vram.slice(),
+      cram: this.#palette.slice(),
+    };
+  }
+
+  restoreState(state) {
+    this.vdp_regs.set(state.regs);
+    this.#vdp_addr_state = state.addrState;
+    this.#vdp_mode_select = state.modeSelect;
+    this.#vdp_addr_latch = state.addrLatch;
+    this.#vdp_addr = state.addr;
+    this.#vdp_current_line = state.currentLine;
+    this.#vdp_status = state.status;
+    this.#vdp_pending_hblank = state.pendingHblank;
+    this.#vdp_hblank_counter = state.hblankCounter;
+    this.#vram.set(state.vram);
+    for (let i = 0; i < this.#palette.length; i++)
+      this.#setPaletteEntry(i, state.cram[i]);
+    for (let base = 0; base < this.#vram.length; base += 4)
+      this.#untwiddle(base);
+    this.#update_border();
+  }
+
   // -------------------------------------------------------------------------
   // Address / register writes
   // -------------------------------------------------------------------------
@@ -111,7 +145,7 @@ export class VDP {
   // VRAM / palette read-write
   // -------------------------------------------------------------------------
 
-  #writepalette(val) {
+  #setPaletteEntry(index, val) {
     function expandBits(val) {
       let v = val & 3;
       v |= v << 2;
@@ -122,19 +156,27 @@ export class VDP {
     const r = expandBits(val);
     const g = expandBits(val >>> 2);
     const b = expandBits(val >>> 4);
-    const pal_addr = this.#vdp_addr & 0x1f;
-    this.#paletteR[pal_addr] = r;
-    this.#paletteG[pal_addr] = g;
-    this.#paletteB[pal_addr] = b;
-    this.#paletteRGB[pal_addr] = 0xff000000 | (b << 16) | (g << 8) | r;
-    this.#palette[pal_addr] = val;
+    this.#paletteR[index] = r;
+    this.#paletteG[index] = g;
+    this.#paletteB[index] = b;
+    this.#paletteRGB[index] = 0xff000000 | (b << 16) | (g << 8) | r;
+    this.#palette[index] = val;
+  }
+
+  #writepalette(val) {
+    this.#setPaletteEntry(this.#vdp_addr & 0x1f, val);
     this.#vdp_addr = (this.#vdp_addr + 1) & 0x3fff;
     this.#update_border();
   }
 
   #writeram(val) {
     this.#vram[this.#vdp_addr] = val;
-    const planarBase = this.#vdp_addr & 0x3ffc;
+    this.#untwiddle(this.#vdp_addr & 0x3ffc);
+    this.#vdp_addr = (this.#vdp_addr + 1) & 0x3fff;
+  }
+
+  // Rebuilds the 8 pixels of the planar tile row starting at planarBase.
+  #untwiddle(planarBase) {
     const twiddledBase = planarBase * 2;
     const val0 = this.#vram[planarBase];
     const val1 = this.#vram[planarBase + 1];
@@ -149,7 +191,6 @@ export class VDP {
         (((val3 >>> effectiveBit) & 1) << 3);
       this.#vramUntwiddled[twiddledBase + i] = index;
     }
-    this.#vdp_addr = (this.#vdp_addr + 1) & 0x3fff;
   }
 
   writebyte(val) {
