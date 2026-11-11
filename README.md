@@ -4,7 +4,7 @@ Miracle can be taken for a spin at https://miracle.xania.org/
 
 ### Building
 
-Requires `node` (v18+). No other tools needed — Z80 code generation and
+Requires `node` (v22.22.1+). No other tools needed — Z80 code generation and
 ROM list assembly happen automatically as part of the Vite build.
 
 Place any SMS ROM files in `public/roms/` as `romname.sms`, then:
