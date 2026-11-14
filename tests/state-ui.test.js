@@ -150,6 +150,41 @@ describe("loading", () => {
     ]);
   });
 
+  it("lets only the latest chosen file touch the machine, whatever order the reads finish in", async () => {
+    const older = runningMachine(3);
+    const newer = runningMachine(7);
+    const target = runningMachine(1);
+    const { actions, calls, statuses } = harness(target);
+    const slow = (text) => {
+      let finish;
+      const read = new Promise((resolve) => (finish = () => resolve(text)));
+      return { file: { size: text.length, text: () => read }, finish };
+    };
+    const first = slow(savedText(older));
+    const second = slow(savedText(newer));
+    const loads = [actions.load(first.file), actions.load(second.file)];
+    second.finish();
+    first.finish();
+    await Promise.all(loads);
+    expect(calls).toEqual(["stop", "restore", "updateJoystick", "start"]);
+    expect(target.sms.snapshotState().z80).toEqual(
+      newer.sms.snapshotState().z80,
+    );
+    expect(statuses).toHaveLength(1);
+  });
+
+  it("says nothing about a superseded file that turns out to be unreadable", async () => {
+    const newer = runningMachine(4);
+    const { actions, statuses } = harness(runningMachine(1));
+    let fail;
+    const unreadable = new Promise((_, reject) => (fail = reject));
+    const stale = actions.load({ size: 10, text: () => unreadable });
+    await actions.load(fileOf(savedText(newer)));
+    fail(new Error("gone"));
+    await stale;
+    expect(statuses.map((s) => s.isError)).toEqual([false]);
+  });
+
   it("starts the machine again even if the restore fails", async () => {
     const saved = runningMachine(3);
     const target = runningMachine(1);

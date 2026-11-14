@@ -47,45 +47,52 @@ export const createStateActions = ({
   download,
   setStatus,
   now = () => Date.now(),
-}) => ({
-  save() {
-    const rom = sms.romIdentity;
-    if (rom.size === 0) return setStatus(NoRomSaveMessage, true);
-    const when = now();
-    const text = stringify(encode(sms.snapshotState(), { rom, now: when }));
-    const filename = snapshotFilename(rom, when);
-    download(filename, text);
-    setStatus(`Saved ${filename}`, false);
-  },
+}) => {
+  let latestLoad = 0;
+  return {
+    save() {
+      const rom = sms.romIdentity;
+      if (rom.size === 0) return setStatus(NoRomSaveMessage, true);
+      const when = now();
+      const text = stringify(encode(sms.snapshotState(), { rom, now: when }));
+      const filename = snapshotFilename(rom, when);
+      download(filename, text);
+      setStatus(`Saved ${filename}`, false);
+    },
 
-  // A good file always leaves the machine running, even if it was paused or
-  // stopped in the debugger, so the loaded state is what you see. A refused
-  // file leaves everything exactly as it was, running or not.
-  async load(file) {
-    if (sms.romIdentity.size === 0) return setStatus(NoRomLoadMessage, true);
-    let decoded;
-    try {
-      checkSize(file.size);
-      const text = await file.text();
-      // The ROM can change while the file is being read.
-      decoded = decodeSnapshot(text, {
-        rom: sms.romIdentity,
-        pageMask: sms.pageMask,
-      });
-    } catch (e) {
-      const known = e instanceof SnapshotError;
-      return setStatus(known ? e.message : UnreadableMessage, true);
-    }
-    stop();
-    try {
-      sms.restoreState(decoded.state);
-      updateJoystick();
-    } finally {
-      start();
-    }
-    setStatus(`Loaded state from ${decoded.timestamp}`, false);
-  },
-});
+    // A good file always leaves the machine running, even if it was paused or
+    // stopped in the debugger, so the loaded state is what you see. A refused
+    // file leaves everything exactly as it was, running or not.
+    async load(file) {
+      if (sms.romIdentity.size === 0) return setStatus(NoRomLoadMessage, true);
+      const thisLoad = ++latestLoad;
+      let decoded;
+      try {
+        checkSize(file.size);
+        const text = await file.text();
+        // A newer choice has started since; only the latest may touch the machine.
+        if (thisLoad !== latestLoad) return;
+        // The ROM can change while the file is being read.
+        decoded = decodeSnapshot(text, {
+          rom: sms.romIdentity,
+          pageMask: sms.pageMask,
+        });
+      } catch (e) {
+        if (thisLoad !== latestLoad) return;
+        const known = e instanceof SnapshotError;
+        return setStatus(known ? e.message : UnreadableMessage, true);
+      }
+      stop();
+      try {
+        sms.restoreState(decoded.state);
+        updateJoystick();
+      } finally {
+        start();
+      }
+      setStatus(`Loaded state from ${decoded.timestamp}`, false);
+    },
+  };
+};
 
 const downloadText = (filename, text) => {
   const url = URL.createObjectURL(

@@ -163,7 +163,7 @@ Where the ranges are deliberately permissive they are noted in the field tables:
 
 ## Loading
 
-Loading stops the machine, restores the state, starts it, and so a good file always ends with the machine running, which closes the debugger if it was open. This includes a machine that was paused or stopped in the debugger: it resumes, by design, so that what you see is the state you loaded. A file that is refused leaves the machine exactly as it was: running stays running and paused or stopped stays so. The joystick in a state includes the host's keyboard and gamepad bits as they were when it was saved, so right after a restore the control bits (`0x103F`: directions, both fire buttons and reset) are recomputed from the keys and gamepad buttons held now, by the same merge the main loop applies on every frame.
+Loading stops the machine, restores the state, starts it, and so a good file always ends with the machine running, which closes the debugger if it was open. This includes a machine that was paused or stopped in the debugger: it resumes, by design, so that what you see is the state you loaded. A file that is refused leaves the machine exactly as it was: running stays running and paused or stopped stays so. If a second file is chosen while the first is still being read, only the second is loaded; the first never touches the machine or the status line. The joystick in a state includes the host's keyboard and gamepad bits as they were when it was saved, so right after a restore the control bits (`0x103F`: directions, both fire buttons and reset) are recomputed from the keys and gamepad buttons held now, by the same merge the main loop applies on every frame.
 
 ### Caveats
 
