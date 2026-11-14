@@ -75,6 +75,10 @@ export class SMS {
     return this.#bus.romIdentity;
   }
 
+  get pageMask() {
+    return this.#bus.pageMask;
+  }
+
   // Run one scanline. Returns true if a breakpoint was hit.
   runLine(cycleCallback) {
     if (!this.#initialized) return false;

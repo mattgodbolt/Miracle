@@ -165,3 +165,21 @@ describe("Bus ROM identity", () => {
     expect(bus.romIdentity).toEqual({ crc32: 0, size: 0, name: "empty.sms" });
   });
 });
+
+describe("Bus page mask", () => {
+  it.each([
+    [BankSize, 0],
+    [2 * BankSize, 1],
+    [3 * BankSize, 3],
+    [8 * BankSize, 7],
+  ])("is the highest bank number for a ROM of %i bytes", (size, mask) => {
+    expect(makeBus(size).pageMask).toBe(mask);
+  });
+
+  it("is 0 before a ROM is loaded and for an empty one", () => {
+    const bus = new Bus();
+    expect(bus.pageMask).toBe(0);
+    bus.loadRom("empty.sms", "");
+    expect(bus.pageMask).toBe(0);
+  });
+});
