@@ -68,6 +68,41 @@ const sign_extend = (v) => (v < 128 ? v : v - 256);
 // Z80 CPU — registers, state, and micro-op methods
 // ---------------------------------------------------------------------------
 
+// Numeric registers and counters saved by snapshotState. The flags are saved
+// separately. eventNextEvent is timing, deliberately not saved: runLine
+// reassigns it every line. bus and instructionHook are wiring.
+const SnapshotFields = [
+  "a",
+  "f",
+  "b",
+  "c",
+  "d",
+  "e",
+  "h",
+  "l",
+  "a_",
+  "f_",
+  "b_",
+  "c_",
+  "d_",
+  "e_",
+  "h_",
+  "l_",
+  "ixh",
+  "ixl",
+  "iyh",
+  "iyl",
+  "i",
+  "r",
+  "r7",
+  "sp",
+  "pc",
+  "iff1",
+  "iff2",
+  "im",
+  "tstates",
+];
+
 class Z80 {
   constructor() {
     // Main register set
@@ -901,6 +936,22 @@ class Z80 {
     this.halted = false;
     this.irq_pending = false;
     this.irq_suppress = true;
+  }
+
+  snapshotState() {
+    const state = {};
+    for (const name of SnapshotFields) state[name] = this[name];
+    state.halted = this.halted;
+    state.irqPending = this.irq_pending;
+    state.irqSuppress = this.irq_suppress;
+    return state;
+  }
+
+  restoreState(state) {
+    for (const name of SnapshotFields) this[name] = state[name];
+    this.halted = state.halted;
+    this.irq_pending = state.irqPending;
+    this.irq_suppress = state.irqSuppress;
   }
 
   setIrq(asserted) {

@@ -1,3 +1,4 @@
+import { crc32 } from "./crc32";
 import { hexbyte, hexword } from "./utils";
 
 export class Bus {
@@ -10,12 +11,18 @@ export class Bus {
   #joystick = 0xffff;
   #vdp = null;
   #soundChip = null;
+  #romIdentity = Object.freeze({ crc32: 0, size: 0, name: "" });
 
   get romBanks() {
     return this.#romBanks;
   }
   get pages() {
     return this.#pages;
+  }
+
+  // Identifies the ROM as handed to loadRom, before any padding.
+  get romIdentity() {
+    return this.#romIdentity;
   }
 
   get joystick() {
@@ -38,12 +45,38 @@ export class Bus {
       this.#cartridgeRam[i] = 0;
     }
     for (let i = 0; i < 3; i++) {
-      this.#pages[i] = i;
+      this.#pages[i] = i & this.#romPageMask;
     }
     this.#ramSelectRegister = 0;
   }
 
+  snapshotState() {
+    return {
+      ramSelect: this.#ramSelectRegister,
+      pages: Array.from(this.#pages),
+      joystick: this.#joystick,
+      ram: this.#ram.slice(),
+      cartridgeRam: this.#cartridgeRam.slice(),
+    };
+  }
+
+  restoreState(state) {
+    this.#ramSelectRegister = state.ramSelect;
+    // Masked as a write to the page register would be, so that a state saved
+    // against a bigger ROM cannot point past the banks loaded here.
+    for (let i = 0; i < 3; i++)
+      this.#pages[i] = state.pages[i] & this.#romPageMask;
+    this.#joystick = state.joystick;
+    this.#ram.set(state.ram);
+    this.#cartridgeRam.set(state.cartridgeRam);
+  }
+
   loadRom(name, rom, onLoaded) {
+    this.#romIdentity = Object.freeze({
+      crc32: crc32(rom),
+      size: rom.length,
+      name,
+    });
     if (rom.length === 0) {
       console.warn("loadRom: empty ROM, nothing to load");
       this.#romBanks.length = 0;
