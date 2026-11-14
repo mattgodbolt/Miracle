@@ -1,9 +1,8 @@
 import { vi } from "vitest";
 
-// A wiring stub, not a model of browser behaviour: it records calls and lets a
-// test say what an element answers. It cannot show how a real browser would
-// focus, click or dispatch, so anything that depends on that needs a real
-// browser.
+// A wiring stub, not a model of browser behaviour: it records calls. It cannot
+// show how a real browser would focus, click or dispatch, so anything that
+// depends on that needs a real browser.
 //
 // The few browser APIs src/miracle.js and src/state-ui.js touch, as plain
 // objects, so they can run under node without a DOM library.
@@ -29,6 +28,7 @@ const makeElement = (id) => {
     addEventListener: (type, fn) => listeners.set(type, fn),
     dispatch: (type, event = {}) => listeners.get(type)?.(event),
     click: vi.fn(),
+    remove: vi.fn(),
     getContext: () => ({
       getImageData: () => ({ data: new Uint8ClampedArray(256 * 192 * 4) }),
       putImageData: () => {},

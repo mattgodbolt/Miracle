@@ -278,7 +278,7 @@ let gamepadStartDown = false;
 
 // The joystick bits are active low; both input sources are held in separate
 // masks so that releasing one never releases a control the other still holds.
-function updateJoystick() {
+export function updateJoystick() {
   const held = keyboardState | gamepadState;
   sms.joystick = (sms.joystick & ~ControlBits) | (~held & ControlBits);
 }

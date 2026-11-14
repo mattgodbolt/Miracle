@@ -8,7 +8,9 @@ import {
   stop,
   audio_enable,
   cycleCallback,
+  updateJoystick,
 } from "./miracle";
+import { initStateUi } from "./state-ui";
 
 const sms = new SMS();
 import { step, stepOver, stepOut, debug_init } from "./debug";
@@ -167,6 +169,7 @@ function go() {
   z80_init();
   miracle_init(sms);
   miracle_reset();
+  initStateUi({ sms, start, stop, updateJoystick });
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
