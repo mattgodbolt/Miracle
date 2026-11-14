@@ -17,6 +17,7 @@ let soundChip;
 const targetTimeout = 1000 / SMS.FRAMES_PER_SECOND;
 let adjustedTimeout = targetTimeout;
 let lastFrame = null;
+let runTimer = null;
 
 export function cycleCallback(tstates) {
   soundChip.polltime(tstates);
@@ -33,6 +34,9 @@ export function start() {
   sms.clearBreakpoint();
   if (running) return;
   running = true;
+  // A stop() leaves its pending run() to fire; a start() straight after must
+  // not leave two loops running.
+  clearTimeout(runTimer);
   document.getElementById("menu").className = "running";
   audio_enable(true);
   document.getElementById("debug").style.display = "none";
@@ -61,7 +65,7 @@ function run() {
     }
   }
   lastFrame = now;
-  setTimeout(run, adjustedTimeout);
+  runTimer = setTimeout(run, adjustedTimeout);
 
   pollGamepad();
   try {
