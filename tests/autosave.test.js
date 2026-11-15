@@ -603,11 +603,32 @@ describe("Start over", () => {
     expect(t.storage.getItem(t.previousKey())).toBe("earlier");
   });
 
-  it("still starts over if the entry cannot be removed", () => {
+  it("still starts over if the entry cannot be removed, but says the progress may come back", () => {
     const t = resumed();
     t.storage.failRemovals = new Error("no");
     expect(() => t.last().action.run()).not.toThrow();
     expect(t.calls).toEqual(["hardReset"]);
+    expect(t.last()).toEqual({
+      message:
+        "Started over, but this browser would not let the saved progress go, so it may come back next time.",
+      isError: true,
+      action: undefined,
+    });
+  });
+
+  it("says a damaged entry could not be discarded when the removal fails", () => {
+    const t = withEntry();
+    t.storage.items.set(t.key(), "not a snapshot");
+    t.storage.failRemovals = new Error("no");
+    expect(() => t.autosave.resume()).not.toThrow();
+    expect(t.statuses).toEqual([
+      {
+        message:
+          "Saved progress for this game was damaged, and this browser would not let it be discarded.",
+        isError: true,
+        action: undefined,
+      },
+    ]);
   });
 });
 

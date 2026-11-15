@@ -138,6 +138,7 @@ export const initStateUi = ({ sms, start, stop, updateJoystick }) => {
     }
     clearTimer = setTimeout(() => {
       statusElement.textContent = "";
+      serial++;
     }, StatusClearMs);
     return serial;
   };

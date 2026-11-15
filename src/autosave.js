@@ -15,6 +15,10 @@ const SaveFailedMessages = {
 const DamagedMessage =
   "Saved progress for this game was damaged, so it was discarded.";
 const StartedOverMessage = "Started over.";
+const StartedOverStuckMessage =
+  "Started over, but this browser would not let the saved progress go, so it may come back next time.";
+const DamagedStuckMessage =
+  "Saved progress for this game was damaged, and this browser would not let it be discarded.";
 const NewerMessageEnd =
   "Autosave is off for this game so it is not overwritten.";
 
@@ -111,15 +115,16 @@ export const createAutosave = ({
 
   const startOver = guard(() => {
     hardReset();
-    store.remove(sms.romIdentity);
+    const removed = store.remove(sms.romIdentity);
     resumed = null;
-    setStatus(StartedOverMessage, false);
+    if (removed.ok) setStatus(StartedOverMessage, false);
+    else setStatus(StartedOverStuckMessage, true);
   });
 
   const discard = (rom, machineMayBeHalfRestored) => {
-    store.remove(rom);
+    const removed = store.remove(rom);
     if (machineMayBeHalfRestored) hardReset();
-    setStatus(DamagedMessage, true);
+    setStatus(removed.ok ? DamagedMessage : DamagedStuckMessage, true);
   };
 
   const showResumed = (base) => {

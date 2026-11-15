@@ -469,6 +469,14 @@ describe("initStateUi", () => {
       expect(ui.currentStatus()).not.toBe(second);
     });
 
+    it("stops being the one showing once its own timeout has cleared it", () => {
+      const plain = ui.setStatus("Couldn't save", true);
+      expect(ui.currentStatus()).toBe(plain);
+      vi.advanceTimersByTime(10000);
+      expect(status().textContent).toBe("");
+      expect(ui.currentStatus()).not.toBe(plain);
+    });
+
     it("is replaced, button and all, by the next status", async () => {
       withAction();
       await choose(fileOf("nope"));
