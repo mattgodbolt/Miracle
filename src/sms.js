@@ -17,7 +17,6 @@ export class SMS {
   #paintScreen = null;
   #tstatesPerHblank;
   #initialized = false;
-  #restarts = 0;
   #linesSinceRestart = 0;
 
   constructor() {
@@ -45,18 +44,13 @@ export class SMS {
     this.#initialized = true;
   }
 
-  // How many times the machine has been reset, had a state restored or been
-  // given a ROM, and how many whole frames it has run since the latest.
-  get restartCount() {
-    return this.#restarts;
-  }
-
+  // Whole frames run since the machine was last reset, had a state restored or
+  // was given a ROM.
   get framesSinceRestart() {
     return Math.floor(this.#linesSinceRestart / SMS.SCAN_LINES_PER_FRAME);
   }
 
   #restarted() {
-    this.#restarts++;
     this.#linesSinceRestart = 0;
   }
 

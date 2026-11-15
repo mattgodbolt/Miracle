@@ -54,11 +54,6 @@ export const createAutosave = ({
   now = () => Date.now(),
   format = formatTime,
 }) => {
-  // The `sms.restartCount` whose progress has been saved so far. The first
-  // save of a run keeps the entry it replaces as the previous one; later
-  // saves in the same run replace only the entry, or the previous copy would
-  // soon be a copy of the current one.
-  let savedRestart = -1;
   let failure = null; // {text, serial}: the one failure message, once shown
   let resumed = null; // {base, action, serial}: the Resumed notice showing
   let offKey = null; // the key of a ROM whose entry is from a newer Miracle
@@ -93,18 +88,14 @@ export const createAutosave = ({
     if (!hasRom() || sms.framesSinceRestart < MinFramesBeforeSave) return;
     const rom = sms.romIdentity;
     if (stateKey(rom) === offKey) return;
-    const restart = sms.restartCount;
     let result;
     try {
       const text = stringify(encode(sms.snapshotState(), { rom, now: now() }));
-      result = store.save(rom, text, {
-        keepPrevious: savedRestart !== restart,
-      });
+      result = store.save(rom, text);
     } catch {
       result = { ok: false, reason: StoreFailure.Failed };
     }
-    if (result.ok) savedRestart = restart;
-    else reportFailure(result.reason);
+    if (!result.ok) reportFailure(result.reason);
   });
 
   // Takes the Resumed notice down, unless something else has replaced it.

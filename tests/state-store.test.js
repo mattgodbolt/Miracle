@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  StateStore,
-  StoreFailure,
-  previousStateKey,
-  stateKey,
-} from "../src/state-store.js";
+import { StateStore, StoreFailure, stateKey } from "../src/state-store.js";
 import { FakeStorage, quotaError, securityError } from "./fake-storage.js";
 
 const romA = { crc32: 0x1a2b3c4d, size: 131072, name: "A.sms" };
@@ -25,17 +20,8 @@ describe("keys", () => {
     );
   });
 
-  it("puts the previous copy under a related key", () => {
-    expect(previousStateKey(romA)).toBe(
-      "miracle.state.1a2b3c4d-131072.previous",
-    );
-  });
-
   it("never collide for different ROMs", () => {
-    const keys = [romA, romB, romASameCrcOtherSize].flatMap((rom) => [
-      stateKey(rom),
-      previousStateKey(rom),
-    ]);
+    const keys = [romA, romB, romASameCrcOtherSize].map(stateKey);
     expect(new Set(keys).size).toBe(keys.length);
   });
 });
@@ -54,15 +40,12 @@ describe("StateStore", () => {
   it("reads an empty slot as null", () => {
     const { store } = makeStore();
     expect(store.load(romA)).toBeNull();
-    expect(store.loadPrevious(romA)).toBeNull();
   });
 
   it("reads anything but text as an empty slot", () => {
     const { storage, store } = makeStore();
     storage.items.set(stateKey(romA), 42);
-    storage.items.set(previousStateKey(romA), { not: "text" });
     expect(store.load(romA)).toBeNull();
-    expect(store.loadPrevious(romA)).toBeNull();
   });
 
   it("returns whatever text is there, leaving its validity to the caller", () => {
@@ -74,72 +57,30 @@ describe("StateStore", () => {
     expect(store.load(romA)).toBe(huge);
   });
 
-  describe("the previous copy", () => {
-    it("is only made when asked, and not on the first save", () => {
-      const { storage, store } = makeStore();
-      store.save(romA, "one", { keepPrevious: true });
-      expect(store.load(romA)).toBe("one");
-      expect(store.loadPrevious(romA)).toBeNull();
-      expect(storage.items.size).toBe(1);
-    });
-
-    it("holds the entry that the next save replaced, one level deep", () => {
-      const { store } = makeStore();
-      store.save(romA, "one");
-      store.save(romA, "two", { keepPrevious: true });
-      expect(store.loadPrevious(romA)).toBe("one");
-      store.save(romA, "three", { keepPrevious: true });
-      expect(store.load(romA)).toBe("three");
-      expect(store.loadPrevious(romA)).toBe("two");
-    });
-
-    it("is left alone by a save that does not ask for it", () => {
-      const { store } = makeStore();
-      store.save(romA, "one");
-      store.save(romA, "two", { keepPrevious: true });
-      store.save(romA, "three");
-      expect(store.loadPrevious(romA)).toBe("one");
-    });
-
-    it("is written after the entry, so a failed save leaves both as they were", () => {
-      const { storage, store } = makeStore();
-      store.save(romA, "one");
-      store.save(romA, "two", { keepPrevious: true });
-      storage.failWrites = quotaError();
-      expect(store.save(romA, "three", { keepPrevious: true }).ok).toBe(false);
-      expect(store.load(romA)).toBe("two");
-      expect(store.loadPrevious(romA)).toBe("one");
-    });
-
-    it("does not stop the save when it cannot be kept", () => {
-      const { storage, store } = makeStore();
-      store.save(romA, "one");
-      const setItem = storage.setItem.bind(storage);
-      storage.setItem = (key, value) => {
-        if (key === previousStateKey(romA)) throw quotaError();
-        setItem(key, value);
-      };
-      expect(store.save(romA, "two", { keepPrevious: true }).ok).toBe(true);
-      expect(store.load(romA)).toBe("two");
-    });
+  it("writes only the one key, and a failed save leaves the old entry", () => {
+    const { storage, store } = makeStore();
+    store.save(romA, "one");
+    store.save(romA, "two");
+    expect([...storage.items.keys()]).toEqual([stateKey(romA)]);
+    expect(storage.writes).toEqual([stateKey(romA), stateKey(romA)]);
+    storage.failWrites = quotaError();
+    expect(store.save(romA, "three").ok).toBe(false);
+    expect(store.load(romA)).toBe("two");
   });
 
   describe("removal", () => {
-    it("removes the entry and not the previous copy", () => {
+    it("removes the entry and no other", () => {
       const { store } = makeStore();
       store.save(romA, "one");
-      store.save(romA, "two", { keepPrevious: true });
       store.save(romB, "b");
       expect(store.remove(romA).ok).toBe(true);
       expect(store.load(romA)).toBeNull();
-      expect(store.loadPrevious(romA)).toBe("one");
       expect(store.load(romB)).toBe("b");
     });
 
     it("is fine on an empty slot", () => {
       const { store } = makeStore();
       expect(store.remove(romA).ok).toBe(true);
-      expect(store.loadPrevious(romA)).toBeNull();
     });
   });
 
@@ -153,7 +94,6 @@ describe("StateStore", () => {
         reason: StoreFailure.Unavailable,
       });
       expect(store.load(romA)).toBeNull();
-      expect(store.loadPrevious(romA)).toBeNull();
       expect(store.remove(romA).ok).toBe(false);
     });
 
@@ -222,8 +162,7 @@ describe("StateStore", () => {
       store.save(romA, "x");
       storage.failReads = securityError();
       expect(store.load(romA)).toBeNull();
-      expect(store.loadPrevious(romA)).toBeNull();
-      expect(store.save(romA, "y", { keepPrevious: true }).ok).toBe(true);
+      expect(store.save(romA, "y").ok).toBe(true);
     });
 
     it("reports when removal throws", () => {

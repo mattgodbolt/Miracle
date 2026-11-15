@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAutosave, initAutosave } from "../src/autosave.js";
 import { decode, encode, stringify } from "../src/snapshot.js";
-import { StateStore, previousStateKey, stateKey } from "../src/state-store.js";
+import { StateStore, stateKey } from "../src/state-store.js";
 import { FakeStorage, quotaError, securityError } from "./fake-storage.js";
 import { makeMachine } from "./machine.js";
 import { buildSyntheticRom } from "./synthetic-rom.js";
@@ -69,7 +69,6 @@ const setup = ({ romData = rom, frames = 50 } = {}) => {
     autosave,
     setStatus,
     key: () => stateKey(machine.sms.romIdentity),
-    previousKey: () => previousStateKey(machine.sms.romIdentity),
     last: () => statuses.at(-1),
   };
 };
@@ -117,7 +116,6 @@ describe("saving", () => {
     const sms = {
       romIdentity: { crc32: 0, size: 0, name: "" },
       framesSinceRestart: 500,
-      restartCount: 0,
       snapshotState: () => real.sms.snapshotState(),
     };
     const autosave = createAutosave({
@@ -148,48 +146,18 @@ describe("saving", () => {
     expect(storage.writes).toHaveLength(1);
   });
 
-  describe("the previous copy", () => {
-    it("is made only by the first save of a run that replaces an entry, and not on the first save at all", () => {
-      const { machine, storage, autosave, key, previousKey } = setup();
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBeNull();
-      playFrames(machine, 5);
-      autosave.save();
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBeNull();
-      const first = storage.getItem(key());
-      machine.sms.reset();
-      playFrames(machine, 50);
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBe(first);
-      expect(storage.getItem(key())).not.toBe(first);
-      playFrames(machine, 20);
-      autosave.save();
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBe(first);
-    });
-
-    it("is not replaced by nothing when there is no entry", () => {
-      const { machine, storage, autosave, previousKey } = setup();
-      storage.setItem(previousKey(), "kept");
-      machine.sms.reset();
-      playFrames(machine, 50);
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBe("kept");
-    });
-
-    it("is still made by the next save after one that failed", () => {
-      const { machine, storage, autosave, key, previousKey } = setup();
-      autosave.save();
-      const first = storage.getItem(key());
-      machine.sms.reset();
-      playFrames(machine, 50);
-      storage.failWrites = quotaError();
-      autosave.save();
-      storage.failWrites = null;
-      autosave.save();
-      expect(storage.getItem(previousKey())).toBe(first);
-    });
+  it("overwrites the one entry, however many saves and resets, and writes no other key", () => {
+    const { machine, storage, autosave, key } = setup();
+    autosave.save();
+    const first = storage.getItem(key());
+    playFrames(machine, 5);
+    autosave.save();
+    machine.sms.reset();
+    playFrames(machine, 50);
+    autosave.save();
+    expect(storage.getItem(key())).not.toBe(first);
+    expect(storage.writes).toEqual([key(), key(), key()]);
+    expect([...storage.items.keys()]).toEqual([key()]);
   });
 
   describe("when saving fails", () => {
@@ -443,7 +411,7 @@ describe("resuming", () => {
     expect(storage.writes).toEqual([]);
     playFrames(machine, 1);
     autosave.save();
-    expect(storage.writes).toHaveLength(2);
+    expect(storage.writes).toHaveLength(1);
   });
 
   describe("an entry that cannot be used", () => {
@@ -482,14 +450,12 @@ describe("resuming", () => {
       "is refused, removed and the ROM boots as it was, when it %s",
       (_, make) => {
         const t = withEntry();
-        t.storage.setItem(t.previousKey(), "earlier");
         t.storage.items.set(t.key(), make());
         const before = JSON.stringify(t.machine.sms.snapshotState());
         t.autosave.resume();
         expect(t.calls).toEqual([]);
         expect(JSON.stringify(t.machine.sms.snapshotState())).toBe(before);
         expect(t.storage.getItem(t.key())).toBeNull();
-        expect(t.storage.getItem(t.previousKey())).toBe("earlier");
         expect(t.statuses).toEqual([
           { message: DamagedMessage, isError: true, action: undefined },
         ]);
@@ -527,9 +493,8 @@ describe("resuming", () => {
       expect(t.storage.getItem(t.key())).toBe(t.stored);
     });
 
-    it("stays untouched, with the previous copy, whatever triggers fire", () => {
+    it("is never written over, whatever triggers fire", () => {
       const t = newer();
-      t.storage.setItem(t.previousKey(), "earlier");
       t.storage.writes.length = 0;
       t.autosave.resume();
       playFrames(t.machine, 200);
@@ -540,7 +505,6 @@ describe("resuming", () => {
       t.autosave.save();
       expect(t.storage.writes).toEqual([]);
       expect(t.storage.getItem(t.key())).toBe(t.stored);
-      expect(t.storage.getItem(t.previousKey())).toBe("earlier");
     });
 
     it("stops holding autosave off once the entry has been replaced and the ROM is loaded again", () => {
@@ -571,14 +535,13 @@ describe("resuming", () => {
 describe("Start over", () => {
   const resumed = () => {
     const t = withEntry();
-    t.storage.setItem(t.previousKey(), "earlier");
     t.autosave.resume();
     t.storage.writes.length = 0;
     t.calls.length = 0;
     return t;
   };
 
-  it("hard resets the machine and deletes the entry, without saving first, leaving the previous copy", () => {
+  it("hard resets the machine and deletes the entry, without saving first", () => {
     const t = resumed();
     playFrames(t.machine, 60);
     t.last().action.run();
@@ -586,7 +549,6 @@ describe("Start over", () => {
     expect(t.machine.sms.framesSinceRestart).toBe(0);
     expect(t.storage.writes).toEqual([]);
     expect(t.storage.getItem(t.key())).toBeNull();
-    expect(t.storage.getItem(t.previousKey())).toBe("earlier");
     expect(t.last()).toEqual({
       message: "Started over.",
       isError: false,
@@ -594,13 +556,13 @@ describe("Start over", () => {
     });
   });
 
-  it("starts a run whose first save makes no previous copy, there being no entry", () => {
+  it("starts a run whose first save writes the entry afresh", () => {
     const t = resumed();
     t.last().action.run();
     playFrames(t.machine, 50);
     t.autosave.save();
     expect(t.storage.writes).toEqual([t.key()]);
-    expect(t.storage.getItem(t.previousKey())).toBe("earlier");
+    expect([...t.storage.items.keys()]).toEqual([t.key()]);
   });
 
   it("still starts over if the entry cannot be removed, but says the progress may come back", () => {

@@ -180,16 +180,15 @@ Besides the file, Miracle keeps each game's latest state in the browser's `local
 
 ### Keys
 
-| Key                                     | Holds                              |
-| --------------------------------------- | ---------------------------------- |
-| `miracle.state.<crc32>-<size>`          | The latest state for that ROM      |
-| `miracle.state.<crc32>-<size>.previous` | The one state before it, see below |
+| Key                            | Holds                         |
+| ------------------------------ | ----------------------------- |
+| `miracle.state.<crc32>-<size>` | The latest state for that ROM |
 
 `<crc32>` is the ROM's CRC-32 as 8 lower-case hex digits and `<size>` its size in bytes (the [ROM identity](#rom-identity)), for example `miracle.state.1a2b3c4d-131072`. The `miracle.` prefix keeps these apart from the other keys the page uses. The ROM's name is not part of the key, so the same game opened from the list, from the Open ROM button or from a `?b64sms=` link shares one entry, and two ROMs that differ in either number never share one. A ROM with and without a copier header counts as two.
 
 ### Size
 
-An entry is about 34 KB of text (34,811 characters for the AlexKidd ROM after 700 frames), and about 78 KB if the game uses its cartridge RAM. `localStorage` limits are typically 5 to 10 MB per site, counted in characters or in bytes at two per character, so with the previous copy each game takes roughly 70 to 160 KB and a few dozen games fit. The text is stored as `stringify` writes it, with indentation, rather than as compact JSON: compact JSON was measured at 33,885 characters, only 2.7 percent smaller, because nearly all of the size is base64, and keeping the text identical to a file means a stored entry can be saved to a file and loaded. There is no compression, for the reasons given in the design (issue #2): the saving is small against the quota and the browser's compression API is asynchronous, while a save on page close has to be synchronous. Building and writing an entry takes a few milliseconds.
+An entry is about 34 KB of text (34,811 characters for the AlexKidd ROM after 700 frames), and about 78 KB if the game uses its cartridge RAM. `localStorage` limits are typically 5 to 10 MB per site, counted in characters or in bytes at two per character, so each game takes roughly 35 to 80 KB and a few dozen games fit. The text is stored as `stringify` writes it, with indentation, rather than as compact JSON: compact JSON was measured at 33,885 characters, only 2.7 percent smaller, because nearly all of the size is base64, and keeping the text identical to a file means a stored entry can be saved to a file and loaded. There is no compression, for the reasons given in the design (issue #2): the saving is small against the quota and the browser's compression API is asynchronous, while a save on page close has to be synchronous. Building and writing an entry takes a few milliseconds.
 
 ### When progress is saved
 
@@ -211,23 +210,21 @@ Nothing in saving or resuming throws. An entry that fails validation (not JSON, 
 
 An entry from a newer version of Miracle is neither used nor removed, and autosave is switched off for that ROM until the ROM is changed, so nothing overwrites it. The status line reads `Saved by a newer Miracle (v2). Autosave is off for this game so it is not overwritten.` (with the entry's own version). Loading a file, Save as... and every other part of the page work as usual, and other ROMs autosave as usual.
 
-### Start over and the previous copy
+### Start over
 
 Start over resets the machine, as the Reset button does, and deletes the ROM's entry. It does not save anything first. The status line then reads `Started over.` If the browser refuses to remove the entry, it reads `Started over, but this browser would not let the saved progress go, so it may come back next time.` (as an error), because reopening the game would then resume the old progress. The Reset button itself is unchanged: it resets the machine and nothing else, and the next autosave overwrites the entry as any other would.
-
-The previous copy, `miracle.state.<crc32>-<size>.previous`, is a safety net and has no button. When the first save of a run (a run starts at a reset, a restore or a ROM load) replaces an existing entry, the entry it replaces is copied there; later saves in the same run replace only the entry, because otherwise the copy would soon be a copy of the entry and no use after a mistaken Reset. So it is the last state of the run before this one. It is written after the entry, and only if the entry was written; a failure to write it is ignored. Start over and removal of a damaged entry leave it alone. It can be reached only through the browser's developer tools: copy the text of the `.previous` value, save it as a `.json` file and use Load from..., or paste it over the entry's value and reload.
 
 ### When storage is unavailable
 
 Storage can be blocked (privacy settings, a sandboxed frame; merely reading `window.localStorage` can throw), can be full, or can fail in other ways. `StateStore` takes a function that returns the storage and calls it inside a `try` every time, and never throws: a method that cannot do its job returns `{ ok: false, reason }` with `full`, `unavailable` or `failed`, and a slot that cannot be read reads as empty. The emulator carries on regardless. The first failed save shows `Couldn't save progress in this browser: its storage is full.` (or `storage is unavailable.`, or just `Couldn't save progress in this browser.`) in the status line, and no further failure is shown for the rest of the page's life, so the 30 second saves never nag.
 
-A save writes the entry first, so a failed save leaves the old entry exactly as it was (and the previous copy too). If the Resumed notice is showing when the failure is reported, the message is shown beside it, in the same line, and the Start over button stays. If the failure is the message showing when the next Resumed notice appears (a ROM switch whose save failed), the failure is shown beside that notice too. A failure that something else has already replaced, or whose own ten second timeout has cleared it, is not shown again. With storage blocked, resuming simply boots the ROM normally.
+A failed save leaves the old entry exactly as it was. If the Resumed notice is showing when the failure is reported, the message is shown beside it, in the same line, and the Start over button stays. If the failure is the message showing when the next Resumed notice appears (a ROM switch whose save failed), the failure is shown beside that notice too. A failure that something else has already replaced, or whose own ten second timeout has cleared it, is not shown again. With storage blocked, resuming simply boots the ROM normally.
 
 ### Privacy
 
 States stay in this browser: nothing is sent anywhere. They do not contain the ROM, only its name, size and CRC-32, and the machine's memory and registers, which for a game is its screen and whatever it keeps in RAM. They persist until removed, so on a shared computer anyone who opens the same page in the same browser profile resumes your game.
 
-To clear them, use the browser's "clear site data" for the page, or delete the keys that start with `miracle.state.` in the developer tools (Application or Storage, then Local Storage). Start over removes one game's entry but leaves the previous copy, so delete that key too.
+To clear them, use the browser's "clear site data" for the page, or delete the keys that start with `miracle.state.` in the developer tools (Application or Storage, then Local Storage).
 
 ### Two tabs
 
