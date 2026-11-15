@@ -1,4 +1,4 @@
-import { hexbyte, hexword } from "./utils";
+import { hexbyte, hexword, readLocalStorage } from "./utils";
 import { makeDisassembler } from "./z80/z80_dis";
 
 // Module-level refs — set during debug_init from the SMS instance + callbacks.
@@ -27,10 +27,11 @@ export function debug_init(romName, smsInstance, callbacks) {
 
   debugSerial = (bus.romBanks[1][0x3ffc] << 8) | bus.romBanks[1][0x3ffd];
 
-  if (!localStorage[debugSerial]) {
+  const saved = readLocalStorage(debugSerial);
+  if (!saved) {
     annotations = { romName: romName, labels: {} };
   } else {
-    annotations = JSON.parse(localStorage[debugSerial]);
+    annotations = JSON.parse(saved);
   }
 
   console.log(

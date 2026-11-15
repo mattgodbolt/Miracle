@@ -11,6 +11,7 @@ import {
   updateJoystick,
 } from "./miracle";
 import { initStateUi } from "./state-ui";
+import { readLocalStorage } from "./utils";
 
 const sms = new SMS();
 import { step, stepOver, stepOut, debug_init } from "./debug";
@@ -195,9 +196,7 @@ function go() {
 }
 
 function getDefaultRom() {
-  if (typeof localStorage !== "undefined" && localStorage.rom)
-    return localStorage.rom;
-  return "SonicTheHedgehog.sms";
+  return readLocalStorage("rom") || "SonicTheHedgehog.sms";
 }
 
 function showRomChooser() {
