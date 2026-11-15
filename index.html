@@ -49,8 +49,17 @@
           <button class="menu_stepOut">Step Out</button>
           <button class="menu_reset" style="margin-left: 50px">Reset</button>
           <button class="menu_showRomChooser">Open ROM</button>
+          <button class="menu_saveState">Save as...</button>
+          <button class="menu_loadState">Load from...</button>
           <button class="menu_showAbout">About Miracle</button>
         </div>
+        <span id="state-status" role="status" aria-live="polite"></span>
+        <input
+          type="file"
+          id="state_file"
+          accept=".json,application/json"
+          hidden
+        />
       </div>
       <div class="main" id="holder">
         <!-- Text is set dynamically by _showAudioBanner() in miracle.js -->

@@ -55,7 +55,7 @@ div.main {
   clear: left;
   margin: 0;
   padding: 0;
-  width: 640px;
+  width: 800px;
   height: 56px;
   list-style-type: none;
 }
@@ -277,4 +277,16 @@ a.close_button {
 
 #audio-warning:hover {
   background-color: rgba(40, 40, 40, 0.95);
+}
+
+#state-status {
+  display: block;
+  min-height: 1.5em;
+  line-height: 1.5em;
+  padding: 0 4px;
+  color: #9fc99f;
+}
+
+#state-status.error {
+  color: #f0a0a0;
 }

@@ -25,6 +25,12 @@ export class Bus {
     return this.#romIdentity;
   }
 
+  // The highest bank number the mapper can select, one less than the number
+  // of banks loaded (a power of two).
+  get pageMask() {
+    return this.#romPageMask;
+  }
+
   get joystick() {
     return this.#joystick;
   }
