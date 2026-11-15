@@ -17,6 +17,8 @@ export class SMS {
   #paintScreen = null;
   #tstatesPerHblank;
   #initialized = false;
+  #restarts = 0;
+  #linesSinceRestart = 0;
 
   constructor() {
     this.#bus = new Bus();
@@ -43,7 +45,23 @@ export class SMS {
     this.#initialized = true;
   }
 
+  // How many times the machine has been reset, had a state restored or been
+  // given a ROM, and how many whole frames it has run since the latest.
+  get restartCount() {
+    return this.#restarts;
+  }
+
+  get framesSinceRestart() {
+    return Math.floor(this.#linesSinceRestart / SMS.SCAN_LINES_PER_FRAME);
+  }
+
+  #restarted() {
+    this.#restarts++;
+    this.#linesSinceRestart = 0;
+  }
+
   reset() {
+    this.#restarted();
     this.#bus.reset();
     this.#z80.reset();
     this.#vdp.reset();
@@ -60,6 +78,7 @@ export class SMS {
   }
 
   restoreState(state) {
+    this.#restarted();
     this.#z80.restoreState(state.z80);
     this.#bus.restoreState(state.bus);
     this.#vdp.restoreState(state.vdp);
@@ -68,6 +87,7 @@ export class SMS {
   }
 
   loadRom(name, data, onLoaded) {
+    this.#restarted();
     this.#bus.loadRom(name, data, onLoaded);
   }
 
@@ -82,6 +102,7 @@ export class SMS {
   // Run one scanline. Returns true if a breakpoint was hit.
   runLine(cycleCallback) {
     if (!this.#initialized) return false;
+    this.#linesSinceRestart++;
     this.#z80.eventNextEvent = this.#tstatesPerHblank;
     this.#z80.tstates -= this.#tstatesPerHblank;
     this.#z80_do_opcodes(cycleCallback);

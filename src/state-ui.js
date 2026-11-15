@@ -36,6 +36,19 @@ export const snapshotFilename = (rom, now) => {
   return `miracle-${baseName(rom.name)}-${crc}-${stamp}.json`;
 };
 
+// Puts a validated state into the machine: stop, restore, merge the live
+// input back in, start. It ends with the machine running even if the restore
+// fails.
+export const applyState = ({ sms, start, stop, updateJoystick }, state) => {
+  stop();
+  try {
+    sms.restoreState(state);
+    updateJoystick();
+  } finally {
+    start();
+  }
+};
+
 // `download(filename, text)` and `setStatus(message, isError)` are the
 // browser's end of things; `updateJoystick` re-merges the live keyboard and
 // gamepad state into the joystick, which a restored state has overwritten.
@@ -82,13 +95,7 @@ export const createStateActions = ({
         const known = e instanceof SnapshotError;
         return setStatus(known ? e.message : UnreadableMessage, true);
       }
-      stop();
-      try {
-        sms.restoreState(decoded.state);
-        updateJoystick();
-      } finally {
-        start();
-      }
+      applyState({ sms, start, stop, updateJoystick }, decoded.state);
       setStatus(`Loaded state from ${decoded.timestamp}`, false);
     },
   };
@@ -111,14 +118,30 @@ export const initStateUi = ({ sms, start, stop, updateJoystick }) => {
   const statusElement = document.getElementById("state-status");
   const fileInput = document.getElementById("state_file");
   let clearTimer = null;
-  const setStatus = (message, isError) => {
+  let serial = 0;
+  // A status with an `action` ({label, run}) gets a button and stays until
+  // the next status replaces it, so the button is there to be found. Each
+  // status gets a number, returned here and by `currentStatus`, so a caller
+  // can tell whether its message is still the one showing.
+  const setStatus = (message, isError, action) => {
+    serial++;
     statusElement.textContent = message;
     statusElement.classList.toggle("error", isError);
     clearTimeout(clearTimer);
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", action.run);
+      statusElement.append(button);
+      return serial;
+    }
     clearTimer = setTimeout(() => {
       statusElement.textContent = "";
     }, StatusClearMs);
+    return serial;
   };
+  const currentStatus = () => serial;
   const actions = createStateActions({
     sms,
     start,
@@ -140,4 +163,5 @@ export const initStateUi = ({ sms, start, stop, updateJoystick }) => {
     fileInput.value = "";
     if (file) await actions.load(file);
   });
+  return { setStatus, currentStatus };
 };

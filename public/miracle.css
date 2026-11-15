@@ -290,3 +290,7 @@ a.close_button {
 #state-status.error {
   color: #f0a0a0;
 }
+
+#state-status button {
+  margin-left: 0.75em;
+}
