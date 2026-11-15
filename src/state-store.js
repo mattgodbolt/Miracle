@@ -26,9 +26,9 @@ const failed = (reason) => ({ ok: false, reason });
 
 // Keeps one saved machine state per ROM, as the text of the same envelope the
 // Save as... file holds. `getStorage` is called on every use because merely
-// reading `window.localStorage` can throw. Nothing here throws: a method that cannot do its job says so in its result, and a
-// slot that holds anything but text reads as empty. What the text holds is for
-// the caller to validate.
+// reading `window.localStorage` can throw. Nothing here throws: a method that
+// cannot do its job says so in its result, and a slot that holds anything but
+// text reads as empty. What the text holds is for the caller to validate.
 export class StateStore {
   #getStorage;
 
