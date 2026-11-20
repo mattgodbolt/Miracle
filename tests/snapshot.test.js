@@ -46,8 +46,7 @@ const envelopeOf = (machine) =>
     ),
   );
 
-// The state with its cartridge RAM filled in, since the bus does not let a
-// program write to it today (issue #91).
+// The state with all 32 KB of its cartridge RAM filled with a known pattern.
 const withCartridgeRam = (state) => {
   const cartridgeRam = new Uint8Array(0x8000);
   for (let i = 0; i < cartridgeRam.length; i++)

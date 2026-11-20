@@ -210,9 +210,20 @@ export class Bus {
           );
       }
     }
-    address -= 0xc000;
-    if (address < 0) {
-      return; // Ignore ROM writes
+    if (address < 0xc000) {
+      // Slot 2 is cartridge RAM when the mapper selects it, as in readbyte;
+      // everything else below 0xc000 is ROM, whose writes are ignored.
+      if (address >= 0x8000) {
+        switch (this.#ramSelectRegister & 12) {
+          case 8:
+            this.#cartridgeRam[address & 0x3fff] = value;
+            break;
+          case 12:
+            this.#cartridgeRam[(address & 0x3fff) + 0x4000] = value;
+            break;
+        }
+      }
+      return;
     }
     this.#ram[address & 0x1fff] = value;
   }
