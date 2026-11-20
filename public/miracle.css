@@ -51,11 +51,15 @@ div.main {
   image-rendering: pixelated;
 }
 
+body.fullscreen .top {
+  display: none;
+}
+
 #menu {
   clear: left;
   margin: 0;
   padding: 0;
-  width: 800px;
+  width: 900px;
   height: 56px;
   list-style-type: none;
 }
