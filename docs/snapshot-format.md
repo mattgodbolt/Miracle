@@ -76,7 +76,7 @@ There is no pending-NMI state; an NMI acts immediately. `tstates` is the oversho
 | `ram`          | base64             | The 8 KB of system RAM: exactly 8192 bytes                                                                                                                       |
 | `cartridgeRam` | base64 or `null`   | The 32 KB of cartridge RAM: exactly 32768 bytes, or `null` when every byte is zero                                                                               |
 
-The bus drops writes to cartridge RAM today (issue #91), so it is usually `null`; it is in the format because it is part of the machine.
+A game writes cartridge RAM by mapping it into `0x8000-0xBFFF` with bit 3 of the mapper register at `0xFFFC` (bit 2 picks which 16 KB half), so a state carries a game's own save data with it. Most games never use it, and then the field is `null`. Like the battery-backed RAM on a real cartridge it survives a reset (the Reset button and Start over), and is cleared only when a ROM is loaded.
 
 The page mask is read from the machine (`SMS.pageMask`, from `Bus.pageMask`), not from the file, so a state cannot point a page at a bank that does not exist. These two getters are the only new public surface on the machine for the format, alongside `romIdentity`.
 

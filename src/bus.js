@@ -43,12 +43,10 @@ export class Bus {
     this.#soundChip = soundChip;
   }
 
+  // Cartridge RAM is battery-backed, so a reset keeps it; loadRom clears it.
   reset() {
     for (let i = 0x0000; i < 0x2000; i++) {
       this.#ram[i] = 0;
-    }
-    for (let i = 0x0000; i < 0x8000; i++) {
-      this.#cartridgeRam[i] = 0;
     }
     for (let i = 0; i < 3; i++) {
       this.#pages[i] = i & this.#romPageMask;
@@ -78,6 +76,7 @@ export class Bus {
   }
 
   loadRom(name, rom, onLoaded) {
+    this.#cartridgeRam.fill(0);
     this.#romIdentity = Object.freeze({
       crc32: crc32(rom),
       size: rom.length,
@@ -210,9 +209,20 @@ export class Bus {
           );
       }
     }
-    address -= 0xc000;
-    if (address < 0) {
-      return; // Ignore ROM writes
+    if (address < 0xc000) {
+      // Slot 2 is cartridge RAM when the mapper selects it, as in readbyte;
+      // everything else below 0xc000 is ROM, whose writes are ignored.
+      if (address >= 0x8000) {
+        switch (this.#ramSelectRegister & 12) {
+          case 8:
+            this.#cartridgeRam[address & 0x3fff] = value;
+            break;
+          case 12:
+            this.#cartridgeRam[(address & 0x3fff) + 0x4000] = value;
+            break;
+        }
+      }
+      return;
     }
     this.#ram[address & 0x1fff] = value;
   }

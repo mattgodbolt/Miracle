@@ -53,9 +53,10 @@ const RamBase = 0xc000;
 const ControlPort = 0x3f;
 const CartridgeRamPage0 = 0x08;
 const CartridgeRamPage1 = 0x0c;
+const Page2Fill = 3; // makeBus fills bank n with n + 1, and slot 2 starts on bank 2
 
-// The bus has no way to write cartridge RAM (writes below 0xc000 are
-// ignored), so a state with some in it has to be built by hand.
+// A state with known cartridge RAM contents, built by hand so the bytes are
+// exact whatever the bus does with writes.
 const CartridgeRamSize = 0x8000;
 const withCartridgeRam = (state) => {
   state.cartridgeRam = new Uint8Array(CartridgeRamSize);
@@ -181,5 +182,92 @@ describe("Bus page mask", () => {
     expect(bus.pageMask).toBe(0);
     bus.loadRom("empty.sms", "");
     expect(bus.pageMask).toBe(0);
+  });
+});
+
+describe("Bus cartridge RAM", () => {
+  const SlotBase = 0x8000;
+  const SlotLast = 0xbfff;
+
+  it.each([
+    ["first", CartridgeRamPage0, 0],
+    ["second", CartridgeRamPage1, 0x4000],
+  ])(
+    "keeps what is written to the %s half while it is mapped in",
+    (_, select, offset) => {
+      const bus = makeBus(4 * BankSize);
+      bus.writebyte(CartridgeRamSelect, select);
+      bus.writebyte(SlotBase, 0x5a);
+      bus.writebyte(SlotLast, 0xa5);
+      expect(bus.readbyte(SlotBase)).toBe(0x5a);
+      expect(bus.readbyte(SlotLast)).toBe(0xa5);
+      const { cartridgeRam } = bus.snapshotState();
+      expect(cartridgeRam[offset]).toBe(0x5a);
+      expect(cartridgeRam[offset + 0x3fff]).toBe(0xa5);
+      expect(cartridgeRam.filter((v) => v !== 0)).toHaveLength(2);
+    },
+  );
+
+  it("keeps the two halves apart, and keeps them when ROM is mapped back in", () => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
+    bus.writebyte(SlotBase, 0x11);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    expect(bus.readbyte(SlotBase)).toBe(0);
+    bus.writebyte(SlotBase, 0x22);
+    bus.writebyte(CartridgeRamSelect, 0);
+    expect(bus.readbyte(SlotBase)).toBe(Page2Fill);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
+    expect(bus.readbyte(SlotBase)).toBe(0x11);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    expect(bus.readbyte(SlotBase)).toBe(0x22);
+  });
+
+  it("still ignores writes to ROM, wherever the mapper points", () => {
+    const bus = makeBus(4 * BankSize);
+    const before = bus.snapshotState();
+    bus.writebyte(0x0000, 0xee);
+    bus.writebyte(0x3fff, 0xee);
+    bus.writebyte(0x4000, 0xee);
+    bus.writebyte(0x7fff, 0xee);
+    bus.writebyte(SlotBase, 0xee); // slot 2 is ROM until the mapper says otherwise
+    bus.writebyte(SlotLast, 0xee);
+    expect(bus.snapshotState()).toEqual(before);
+    expect(bus.readbyte(SlotBase)).toBe(Page2Fill);
+  });
+
+  it("survives a reset, like battery-backed RAM, though work RAM does not", () => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    bus.writebyte(SlotBase, 0x5a);
+    bus.writebyte(RamBase, 0x77);
+    bus.reset();
+    expect(bus.readbyte(RamBase)).toBe(0);
+    expect(bus.snapshotState().cartridgeRam[0x4000]).toBe(0x5a);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    expect(bus.readbyte(SlotBase)).toBe(0x5a);
+  });
+
+  it.each([
+    ["another ROM", "other", 2 * BankSize],
+    ["the same ROM again", "test", 4 * BankSize],
+    ["an empty ROM", "empty", 0],
+  ])("is cleared when %s is loaded", (_, name, numBytes) => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
+    bus.writebyte(SlotBase, 0x5a);
+    bus.loadRom(name, Array.from({ length: numBytes }, () => "\x01").join(""));
+    expect(bus.snapshotState().cartridgeRam.every((v) => v === 0)).toBe(true);
+  });
+
+  it("does not disturb work RAM, which is mirrored over the mapper registers", () => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
+    bus.writebyte(SlotBase, 0x5a);
+    bus.writebyte(RamBase, 0x77);
+    expect(bus.readbyte(RamBase)).toBe(0x77);
+    expect(bus.readbyte(RamBase + 0x2000)).toBe(0x77);
+    expect(bus.readbyte(CartridgeRamSelect - 0x2000)).toBe(CartridgeRamPage0);
+    expect(bus.readbyte(SlotBase)).toBe(0x5a);
   });
 });
