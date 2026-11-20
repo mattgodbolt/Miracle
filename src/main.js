@@ -13,6 +13,7 @@ import {
   onStopped,
 } from "./miracle";
 import { initStateUi } from "./state-ui";
+import { initFullscreen } from "./fullscreen";
 import { initAutosave } from "./autosave";
 import { readLocalStorage } from "./utils";
 
@@ -174,6 +175,7 @@ function go() {
   miracle_init(sms);
   miracle_reset();
   const stateUi = initStateUi({ sms, start, stop, updateJoystick });
+  initFullscreen();
   autosave = initAutosave({
     sms,
     start,
