@@ -236,6 +236,30 @@ describe("Bus cartridge RAM", () => {
     expect(bus.readbyte(SlotBase)).toBe(Page2Fill);
   });
 
+  it("survives a reset, like battery-backed RAM, though work RAM does not", () => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    bus.writebyte(SlotBase, 0x5a);
+    bus.writebyte(RamBase, 0x77);
+    bus.reset();
+    expect(bus.readbyte(RamBase)).toBe(0);
+    expect(bus.snapshotState().cartridgeRam[0x4000]).toBe(0x5a);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage1);
+    expect(bus.readbyte(SlotBase)).toBe(0x5a);
+  });
+
+  it.each([
+    ["another ROM", "other", 2 * BankSize],
+    ["the same ROM again", "test", 4 * BankSize],
+    ["an empty ROM", "empty", 0],
+  ])("is cleared when %s is loaded", (_, name, numBytes) => {
+    const bus = makeBus(4 * BankSize);
+    bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
+    bus.writebyte(SlotBase, 0x5a);
+    bus.loadRom(name, Array.from({ length: numBytes }, () => "\x01").join(""));
+    expect(bus.snapshotState().cartridgeRam.every((v) => v === 0)).toBe(true);
+  });
+
   it("does not disturb work RAM, which is mirrored over the mapper registers", () => {
     const bus = makeBus(4 * BankSize);
     bus.writebyte(CartridgeRamSelect, CartridgeRamPage0);
