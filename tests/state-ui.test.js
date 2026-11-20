@@ -352,6 +352,7 @@ describe("initStateUi", () => {
   let dom;
   let machine;
   let calls;
+  let ui;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -360,7 +361,7 @@ describe("initStateUi", () => {
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
     machine = runningMachine(3);
     calls = [];
-    initStateUi({
+    ui = initStateUi({
       sms: machine.sms,
       start: () => calls.push("start"),
       stop: () => calls.push("stop"),
@@ -433,6 +434,67 @@ describe("initStateUi", () => {
     expect(status().textContent).not.toBe("");
     vi.advanceTimersByTime(4000);
     expect(status().textContent).toBe("");
+  });
+
+  describe("a status with an action", () => {
+    const withAction = (run = vi.fn()) => {
+      const { setStatus } = ui;
+      const serial = setStatus("Resumed", false, { label: "Start over", run });
+      return Object.assign(run, { serial });
+    };
+
+    it("shows a real button after the message, which runs the action when clicked", () => {
+      const run = withAction();
+      expect(status().textContent).toBe("Resumed");
+      const [button] = status().children;
+      expect(button.type).toBe("button");
+      expect(button.textContent).toBe("Start over");
+      button.dispatch("click");
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    it("is not cleared after 10 seconds, so the button is still there to use", () => {
+      withAction();
+      vi.advanceTimersByTime(10 * 60 * 1000);
+      expect(status().textContent).toBe("Resumed");
+      expect(status().children).toHaveLength(1);
+    });
+
+    it("is numbered, so a caller can tell whether it is still the one showing", async () => {
+      const first = ui.setStatus("one", false);
+      expect(ui.currentStatus()).toBe(first);
+      const second = withAction().serial;
+      expect(ui.currentStatus()).toBe(second);
+      await choose(fileOf("nope"));
+      expect(ui.currentStatus()).not.toBe(second);
+    });
+
+    it("stops being the one showing once its own timeout has cleared it", () => {
+      const plain = ui.setStatus("Couldn't save", true);
+      expect(ui.currentStatus()).toBe(plain);
+      vi.advanceTimersByTime(10000);
+      expect(status().textContent).toBe("");
+      expect(ui.currentStatus()).not.toBe(plain);
+    });
+
+    it("is replaced, button and all, by the next status", async () => {
+      withAction();
+      await choose(fileOf("nope"));
+      expect(status().textContent).toBe(
+        "That file isn't a Miracle save state.",
+      );
+      expect(status().children).toHaveLength(0);
+      vi.advanceTimersByTime(10000);
+      expect(status().textContent).toBe("");
+    });
+
+    it("cancels the wait for the status before it", async () => {
+      await choose(fileOf("nope"));
+      vi.advanceTimersByTime(5000);
+      withAction();
+      vi.advanceTimersByTime(5000);
+      expect(status().textContent).toBe("Resumed");
+    });
   });
 
   it("does nothing when the chooser is cancelled", async () => {

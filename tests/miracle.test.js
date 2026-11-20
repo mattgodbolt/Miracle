@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SMS } from "../src/sms.js";
-import { miracle_init, start, stop } from "../src/miracle.js";
+import {
+  isRunning,
+  miracle_init,
+  onStopped,
+  start,
+  stop,
+} from "../src/miracle.js";
 import { buildSyntheticRom } from "./synthetic-rom.js";
 import { installFakeDom } from "./fake-dom.js";
 
@@ -44,6 +50,24 @@ describe("run loop", () => {
     const lines = linesRunIn(1000);
     expect(lines).toBeGreaterThan(0.8 * FramesPerSecond * LinesPerFrame);
     expect(lines).toBeLessThan(1.2 * FramesPerSecond * LinesPerFrame);
+  });
+
+  it("tells the stop listener when the machine stops, however it does", () => {
+    const stopped = vi.fn();
+    onStopped(stopped);
+    start();
+    vi.advanceTimersByTime(100);
+    expect(isRunning()).toBe(true);
+    expect(stopped).not.toHaveBeenCalled();
+    stop();
+    expect(isRunning()).toBe(false);
+    expect(stopped).toHaveBeenCalledTimes(1);
+    start();
+    sms.triggerBreakpoint();
+    vi.advanceTimersByTime(100);
+    expect(isRunning()).toBe(false);
+    expect(stopped).toHaveBeenCalledTimes(2);
+    onStopped(() => {});
   });
 
   it("keeps a single loop going when stopped and started again straight away", () => {

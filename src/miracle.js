@@ -18,6 +18,16 @@ const targetTimeout = 1000 / SMS.FRAMES_PER_SECOND;
 let adjustedTimeout = targetTimeout;
 let lastFrame = null;
 let runTimer = null;
+let stoppedListener = () => {};
+
+export function isRunning() {
+  return running;
+}
+
+// Called whenever the machine stops: by stop() or on hitting a breakpoint.
+export function onStopped(listener) {
+  stoppedListener = listener;
+}
 
 export function cycleCallback(tstates) {
   soundChip.polltime(tstates);
@@ -27,6 +37,7 @@ function line() {
   if (sms.runLine(cycleCallback)) {
     running = false;
     showDebug(sms.pc);
+    stoppedListener();
   }
 }
 
@@ -81,6 +92,7 @@ function run() {
 export function stop() {
   running = false;
   audio_enable(false);
+  stoppedListener();
 }
 
 let audioContext = null;

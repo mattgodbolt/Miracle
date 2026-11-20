@@ -10,3 +10,12 @@ export function hexword(value) {
     (value & 0xf).toString(16)
   );
 }
+
+// Merely reading `localStorage` throws when the browser blocks storage.
+export function readLocalStorage(key) {
+  try {
+    return localStorage[key];
+  } catch {
+    return undefined;
+  }
+}

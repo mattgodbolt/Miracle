@@ -9,11 +9,22 @@ import { vi } from "vitest";
 const makeElement = (id) => {
   const listeners = new Map();
   const classes = new Set();
+  const children = [];
+  let text = "";
   return {
     id,
     style: {},
     className: "",
-    textContent: "",
+    // Like the real thing, setting the text drops the element's children.
+    get textContent() {
+      return text;
+    },
+    set textContent(value) {
+      text = value;
+      children.length = 0;
+    },
+    children,
+    append: (...nodes) => children.push(...nodes),
     value: "",
     files: [],
     width: 256,

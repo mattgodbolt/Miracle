@@ -153,6 +153,26 @@ describe("SMS", () => {
     });
   });
 
+  it("counts whole frames run since the last reset, restore or ROM load", () => {
+    const machine = makeMachine(rom);
+    const { sms } = machine;
+    expect(sms.framesSinceRestart).toBe(0);
+    machine.runFrame();
+    machine.runLines(LinesPerFrame - 1);
+    machine.runLines(LinesPerFrame - 1);
+    expect(sms.framesSinceRestart).toBe(2);
+    const restarters = [
+      () => sms.reset(),
+      () => sms.restoreState(sms.snapshotState()),
+      () => sms.loadRom("again.sms", rom),
+    ];
+    for (const restart of restarters) {
+      machine.runFrame();
+      restart();
+      expect(sms.framesSinceRestart).toBe(0);
+    }
+  });
+
   it("round-trips a running machine into a fresh one, whatever line it is on", () => {
     const original = makeMachine(rom);
     for (let i = 0; i < 6; i++) original.runFrame();

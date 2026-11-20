@@ -1,6 +1,6 @@
 # Miracle Snapshot Format (Version 1)
 
-Miracle saves the machine's state as a JSON file with the extension `.json`: **Save as...** writes one and **Load from...** reads one. Small values stay readable JSON numbers and booleans; the byte arrays (RAM, VRAM, palette) are base64 strings of a fixed, known length. The code is in `src/snapshot.js` (the format and its validation) and `src/state-ui.js` (the buttons).
+Miracle saves the machine's state as a JSON file with the extension `.json`: **Save as...** writes one and **Load from...** reads one. Small values stay readable JSON numbers and booleans; the byte arrays (RAM, VRAM, palette) are base64 strings of a fixed, known length. The code is in `src/snapshot.js` (the format and its validation) and `src/state-ui.js` (the buttons). The same text is also kept in the browser's storage so that each game carries on where you left off; see [Browser storage](#browser-storage).
 
 A file is named `miracle-<ROM name>-<CRC-32>-<timestamp>.json`, for example `miracle-AlexKidd-1a2b3c4d-20261114T130500Z.json`. The name is only a convenience; it is never read back. The ROM part is the ROM's name with any directory (anything up to the last `/` or `\`) and its last extension removed, every run of characters outside `A-Za-z0-9._-` replaced by a single `_`, leading and trailing `.` and `_` trimmed, and the result cut to 40 characters; if nothing is left it is `rom`. The CRC-32 is 8 lower-case hex digits and the timestamp is the save time in UTC as `YYYYMMDDTHHMMSSZ`.
 
@@ -135,7 +135,7 @@ The checks run in this order, and the first failure is the one reported: size an
 
 `decode(input, { rom, pageMask })` returns just the state. `decodeSnapshot` takes the same arguments and returns `{ state, timestamp, rom }`, the state plus when it was saved and the ROM it was saved from; the UI uses it to report the time. `decode` also accepts an already-parsed object instead of text; the size limit applies to text only. A fallback turns any other error raised while checking (such as a hostile object with a throwing getter) into a `corrupt` `SnapshotError` with an empty path and the message `Corrupt state`, so no other kind of error escapes.
 
-The UI adds a few messages of its own, none of them a `SnapshotError`: `No ROM is loaded, so there is nothing to save.` (Save with no ROM), `Load a ROM before loading a state.` (Load with no ROM), `That file couldn't be read.` (the file could not be read), `Saved <file name>` and `Loaded state from <timestamp>`. A message is shown in a status line that clears itself after 10 seconds; a newer message restarts the wait. A leading UTF-8 byte order mark is not handled by `decode`: text that starts with one is refused as not JSON. The Load button reads the file with `File.text()`, which strips a leading byte order mark, so such a file loads normally from the UI.
+The UI adds a few messages of its own, none of them a `SnapshotError`: `No ROM is loaded, so there is nothing to save.` (Save with no ROM), `Load a ROM before loading a state.` (Load with no ROM), `That file couldn't be read.` (the file could not be read), `Saved <file name>` and `Loaded state from <timestamp>`. A message is shown in a status line that clears itself after 10 seconds; a newer message restarts the wait. A message that carries a button (the notices under [Browser storage](#browser-storage)) does not clear itself, so that the button stays until another message replaces it. A leading UTF-8 byte order mark is not handled by `decode`: text that starts with one is refused as not JSON. The Load button reads the file with `File.text()`, which strips a leading byte order mark, so such a file loads normally from the UI.
 
 The envelope's own fields (`timestamp`, `timing.*`, `rom.*`, `state`) are also checked, and are `corrupt` with their own path (for example `rom.crc32`) when missing or the wrong type.
 
@@ -171,5 +171,61 @@ Loading stops the machine, restores the state, starts it, and so a good file alw
 - **Sound is best-effort.** The sound chip only advances when it is rendered and the audio that was buffered is discarded, so the waveform's phase is not exact across a save. The registers, volumes and noise settings are.
 - **CPU, RAM, VRAM and video are exact**, which the tests check by running a restored machine alongside the original and comparing everything frame by frame.
 - **Narrow screens.** The menu is 800 px wide, so on a viewport narrower than that the right-hand buttons (Open ROM was already affected; Save as..., Load from... and About now are too) are cut off. This is a known limitation.
-- **Keyboard access.** While a game is running, Enter and Space are its fire keys, as before, so the Save as... and Load from... buttons can only be used with the mouse or touch unless the game is paused first (with the Pause button) or focus is moved. Keyboard access to the menu is a known limitation, deferred to a follow-up.
+- **Keyboard access.** While a game is running, Enter and Space are its fire keys, as before, so the Save as... and Load from... buttons, and the Start over button in the status line, can only be used with the mouse or touch unless the game is paused first (with the Pause button) or focus is moved. Keyboard access to the menu is a known limitation, deferred to a follow-up (issue #94).
 - Cartridge RAM is part of the state, but this is a snapshot of the whole machine at one instant, not a game's own battery save, and it will not load into a different ROM.
+
+## Browser storage
+
+Besides the file, Miracle keeps each game's latest state in the browser's `localStorage`, so that opening the same game again carries on where you left off. It is the same envelope as the file, written with the same `encode` and `stringify` and read back with the same `decodeSnapshot`, so everything above (the fields, the validation, the messages) applies to a stored entry exactly as it does to a file. The code is in `src/state-store.js` (the storage), `src/autosave.js` (when to save and resume) and the small changes to `src/main.js` and `src/miracle.js` that call them.
+
+### Keys
+
+| Key                            | Holds                         |
+| ------------------------------ | ----------------------------- |
+| `miracle.state.<crc32>-<size>` | The latest state for that ROM |
+
+`<crc32>` is the ROM's CRC-32 as 8 lower-case hex digits and `<size>` its size in bytes (the [ROM identity](#rom-identity)), for example `miracle.state.1a2b3c4d-131072`. The `miracle.` prefix keeps these apart from the other keys the page uses. The ROM's name is not part of the key, so the same game opened from the list, from the Open ROM button or from a `?b64sms=` link shares one entry, and two ROMs that differ in either number never share one. A ROM with and without a copier header counts as two.
+
+### Size
+
+An entry is about 34 KB of text (34,811 characters for the AlexKidd ROM after 700 frames), and about 78 KB if the game uses its cartridge RAM. `localStorage` limits are typically 5 to 10 MB per site, counted in characters or in bytes at two per character, so each game takes roughly 35 to 80 KB and a few dozen games fit. The text is stored as `stringify` writes it, with indentation, rather than as compact JSON: compact JSON was measured at 33,885 characters, only 2.7 percent smaller, because nearly all of the size is base64, and keeping the text identical to a file means a stored entry can be saved to a file and loaded. There is no compression, for the reasons given in the design (issue #2): the saving is small against the quota and the browser's compression API is asynchronous, while a save on page close has to be synchronous. Building and writing an entry takes a few milliseconds.
+
+### When progress is saved
+
+| Trigger                                      | Notes                                                                                               |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| The machine stops                            | The Pause button, a breakpoint or the debugger's stop, and the stop that begins any load of a state |
+| The page becomes hidden (`visibilitychange`) | Switching tab or minimising                                                                         |
+| `pagehide`                                   | Closing or leaving the page                                                                         |
+| Just before a ROM is replaced                | Saved under the old ROM's identity, before the machine is reset and the new ROM is loaded           |
+| Every 30 seconds                             | Only while the page is visible and the machine is running                                           |
+
+Every save is synchronous (`localStorage.setItem`), because a `pagehide` handler cannot wait for anything. Nothing is saved when no ROM is loaded, or until at least 50 frames (about one second) have run since the machine was last reset, had a state restored (by resuming or by Load from...) or was given a ROM. So reloading the page, choosing Start over or loading a file and leaving at once never replaces good progress with an almost empty one. Saving only reads the machine's state; it never changes it.
+
+### Resuming
+
+When a ROM has been loaded, by whichever route (the page's default, `?load=`, `?b64sms=`, the list or the Open ROM button), its entry is looked up. If there is one, it is validated with `decodeSnapshot` against the loaded ROM, as a file is, and then restored by the same code that Load from... uses (`applyState` in `src/state-ui.js`): stop, restore, merge in the keys and gamepad buttons now held, start. The status line then reads `Resumed from <date and time> [Start over]`, with the time the entry was saved, in the browser's local format. It stays until another message replaces it. When a ROM is replaced, the notice is taken down, but a different message that has replaced it (such as `Saved ...` or `Loaded state from ...`) is left alone.
+
+Nothing in saving or resuming throws. An entry that fails validation (not JSON, over 1 MiB, wrong ROM size or CRC, wrong timing, a field that is missing or out of range), or that makes restoring throw for any other reason, is removed, and the status line says `Saved progress for this game was damaged, so it was discarded.` once (`Saved progress for this game was damaged, and this browser would not let it be discarded.` if the removal itself fails). If the failure came from the restore itself the machine may be half restored, so it is hard reset; a validation failure happens before the machine is touched, so it is not reset, and either way the ROM boots normally.
+
+An entry from a newer version of Miracle is neither used nor removed, and autosave is switched off for that ROM until the ROM is changed, so nothing overwrites it. The status line reads `Saved by a newer Miracle (v2). Autosave is off for this game so it is not overwritten.` (with the entry's own version). Loading a file, Save as... and every other part of the page work as usual, and other ROMs autosave as usual.
+
+### Start over
+
+Start over resets the machine, as the Reset button does, and deletes the ROM's entry. It does not save anything first. The status line then reads `Started over.` If the browser refuses to remove the entry, it reads `Started over, but this browser would not let the saved progress go, so it may come back next time.` (as an error), because reopening the game would then resume the old progress. The Reset button itself is unchanged: it resets the machine and nothing else, and the next autosave overwrites the entry as any other would.
+
+### When storage is unavailable
+
+Storage can be blocked (privacy settings, a sandboxed frame; merely reading `window.localStorage` can throw), can be full, or can fail in other ways. `StateStore` takes a function that returns the storage and calls it inside a `try` every time, and never throws: a method that cannot do its job returns `{ ok: false, reason }` with `full`, `unavailable` or `failed`, and a slot that cannot be read reads as empty. The emulator carries on regardless. The first failed save shows `Couldn't save progress in this browser: its storage is full.` (or `storage is unavailable.`, or just `Couldn't save progress in this browser.`) in the status line, and no further failure is shown for the rest of the page's life, so the 30 second saves never nag.
+
+A failed save leaves the old entry exactly as it was. If the Resumed notice is showing when the failure is reported, the message is shown beside it, in the same line, and the Start over button stays. If the failure is the message showing when the next Resumed notice appears (a ROM switch whose save failed), the failure is shown beside that notice too. A failure that something else has already replaced, or whose own ten second timeout has cleared it, is not shown again. With storage blocked, resuming simply boots the ROM normally.
+
+### Privacy
+
+States stay in this browser: nothing is sent anywhere. They do not contain the ROM, only its name, size and CRC-32, and the machine's memory and registers, which for a game is its screen and whatever it keeps in RAM. They persist until removed, so on a shared computer anyone who opens the same page in the same browser profile resumes your game.
+
+To clear them, use the browser's "clear site data" for the page, or delete the keys that start with `miracle.state.` in the developer tools (Application or Storage, then Local Storage).
+
+### Two tabs
+
+Last writer wins. If the same game is open in two tabs, each saves to the same entry on its own schedule, and whichever saved last is what the next open resumes. The 30 second save only runs in a visible tab, which keeps a tab left in the background from overwriting the one being played, but there is no locking and the page does not listen to the `storage` event, so a tab does not notice that another has saved. A tab opened later starts from the entry as it was when it opened.

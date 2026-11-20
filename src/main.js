@@ -9,10 +9,15 @@ import {
   audio_enable,
   cycleCallback,
   updateJoystick,
+  isRunning,
+  onStopped,
 } from "./miracle";
 import { initStateUi } from "./state-ui";
+import { initAutosave } from "./autosave";
+import { readLocalStorage } from "./utils";
 
 const sms = new SMS();
+let autosave;
 import { step, stepOver, stepOut, debug_init } from "./debug";
 
 function loadRomData(name) {
@@ -55,8 +60,7 @@ function sanitizeRomName(name) {
 }
 
 function resetLoadAndStart(filename, romdata, urlParams) {
-  miracle_reset();
-  sms.loadRom(filename, romdata, onRomLoaded);
+  autosave.switchRom(() => sms.loadRom(filename, romdata, onRomLoaded));
   hideRomChooser();
   start();
   updateUrl(urlParams ?? { load: filename });
@@ -169,7 +173,18 @@ function go() {
   z80_init();
   miracle_init(sms);
   miracle_reset();
-  initStateUi({ sms, start, stop, updateJoystick });
+  const stateUi = initStateUi({ sms, start, stop, updateJoystick });
+  autosave = initAutosave({
+    sms,
+    start,
+    stop,
+    updateJoystick,
+    hardReset: miracle_reset,
+    setStatus: stateUi.setStatus,
+    currentStatus: stateUi.currentStatus,
+    isRunning,
+    onStopped,
+  });
 
   const parsedQuery = parseQuery();
   if (parsedQuery["b64sms"]) {
@@ -190,14 +205,13 @@ function go() {
     const defaultRom = getDefaultRom();
     sms.loadRom(defaultRom, loadRomData(defaultRom), onRomLoaded);
   }
+  autosave.resume();
 
   start();
 }
 
 function getDefaultRom() {
-  if (typeof localStorage !== "undefined" && localStorage.rom)
-    return localStorage.rom;
-  return "SonicTheHedgehog.sms";
+  return readLocalStorage("rom") || "SonicTheHedgehog.sms";
 }
 
 function showRomChooser() {
